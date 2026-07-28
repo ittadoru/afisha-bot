@@ -87,19 +87,19 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] C4 context/container diagrams.
 - [x] Модульные границы, публичные порты и dependency rules.
 - [x] Permission catalogue для `moderator`/`admin`, admin adapter и будущего расширения ролей.
-- [ ] ER/data model с final event snapshot, normalized participation outcomes, delete/archive/versioning/retention semantics.
-- [ ] Полные state machines:
-  - [ ] LookingPost;
-  - [ ] Event lifecycle + moderation visibility;
-  - [ ] Interest, participation, waitlist entry/offer;
-  - [ ] Participation lifecycle без confirmation;
-  - [ ] Attendance code redemption/decision/dispute — обязательный автомат MVP;
-  - [ ] Challenge — отложенный автомат;
-  - [ ] Moderation report;
-  - [ ] Telegram notification delivery.
-- [ ] Для каждого перехода: actor, guard, forbidden transitions, side effects, audit event, recovery.
-- [ ] Для каждого продуктового сценария: analytics contract, schema version, source, outcome/reason, retention class, data owner и quality checks.
-- [ ] Compaction/cleanup flow: final-state guard, dispute/legal hold, aggregate update, media lifecycle deletion, idempotency и reconciliation.
+- [x] ER/data model с final event snapshot, normalized participation outcomes, delete/archive/versioning/retention semantics.
+- [x] Полные state machines:
+  - [x] LookingPost;
+  - [x] Event lifecycle + moderation visibility;
+  - [x] Interest, participation, waitlist entry/offer;
+  - [x] Participation lifecycle без confirmation;
+  - [x] Attendance code redemption/decision/dispute — обязательный автомат MVP;
+  - [x] Challenge — отложенный автомат;
+  - [x] Moderation report;
+  - [x] Telegram notification delivery.
+- [x] Для каждого перехода: actor, guard, forbidden transitions, side effects, audit event, recovery.
+- [x] Для каждого продуктового сценария: analytics contract, schema version, source, outcome/reason, retention class, data owner и quality checks.
+- [x] Compaction/cleanup flow: final-state guard, dispute/legal hold, aggregate update, media lifecycle deletion, idempotency и reconciliation.
 - [ ] API contracts, error model, idempotency and authorization matrix.
 - [ ] Domain event catalogue с producer/consumer/payload/schema version/order/dedup/retry/replay.
 - [ ] Transactional outbox/inbox design и reconciliation jobs.

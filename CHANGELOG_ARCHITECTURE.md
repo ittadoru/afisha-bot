@@ -2,6 +2,30 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.4: data model, state machines, retention и compaction
+
+### Принято
+
+- Утверждены логическая ER-модель и schema ownership семи доменных модулей,
+  canonical final Event snapshot и normalized ParticipationOutcome.
+- Зафиксированы lifecycle, moderation visibility, participation/waitlist,
+  attendance, moderation report и notification delivery автоматы; Challenge
+  нормативно оставлен deferred до решения `Q-019`.
+- Каждый переход имеет actor, guard, forbidden semantics, side effects/audit и
+  recovery; PostgreSQL остаётся единственным authority для переходов.
+- Приняты раздельные retention classes, account anonymization и идемпотентный
+  compaction с final-state, dispute/legal-hold и reconciliation guards.
+- Утверждён минимальный analytics/quality contract без фиксации production
+  event payloads или закрытых policy values.
+
+### Изменения системы
+
+- Документы `docs/g4/04-data-model-retention-compaction.md` и
+  `docs/g4/04-state-machines.md` переведены из `DRAFT` в `ACCEPTED`.
+- Связанные ER, state-machine, transition, analytics и compaction пункты в
+  `IMPLEMENTATION_PLAN.md` отмечены завершёнными.
+- Production-код, HTTP API schemas и domain-event payloads не создавались.
+
 ## 2026-07-29 — принят G4.3 permission catalogue
 
 ### Принято

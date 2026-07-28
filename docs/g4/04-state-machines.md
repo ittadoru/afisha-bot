@@ -2,7 +2,7 @@
 
 ## Статус и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED — подтверждено владельцем 2026-07-29`
 - Связанный документ:
   [G4.4A — data model, retention и compaction](04-data-model-retention-compaction.md)
 
