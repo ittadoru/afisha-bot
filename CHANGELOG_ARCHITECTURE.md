@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.3 permission catalogue
+
+### Принято
+
+- Утверждены 45 exact permissions для `moderator`/`admin`, versioned role
+  templates, explicit grants/revokes и default-deny evaluation.
+- Staff identity, password authentication и sessions полностью отделены от
+  пользовательской Telegram identity.
+- Зафиксированы scopes `self/case/city_set/global`, object/state guards,
+  separation of duties и отсутствие wildcard/admin bypass.
+- Опасные действия требуют связанного с session/action re-auth proof и
+  append-only privileged audit; moderator ограничен обратимыми мерами.
+- Admin adapter вызывает только public owner ports, а service principals и
+  operations bot не получают staff permissions.
+
+### Изменения системы
+
+- Документ `docs/g4/03-permission-catalogue.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Permission-catalogue пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production-код, ER-модель, state machines и API-контракты не изменялись.
+
 ## 2026-07-29 — принят G4.2: модульные границы и public ports
 
 ### Принято

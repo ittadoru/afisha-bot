@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Владелец staff identity, permissions и privileged audit: `trust_safety`
 
@@ -437,7 +437,7 @@ weights или полный dead-letter payload.
 
 ## Acceptance checklist
 
-- [x] Статус остаётся `DRAFT` до отдельного owner review.
+- [x] Статус переведён в `ACCEPTED` после отдельного owner review.
 - [x] Роли `moderator`/`admin` являются templates, а use cases проверяют exact
       permission.
 - [x] Зафиксированы default deny, explicit grants/revokes и отсутствие wildcard.
@@ -455,4 +455,5 @@ weights или полный dead-letter payload.
 - [x] Operations bot не выполняет admin commands.
 - [x] Все ключевые правила имеют traceability к конкретным PD/ADR.
 - [x] Не созданы ER-модель, state machines, HTTP API или production-код.
-- [x] G4.3 checkbox и changelog принятия не изменены.
+- [x] G4.3 checkbox и changelog принятия не изменялись до отдельного
+      подтверждения владельца.
