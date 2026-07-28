@@ -1,0 +1,18 @@
+flowchart TB
+    U["Leading owner use case"] --> TX["One PostgreSQL transaction<br/>owner state + immutable fact"]
+    TX --> O["Logical outbox record"]
+    O --> D["Transport-neutral dispatcher"]
+    D --> C["Named consumer adapter"]
+    C --> V["Validate envelope + supported payload schema"]
+    V --> G["Inbox dedup + ordering/current-state guard"]
+    G --> CTX["Consumer-local transaction<br/>reaction + inbox receipt"]
+
+    D -. "transient failure" .-> R["Bounded retry<br/>policy class + jitter + expiry"]
+    R --> D
+    V -. "unknown/incompatible" .-> DL["Observable dead-letter"]
+    G -. "gap/conflict/terminal failure" .-> DL
+    R -. "attempts exhausted while relevant" .-> DL
+    DL -. "authorized replay<br/>same fact_id and payload" .-> D
+
+    TX -. "business correction" .-> CF["New compensating fact<br/>new fact_id, causation=original"]
+    CF --> O
