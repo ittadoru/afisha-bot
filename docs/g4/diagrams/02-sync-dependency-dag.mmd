@@ -1,0 +1,21 @@
+flowchart LR
+    communication["communication"]
+    events["events"]
+    discovery["discovery"]
+    accounts["accounts"]
+    reputation["reputation<br/>нет исходящих sync dependencies"]
+    media["media<br/>нет исходящих sync dependencies"]
+    trust_safety["trust_safety<br/>нет исходящих sync dependencies"]
+
+    communication -->|"account/preferences queries"| accounts
+    communication -->|"event и chat-access queries"| events
+    communication -->|"current safety guard"| trust_safety
+
+    events -->|"catalog/location queries"| discovery
+    events -->|"media readiness queries"| media
+    events -->|"eligibility decision"| trust_safety
+
+    discovery -->|"media readiness queries"| media
+    discovery -->|"eligibility decision"| trust_safety
+
+    accounts -->|"current safety guard"| trust_safety

@@ -1,0 +1,47 @@
+flowchart TB
+    subgraph entry["Delivery и process adapters"]
+        public_api["Public Web / Mini App API"]
+        admin_adapter["Закрытый admin adapter"]
+        async_adapter["Webhook / Celery worker / Beat adapters"]
+    end
+
+    subgraph backend["Afisha modular monolith"]
+        ports["Public application ports<br/>typed commands, queries и results"]
+
+        subgraph modules["Доменные модули и принадлежащие им PostgreSQL schemas"]
+            direction LR
+            accounts["accounts<br/>identity, profile, privacy, preferences"]
+            discovery["discovery<br/>catalog, map/search projections, LookingPost"]
+            events["events<br/>events, participation, waitlist, attendance"]
+            communication["communication<br/>chat, announcements, notifications"]
+            trust_safety["trust_safety<br/>safety, moderation, staff access, audit"]
+            reputation["reputation<br/>signals, projections, policy adapter"]
+            media["media<br/>upload, processing, metadata, lifecycle"]
+        end
+
+        facts["Versioned domain facts<br/>PostgreSQL outbox/inbox"]
+        shared["Shared kernel<br/>только IDs, time, errors, event envelope, transactions"]
+    end
+
+    analytics["Технический analytics consumer<br/>read-only aggregates"]
+
+    public_api --> ports
+    admin_adapter -->|"staff access сначала через trust_safety"| ports
+    async_adapter --> ports
+
+    ports --> accounts
+    ports --> discovery
+    ports --> events
+    ports --> communication
+    ports --> trust_safety
+    ports --> reputation
+    ports --> media
+
+    accounts -.-> facts
+    discovery -.-> facts
+    events -.-> facts
+    communication -.-> facts
+    trust_safety -.-> facts
+    reputation -.-> facts
+    media -.-> facts
+    facts -.->|"без command authority"| analytics
