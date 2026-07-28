@@ -1,0 +1,36 @@
+name: Test and lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Скачать репозиторий
+        uses: actions/checkout@v4
+
+      - name: Установить uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Установить Python
+        run: uv python install 3.14
+
+      - name: Установить зависимости
+        run: uv sync --locked --dev
+
+      - name: Проверить стиль
+        run: uv run ruff check .
+
+      - name: Проверить форматирование
+        run: uv run ruff format --check .
+
+      - name: Проверить типы
+        run: uv run pyright
+
+      - name: Запустить тесты
+        run: uv run pytest
