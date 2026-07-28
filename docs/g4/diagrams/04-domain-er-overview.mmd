@@ -1,0 +1,23 @@
+flowchart TB
+    subgraph schemas["PostgreSQL domain schemas"]
+        accounts["accounts<br/>User, Identity, Profile,<br/>Preference, Session"]
+        discovery["discovery<br/>City, Street, Category,<br/>LookingPost, Conversion, projections"]
+        events["events<br/>Event, Revision, Interest, Participation,<br/>Waitlist, Attendance, Outcome, Rating"]
+        communication["communication<br/>ChatMessage, Announcement,<br/>Notification, Delivery, Reminder"]
+        trust["trust_safety<br/>ModerationCase, Decision, Appeal, Restriction,<br/>Staff, AuthorizationDecision, PrivilegedAudit"]
+        reputation["reputation<br/>Signal, Projection,<br/>PolicyActivation"]
+        media["media<br/>Attachment, Variant,<br/>storage lifecycle"]
+    end
+
+    boundary["Cross-module boundary<br/>internal IDs + aggregate versions + versioned facts<br/>no cross-schema FK, JOIN or ORM relation"]
+    technical["Owner-local technical records<br/>OutboxFact, InboxReceipt,<br/>IdempotencyRecord, CompactionRecord"]
+
+    accounts -->|"user/profile IDs and facts"| boundary
+    discovery -->|"catalog/LookingPost IDs and facts"| boundary
+    events -->|"event/outcome IDs and facts"| boundary
+    communication -->|"notification/delivery facts"| boundary
+    trust -->|"safety/staff decision facts"| boundary
+    reputation -->|"safe projection facts"| boundary
+    media -->|"attachment IDs/readiness facts"| boundary
+
+    boundary --> technical

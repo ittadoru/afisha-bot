@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> NOT_EVALUATED
+    NOT_EVALUATED --> FINAL_ATTENDED: valid code redeemed
+    NOT_EVALUATED --> PROVISIONAL_NO_SHOW: event ended without valid code
+    PROVISIONAL_NO_SHOW --> DISPUTED: user disputes within 24h
+    PROVISIONAL_NO_SHOW --> FINAL_NO_SHOW: dispute window expires
+    DISPUTED --> FINAL_ATTENDED: moderator decision
+    DISPUTED --> FINAL_NEUTRAL: moderator decision
+    DISPUTED --> FINAL_NO_SHOW: moderator decision
+    FINAL_ATTENDED --> [*]
+    FINAL_NEUTRAL --> [*]
+    FINAL_NO_SHOW --> [*]

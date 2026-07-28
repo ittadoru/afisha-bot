@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> OPEN
+    OPEN --> TRIAGED: severity assigned
+    TRIAGED --> IN_REVIEW: reviewer assigned
+    TRIAGED --> CONTAINED: reversible emergency measure
+    CONTAINED --> IN_REVIEW: investigation continues
+    IN_REVIEW --> UPHELD_APPEALABLE: violation confirmed
+    IN_REVIEW --> DISMISSED: not confirmed
+    UPHELD_APPEALABLE --> APPEAL_PENDING: appeal within 7d
+    UPHELD_APPEALABLE --> FINAL_UPHELD: 7d expires
+    APPEAL_PENDING --> FINAL_UPHELD: appeal denied
+    APPEAL_PENDING --> REVERSED: appeal accepted
+    DISMISSED --> [*]
+    FINAL_UPHELD --> [*]
+    REVERSED --> [*]

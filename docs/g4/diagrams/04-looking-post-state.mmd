@@ -1,0 +1,25 @@
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> ACTIVE: publish
+    DRAFT --> REMOVED: delete draft
+
+    ACTIVE --> ACTIVE: edit before expiry
+    ACTIVE --> CONVERSION_PENDING: reserve one conversion
+    ACTIVE --> EXPIRED: expires_at reached
+    ACTIVE --> REMOVED: author removes
+    ACTIVE --> BLOCKED: safety decision
+
+    CONVERSION_PENDING --> CONVERSION_PENDING: idempotent retry/reconcile
+    CONVERSION_PENDING --> CONVERTED: event_id linked
+    CONVERSION_PENDING --> ACTIVE: terminal creation failure released
+    CONVERSION_PENDING --> BLOCKED: safety decision
+
+    DRAFT --> BLOCKED: safety decision
+    BLOCKED --> DRAFT: successful appeal before publish
+    BLOCKED --> ACTIVE: successful appeal and still current
+    BLOCKED --> EXPIRED: successful appeal after expiry
+
+    CONVERTED --> [*]
+    EXPIRED --> [*]
+    REMOVED --> [*]
+    BLOCKED --> [*]: appeal window/final retention

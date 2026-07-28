@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> PLANNED
+    PLANNED --> READY: due and still current
+    PLANNED --> SKIPPED: stale/cancelled
+    READY --> DELIVERING: worker lease
+    READY --> EXPIRED: expires_at reached
+    DELIVERING --> DELIVERED: provider accepted
+    DELIVERING --> RETRY_WAIT: retryable failure
+    DELIVERING --> DEAD_LETTER: terminal/exhausted failure
+    RETRY_WAIT --> READY: backoff elapsed and current
+    RETRY_WAIT --> EXPIRED: expires_at reached
+    DEAD_LETTER --> READY: admin retry after current-state check
+    DELIVERED --> [*]
+    EXPIRED --> [*]
+    SKIPPED --> [*]

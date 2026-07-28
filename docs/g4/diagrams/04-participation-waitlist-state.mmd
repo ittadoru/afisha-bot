@@ -1,0 +1,37 @@
+stateDiagram-v2
+    state "Interest" as interest {
+        [*] --> ACTIVE_INTEREST
+        ACTIVE_INTEREST --> REMOVED_INTEREST: unlike before start
+        ACTIVE_INTEREST --> HISTORICAL_INTEREST: event starts
+        ACTIVE_INTEREST --> HISTORICAL_INTEREST: event cancels
+        REMOVED_INTEREST --> [*]
+        HISTORICAL_INTEREST --> [*]
+    }
+
+    state "Participation episode" as participation {
+        [*] --> JOINED
+        JOINED --> LEFT: voluntary leave
+        JOINED --> EXCLUDED: organizer/moderator exclusion
+        JOINED --> EVENT_CANCELLED: event cancelled
+        JOINED --> ACTIVE_AT_START: event starts
+        ACTIVE_AT_START --> FINISHED: event ends
+        ACTIVE_AT_START --> EVENT_CANCELLED: event cancelled
+        LEFT --> [*]
+        EXCLUDED --> [*]
+        EVENT_CANCELLED --> [*]
+        FINISHED --> [*]
+    }
+
+    state "Waitlist entry" as waitlist {
+        [*] --> WAITING
+        WAITING --> OFFER_ACTIVE: capacity reserved
+        WAITING --> LEFT_QUEUE: user leaves
+        WAITING --> QUEUE_CLOSED: event starts/cancels
+        OFFER_ACTIVE --> JOINED_EVENT: offer accepted
+        OFFER_ACTIVE --> OFFER_EXPIRED: offer expires/declined
+        OFFER_ACTIVE --> QUEUE_CLOSED: event starts/cancels
+        JOINED_EVENT --> [*]
+        OFFER_EXPIRED --> [*]
+        LEFT_QUEUE --> [*]
+        QUEUE_CLOSED --> [*]
+    }
