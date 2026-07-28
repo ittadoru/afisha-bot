@@ -1,0 +1,17 @@
+flowchart TB
+    C["Client or provider"] --> E["Reverse Proxy<br/>public edge"]
+    E --> R["HTTP adapter<br/>route + strict DTO"]
+    R --> S["Request security<br/>origin, CSRF, replay, rate/file/page limits"]
+    S --> I["Identity resolver<br/>anonymous, user, staff or service"]
+    I --> A["Authorization<br/>permission + scope + object/state guards"]
+    A --> P["One public application port"]
+    P --> T["Owner PostgreSQL transaction<br/>state + outbox"]
+    T --> M["Safe result/error mapper"]
+    M --> C
+
+    R -. "invalid shape" .-> X["Typed safe error"]
+    S -. "blocked or unavailable guard" .-> X
+    I -. "invalid/expired credential" .-> X
+    A -. "default deny" .-> X
+    P -. "domain/conflict/dependency error" .-> X
+    X --> M

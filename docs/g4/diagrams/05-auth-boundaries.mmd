@@ -1,0 +1,23 @@
+flowchart TB
+    AN["Anonymous browser"] --> PUB["Public read adapter"]
+    WEB["Public Web<br/>Telegram OIDC + PKCE"] --> WS["Website user-session adapter"]
+    MINI["Telegram Mini App<br/>verified initData"] --> MS["Mini App user-session adapter"]
+    ADMIN["Admin browser<br/>staff password + re-auth"] --> AS["Separate admin-session adapter"]
+    TG["Telegram Platform<br/>secret header + update dedup"] --> WH["User-bot webhook adapter"]
+
+    PUB --> AC0["AnonymousActor"]
+    WS --> AC1["UserActor<br/>internal user_id"]
+    MS --> AC1
+    AS --> AC2["StaffActor<br/>staff_id + permission version"]
+    WH --> AC3["TelegramServiceActor"]
+
+    AC0 --> API["Public application ports"]
+    AC1 --> API
+    AC2 --> ADM["Admin adapter<br/>exact permission + scope"]
+    AC3 --> BOT["Narrow webhook entry ports"]
+
+    API --> OWN["Seven owner modules"]
+    ADM --> OWN
+    BOT --> OWN
+
+    AC1 -. "never becomes staff identity" .- AC2
