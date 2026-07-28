@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.1 C4 System Context и Container
+
+### Принято
+
+- Архитектурные границы Afisha зафиксированы на уровнях C4 System Context и
+  Container для MVP/alpha на одном физическом сервере.
+- Public Web, Telegram Mini App и Admin Frontend являются отдельными containers
+  с разными runtime/authentication boundaries.
+- Reverse Proxy остаётся единственной публичной точкой входа; PostgreSQL/PostGIS,
+  Redis, media storage и Nominatim находятся во внутренних защищённых зонах.
+- Браузер получает только публичные style/vector tiles напрямую от OpenFreeMap;
+  event payload, приватный контент и координаты событий провайдеру не передаются.
+- Пользовательский и operations bots разделены по credentials и сценариям, а
+  внешние backups покидают первый физический сервер только в зашифрованном виде.
+
+### Изменения системы
+
+- Документ `docs/g4/01-c4-context-containers.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Пункт C4 в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production-код, ER-модель, API-контракты и state machines не изменялись.
+
 ## 2026-07-28 — завершён полный аудит ADR-000, ADR-001 и ADR-010…ADR-020
 
 ### Принято

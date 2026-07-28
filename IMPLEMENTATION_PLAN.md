@@ -84,7 +84,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 
 После G3 подготовить, но ещё не реализовывать:
 
-- [ ] C4 context/container diagrams.
+- [x] C4 context/container diagrams.
 - [ ] Модульные границы, публичные порты и dependency rules.
 - [ ] Permission catalogue для `moderator`/`admin`, admin adapter и будущего расширения ролей.
 - [ ] ER/data model с final event snapshot, normalized participation outcomes, delete/archive/versioning/retention semantics.
