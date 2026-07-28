@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.5: API contracts и request security
+
+### Принято
+
+- Утверждены логические public/user/admin/webhook route families и их mapping на
+  public application ports без создания production OpenAPI или FastAPI-кода.
+- Зафиксированы единый safe error envelope, stable error codes, cursor
+  pagination, optimistic concurrency и обязательная idempotency mutations.
+- Разделены anonymous, Website, Mini App, admin и Telegram webhook identity,
+  session, CSRF/origin/replay и cache boundaries.
+- Все 45 staff permissions сопоставлены admin route/protocol families с
+  re-auth, scope, object/state guards и audit requirements.
+- Exact location, safety и chat access работают fail-closed; user-bot webhook
+  изолирован от operations bot.
+
+### Изменения системы
+
+- Документ `docs/g4/05-api-contracts-and-request-security.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Пункт API contracts/error/idempotency/authorization matrix в
+  `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production-код, OpenAPI и domain-event payload schemas не создавались.
+
 ## 2026-07-29 — принят G4.4: data model, state machines, retention и compaction
 
 ### Принято

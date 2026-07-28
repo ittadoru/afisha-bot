@@ -100,7 +100,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Для каждого перехода: actor, guard, forbidden transitions, side effects, audit event, recovery.
 - [x] Для каждого продуктового сценария: analytics contract, schema version, source, outcome/reason, retention class, data owner и quality checks.
 - [x] Compaction/cleanup flow: final-state guard, dispute/legal hold, aggregate update, media lifecycle deletion, idempotency и reconciliation.
-- [ ] API contracts, error model, idempotency and authorization matrix.
+- [x] API contracts, error model, idempotency and authorization matrix.
 - [ ] Domain event catalogue с producer/consumer/payload/schema version/order/dedup/retry/replay.
 - [ ] Transactional outbox/inbox design и reconciliation jobs.
 - [ ] Dead-letter admin view, permission `ops_alerts.receive`, отдельный operations bot, safe alert DTO и expiry/retry policy.
