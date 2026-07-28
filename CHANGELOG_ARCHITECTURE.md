@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.2: модульные границы и public ports
+
+### Принято
+
+- Зафиксированы семь доменных модулей, их PostgreSQL schema ownership и единый
+  минимальный каркас `public/application/domain/infrastructure/adapters`.
+- Утверждён строгий ациклический граф синхронных межмодульных зависимостей;
+  обратные реакции выполняются через versioned facts и идемпотентный inbox.
+- `trust_safety` выдаёт единый итоговый safety decision, `admin` остаётся
+  adapter, а analytics consumer не получает command authority.
+- Каталогизированы внешние и межмодульные capability ports, правила read
+  composition, shared kernel, owner transactions и fail-closed safety.
+- Нормативный Markdown содержит текстовые альтернативы, а два отдельных Mermaid
+  source-файла совпадают со встроенными диаграммами.
+
+### Изменения системы
+
+- Документ `docs/g4/02-module-boundaries-and-public-ports.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Пункт модульных границ в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production-код, permission catalogue, ER-модель и state machines не
+  изменялись.
+
 ## 2026-07-29 — принят G4.1 C4 System Context и Container
 
 ### Принято

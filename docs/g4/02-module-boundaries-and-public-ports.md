@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha, модульный монолит
 - Уровень: логические component boundaries внутри Backend API, Worker и Beat
 
@@ -482,21 +482,22 @@ Owner transaction и outbox остаются committed. Worker позже пов
 
 ## Acceptance checklist
 
-- [ ] Статус остаётся `DRAFT` до отдельного owner review.
-- [ ] Показаны ровно семь domain modules; admin и analytics не являются модулями.
-- [ ] Для каждого модуля зафиксированы owned state и отрицательные границы.
-- [ ] Описан единый минимальный внутренний каркас.
-- [ ] Все adapter и межмодульные capability ports имеют caller, typed I/O,
+- [x] Статус переведён в `ACCEPTED` после отдельного owner review.
+- [x] Показаны ровно семь domain modules; admin и analytics не являются модулями.
+- [x] Для каждого модуля зафиксированы owned state и отрицательные границы.
+- [x] Описан единый минимальный внутренний каркас.
+- [x] Все adapter и межмодульные capability ports имеют caller, typed I/O,
       errors, consistency/idempotency, authorization и side effects.
-- [ ] Нормативная sync-матрица совпадает с Mermaid DAG и не содержит циклов.
-- [ ] `trust_safety` выдаёт единый safety decision без sync-вызова reputation.
-- [ ] Chat access проверяется синхронно через `events`.
-- [ ] Cross-schema JOIN, foreign ORM и domain rules в shared kernel запрещены.
-- [ ] Описаны producer/consumer/direction всех требуемых семейств facts.
-- [ ] Обе диаграммы имеют текстовую альтернативу.
-- [ ] Встроенный Mermaid совпадает с отдельными `.mmd` и рендерится в светлой и
+- [x] Нормативная sync-матрица совпадает с Mermaid DAG и не содержит циклов.
+- [x] `trust_safety` выдаёт единый safety decision без sync-вызова reputation.
+- [x] Chat access проверяется синхронно через `events`.
+- [x] Cross-schema JOIN, foreign ORM и domain rules в shared kernel запрещены.
+- [x] Описаны producer/consumer/direction всех требуемых семейств facts.
+- [x] Обе диаграммы имеют текстовую альтернативу.
+- [x] Встроенный Mermaid совпадает с отдельными `.mmd` и рендерится в светлой и
       тёмной теме.
-- [ ] Каждое ключевое правило связано с конкретным PD/ADR.
-- [ ] Нет secrets, PII, production domains, скрытых weights или anti-fraud rules.
-- [ ] Не созданы ER-модель, state machines, HTTP API или production-код.
-- [ ] G4.2 checkbox и changelog принятия не изменены.
+- [x] Каждое ключевое правило связано с конкретным PD/ADR.
+- [x] Нет secrets, PII, production domains, скрытых weights или anti-fraud rules.
+- [x] Не созданы ER-модель, state machines, HTTP API или production-код.
+- [x] G4.2 checkbox и changelog принятия не изменялись до отдельного
+      подтверждения владельца.
