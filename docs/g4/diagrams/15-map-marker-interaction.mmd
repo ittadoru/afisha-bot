@@ -1,0 +1,13 @@
+flowchart LR
+    P["Caller-safe discovery projection"] --> T{"Marker kind"}
+    T -->|"APPROXIMATE_STREET"| A["Triangle marker<br/>street + safe count"]
+    T -->|"EXACT"| E["Rounded pin<br/>authorized exact label"]
+    A --> L["Always-visible text legend"]
+    E --> L
+    A --> S["Street results panel<br/>no route action"]
+    E --> C["Exact event card"]
+    S --> R["Accessible result list<br/>same safe events as map"]
+    C --> R
+    K["Keyboard / touch / screen reader"] --> A
+    K --> E
+    H["Hidden exact coordinates"] -. "Absent from DTO, labels,<br/>DOM and telemetry" .-> A

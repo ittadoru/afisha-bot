@@ -1,0 +1,14 @@
+flowchart TD
+    A["Canonical street geometry<br/>city_id + street_id + geometry_version"] --> B{"Geometry valid<br/>and inside supported city?"}
+    B -->|"No"| X["Hidden modes unavailable<br/>EXACT_PUBLIC only"]
+    B -->|"Yes"| C["Line-merge connected segments"]
+    C --> D["Select longest connected component<br/>deterministic tie-break"]
+    D --> E["Interpolate point at 50%<br/>of geodesic component length"]
+    E --> F{"Point valid and<br/>inside city boundary?"}
+    F -->|"No"| X
+    F -->|"Yes"| G["Persist StreetAnchor<br/>street_id + geometry_version + point"]
+    G --> H["Publish one shared marker<br/>△ street · N"]
+    I["Exact event coordinates"] -. "Never used" .-> D
+    J["Geometry update"] --> K["Compute and validate candidate"]
+    K --> L["Atomic catalogue-version switch"]
+    L --> G
