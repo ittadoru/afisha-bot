@@ -1,0 +1,19 @@
+flowchart TB
+    B0["Baseline backup + restore rehearsal<br/>inventory, versions, checksums"]
+    B0 --> M12["1 → 2 servers<br/>planned maintenance"]
+    M12 --> D1["Freeze writes / drain workers<br/>final database backup"]
+    D1 --> D2["Restore PostgreSQL on Server 2<br/>validate PostGIS + migrations"]
+    D2 --> D3["Switch private DSN<br/>smoke + full reconciliation"]
+    D3 --> G12{"Acceptance gates pass?"}
+    G12 -->|"no"| R12["Restore old DSN<br/>unfreeze old database"]
+    G12 -->|"yes"| M23["2 → 3 servers"]
+
+    M23 --> W1["Stop enqueue<br/>drain and fence workers"]
+    W1 --> W2["Provision fresh Redis<br/>recover work from PostgreSQL outbox"]
+    W2 --> X1["Copy media to object storage<br/>checksum + mutation freeze + delta"]
+    X1 --> X2["Switch MediaStorage adapter<br/>old volume read-only"]
+    X2 --> N1["Move or rebuild Nominatim<br/>health and sample checks"]
+    N1 --> W3["Start workers on Server 2<br/>smoke + reconciliation"]
+    W3 --> G23{"Acceptance gates pass?"}
+    G23 -->|"no"| R23["Fence new workers/adapters<br/>restore previous routes"]
+    G23 -->|"yes"| Done["Complete cutover<br/>retain rollback assets for bounded window"]

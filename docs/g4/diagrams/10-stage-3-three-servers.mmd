@@ -1,0 +1,42 @@
+flowchart TB
+    Internet["Public Internet"] -->|"80/443 only"| Proxy
+
+    subgraph H1["Server 1 — edge/application host"]
+        Proxy["Reverse Proxy"]
+        Web["Public Web"]
+        Mini["Mini App"]
+        Admin["Admin Frontend"]
+        API["Backend API"]
+        Proxy --> Web
+        Proxy --> Mini
+        Proxy --> Admin
+        Proxy --> API
+    end
+
+    subgraph H2["Server 2 — background/geo host"]
+        Worker["Celery Workers"]
+        Beat["Celery Beat"]
+        Redis["Redis"]
+        Nom["Nominatim"]
+        NomDB[("Nominatim Search Volume")]
+        Worker --> Redis
+        Beat --> Redis
+        Nom --> NomDB
+    end
+
+    subgraph H3["Server 3 — protected database host"]
+        PG[("PostgreSQL / PostGIS")]
+        DBBackup["Database Backup Job"]
+        PG --> DBBackup
+    end
+
+    API <-->|"private fabric<br/>6379 allowlist"| Redis
+    API -->|"private geo route"| Nom
+    API <-->|"private fabric + TLS<br/>5432 allowlist"| PG
+    Worker <-->|"private fabric + TLS<br/>5432 allowlist"| PG
+
+    API <-->|"MediaStorage adapter"| ObjectMedia[("Private S3-compatible Media Storage")]
+    Worker <-->|"MediaStorage adapter"| ObjectMedia
+
+    DBBackup -->|"client-side encrypted"| Offsite["Independent Off-server Backup Target"]
+    ObjectMedia -. "incremental/versioned backup<br/>separate failure domain" .-> Offsite

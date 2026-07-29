@@ -1,0 +1,51 @@
+flowchart TB
+    Internet["Public Internet"] -->|"80/443 only"| Proxy
+    Telegram["Telegram Platform"] <-->|"HTTPS egress / webhook ingress"| Proxy
+    Browser["Browser / WebView"] -->|"public tiles only"| OpenFreeMap["OpenFreeMap"]
+
+    subgraph H1["Server 1 — MVP/alpha, Docker Compose"]
+        subgraph Edge["edge network"]
+            Proxy["Reverse Proxy"]
+            Web["Public Web"]
+            Mini["Mini App"]
+            Admin["Admin Frontend"]
+            API["Backend API"]
+            Proxy --> Web
+            Proxy --> Mini
+            Proxy --> Admin
+            Proxy --> API
+        end
+
+        subgraph App["app network"]
+            Worker["Celery Worker"]
+            Beat["Celery Beat"]
+            Redis["Redis"]
+            API --> Redis
+            Worker --> Redis
+            Beat --> Redis
+        end
+
+        subgraph Data["protected data network"]
+            PG[("PostgreSQL / PostGIS")]
+            Media[("Local Media Storage")]
+            API --> PG
+            Worker --> PG
+            API --> Media
+            Worker --> Media
+        end
+
+        subgraph Geo["geo network"]
+            Nom["Nominatim"]
+            NomDB[("Nominatim Search Volume")]
+            API --> Nom
+            Nom --> NomDB
+        end
+
+        Backup["Scheduled Backup Job"]
+        PG --> Backup
+        Media --> Backup
+        NomDB -. "extract/config/rollback set" .-> Backup
+    end
+
+    Worker -->|"HTTPS egress"| Telegram
+    Backup -->|"client-side encrypted artifacts"| Offsite["Off-server Backup Target"]
