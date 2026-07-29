@@ -1,0 +1,27 @@
+flowchart TB
+    login["POST admin login<br/>exact Origin + CSRF ceremony"] --> gates["Check Redis accelerator if present<br/>and authoritative PostgreSQL throttle"]
+    gates --> lookup["HMAC login lookup<br/>real or dummy Argon2id verification"]
+    lookup --> valid{"Valid password, active staff<br/>credential state and throttle?"}
+    valid -->|"no"| deny["Generic denial<br/>durable failure bucket + safe audit"]
+    valid -->|"yes"| issue["Lock staff and credential<br/>create 256-bit opaque session"]
+    issue --> cookie["Commit, then set host-only cookie<br/>8h absolute / 30m idle"]
+
+    cookie --> request["Authenticated admin request"]
+    request --> check["PostgreSQL current-state check<br/>session + deadlines + staff lifecycle<br/>credential and permission versions"]
+    check --> allowed{"Current and allowed?"}
+    allowed -->|"no"| revoke["Fail closed<br/>clear cookie and terminalize if needed"]
+    allowed -->|"yes, safe read"| read["Return caller-safe DTO<br/>coalesced activity update"]
+    allowed -->|"yes, mutation"| csrf["Exact Origin + session-bound CSRF<br/>permission, scope and object guards"]
+    csrf --> sensitive{"Route requires re-auth?"}
+    sensitive -->|"no"| command["Invoke one owner use case<br/>idempotency + audit decision"]
+    sensitive -->|"yes"| reauth["Verify password under rate gate<br/>rotate session credential"]
+    reauth --> grant["Create action/target-bound grant<br/>TTL at most 5m"]
+    grant --> consume["Command locks and validates grant<br/>single-use where required"]
+    consume --> command
+
+    command --> outcome{"Owner transaction outcome"}
+    outcome -->|"commit"| success["Complete audit idempotently<br/>return result"]
+    outcome -->|"deny/fail"| failure["No unauthorized side effect<br/>safe audited outcome"]
+
+    cookie --> terminal["Logout, reset, password/permission change<br/>idle/absolute expiry or suspension"]
+    terminal --> revoke

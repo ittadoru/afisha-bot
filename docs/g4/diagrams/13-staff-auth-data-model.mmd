@@ -1,0 +1,135 @@
+erDiagram
+    STAFF_ACCOUNT ||--|| STAFF_PASSWORD_CREDENTIAL : "has current credential"
+    STAFF_ACCOUNT ||--o{ STAFF_SESSION : "has revocable sessions"
+    STAFF_ACCOUNT ||--o{ STAFF_INVITATION : "invites"
+    STAFF_ACCOUNT ||--o{ STAFF_PASSWORD_RESET : "requests reset"
+    STAFF_ACCOUNT ||--o{ PRIVILEGED_AUDIT_ENTRY : "acts or is subject"
+    STAFF_SESSION ||--o{ STAFF_REAUTH_GRANT : "issues bounded proof"
+    STAFF_ACCOUNT ||--o| STAFF_BOOTSTRAP_GUARD : "may be recorded as first admin"
+
+    STAFF_ACCOUNT {
+        uuid staff_id PK
+        bytea login_ciphertext
+        bytea login_lookup_hmac UK
+        text display_label
+        text role_label
+        text lifecycle
+        bigint credential_version
+        bigint permission_version
+        timestamptz created_at
+        timestamptz activated_at
+        timestamptz suspended_at "nullable"
+        smallint encryption_key_version
+        smallint lookup_key_version
+        bigint version
+    }
+
+    STAFF_PASSWORD_CREDENTIAL {
+        uuid staff_id PK, FK
+        text password_hash
+        smallint hash_profile_version
+        text credential_state
+        timestamptz changed_at
+        uuid changed_by_staff_id "nullable"
+        bigint version
+    }
+
+    STAFF_INVITATION {
+        uuid invitation_id PK
+        bytea login_ciphertext
+        bytea login_lookup_hmac
+        text role_label
+        uuid assignment_draft_id
+        uuid invited_by_staff_id FK
+        bytea token_lookup_hmac UK "cleared after claim"
+        bytea ceremony_lookup_hmac UK "nullable"
+        bytea csrf_lookup_hmac "nullable"
+        text status
+        timestamptz expires_at
+        timestamptz claimed_at "nullable"
+        timestamptz consumed_at "nullable"
+        uuid created_staff_id FK "nullable"
+        smallint key_version
+        bigint version
+    }
+
+    STAFF_PASSWORD_RESET {
+        uuid reset_id PK
+        uuid staff_id FK
+        uuid requested_by_staff_id FK
+        bytea token_lookup_hmac UK "cleared after claim"
+        bytea ceremony_lookup_hmac UK "nullable"
+        bytea csrf_lookup_hmac "nullable"
+        text status
+        text reason_code
+        timestamptz expires_at
+        timestamptz claimed_at "nullable"
+        timestamptz consumed_at "nullable"
+        smallint key_version
+        bigint version
+    }
+
+    STAFF_SESSION {
+        uuid session_id PK
+        uuid staff_id FK
+        bytea credential_lookup_hmac UK "nullable terminal"
+        bytea csrf_lookup_hmac "nullable terminal"
+        bigint credential_version
+        bigint permission_version
+        timestamptz issued_at
+        timestamptz last_activity_at
+        timestamptz idle_expires_at
+        timestamptz absolute_expires_at
+        timestamptz revoked_at "nullable"
+        text revoke_reason "nullable"
+        uuid rotated_to_session_id "nullable"
+        bigint version
+    }
+
+    STAFF_REAUTH_GRANT {
+        uuid reauth_grant_id PK
+        uuid session_id FK
+        bytea proof_lookup_hmac UK "nullable terminal"
+        text action_family
+        bytea target_binding_hmac
+        boolean single_use
+        bigint credential_version
+        bigint permission_version
+        timestamptz issued_at
+        timestamptz expires_at
+        timestamptz consumed_at "nullable"
+        smallint key_version
+        bigint version
+    }
+
+    STAFF_AUTH_THROTTLE {
+        uuid bucket_id PK
+        text bucket_kind
+        bytea subject_lookup_hmac
+        integer failure_count
+        timestamptz window_started_at
+        timestamptz blocked_until "nullable"
+        timestamptz last_failure_at
+        timestamptz expires_at
+        smallint key_version
+        bigint version
+    }
+
+    STAFF_BOOTSTRAP_GUARD {
+        text guard_key PK
+        uuid first_admin_staff_id FK
+        timestamptz completed_at
+    }
+
+    PRIVILEGED_AUDIT_ENTRY {
+        uuid audit_id PK
+        uuid staff_id FK "nullable"
+        uuid session_id FK "nullable"
+        text event_type
+        text outcome
+        text reason_code
+        uuid target_id "nullable"
+        uuid correlation_id
+        timestamptz occurred_at
+        timestamptz retain_until
+    }
