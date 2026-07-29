@@ -113,7 +113,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Map legend/accessibility contract и deterministic approximate-marker placement по street geometry.
 - [x] Public-profile projection: random public ID, avatar processing, anonymous/authorized visibility и enumeration limits.
 - [x] ReputationPolicy port: public signal/projection contracts, demo policy и external production configuration без weights/thresholds в Git.
-- [ ] Geo provider ports, canonical DTOs, caching/privacy projections.
+- [x] Geo provider ports, canonical DTOs, caching/privacy projections.
 - [ ] Threat model/data-flow diagrams и security controls.
 - [ ] Observability model, SLO/RPO/RTO, dashboards/alerts.
 - [ ] CI/CD pipeline, migration discipline и Definition of Done.

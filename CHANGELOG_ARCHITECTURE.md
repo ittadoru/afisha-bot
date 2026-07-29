@@ -2,6 +2,27 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.18: Geo provider ports и canonical DTOs
+
+### Принято
+
+- Утверждены provider-neutral `MapProvider` и
+  `ReverseGeocodingProvider`, canonical geo DTO и typed failures.
+- Зафиксирован backend-only Nominatim с общим deadline 2,5 секунды и максимум
+  одним retry; выбранная PostGIS point остаётся источником истины.
+- Принят private HMAC-keyed geo cache со сроком не более 24 часов без
+  authorization semantics и без raw provider response.
+- Утверждено ручное переключение OpenFreeMap на будущий отдельный self-hosted
+  tile server через конфигурацию с доступным list fallback.
+
+### Изменения системы
+
+- Документ `docs/g4/18-geo-provider-ports-and-canonical-dtos.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Geo provider пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production code/migrations/infrastructure не создавались; threat model
+  остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.17: ReputationPolicy port и safe projections
 
 ### Принято

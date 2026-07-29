@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha с совместимым post-MVP switch map tiles
 - Owner canonical geo catalogue и provider adapters: `discovery`
 - Owner authoritative event point и disclosure: `events`
@@ -284,7 +284,7 @@ self-hosted geo server без изменения event API или business logic
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] MapProvider и ReverseGeocodingProvider отделены от domain DTO.
 - [x] Canonical DTO и typed errors определены.
 - [x] Backend-only Nominatim и browser-only OpenFreeMap path зафиксированы.
@@ -296,4 +296,4 @@ self-hosted geo server без изменения event API или business logic
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Нет secrets, PII, production domains или raw provider examples.
 - [x] Production code/migrations/infrastructure не создаются.
-- [x] G4.18 checkbox/changelog принятия не изменены.
+- [x] G4.18 checkbox и architecture changelog обновлены отдельным acceptance commit.
