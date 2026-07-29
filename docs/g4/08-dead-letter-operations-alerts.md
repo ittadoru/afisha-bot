@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Source of truth: owner-local PostgreSQL outbox/reconciliation metadata
 - Alert channel: отдельный outbound-only Telegram operations bot

@@ -2,6 +2,31 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.8: dead-letter operations и безопасные alerts
+
+### Принято
+
+- Утверждены безопасный dead-letter admin read model без raw payload, PII,
+  secrets и provider bodies, а также отдельные permissions для read и retry.
+- Зафиксирован только одиночный owner-controlled retry с re-auth,
+  current-state/version/hash/order guards, идемпотентностью и privileged audit;
+  bulk/edit/manual resolve отсутствуют.
+- Operations bot остаётся outbound-only, имеет отдельные credentials,
+  namespaces и personal-chat enrollment через одноразовый outbound challenge.
+- Получатель обязан одновременно быть active admin, иметь current
+  `ops_alerts.receive`, verified binding и enabled subscription.
+- Critical/action-required alerts отправляются сразу, informational — ежедневным
+  digest; доставка ограничена восемью попытками, expiry и anti-recursion.
+
+### Изменения системы
+
+- Документ `docs/g4/08-dead-letter-operations-alerts.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Dead-letter/operations alerts пункт в `IMPLEMENTATION_PLAN.md` отмечен
+  завершённым.
+- Operations-bot ingress/commands, bulk actions, production code/migrations и
+  Kafka не создавались.
+
 ## 2026-07-29 — принят G4.7: transactional outbox/inbox и reconciliation
 
 ### Принято
