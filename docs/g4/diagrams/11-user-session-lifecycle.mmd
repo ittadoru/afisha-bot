@@ -1,0 +1,35 @@
+flowchart TB
+    anonymous["Anonymous client"]
+
+    subgraph web["Website session lifecycle"]
+        web_pending["OIDC transaction pending"]
+        web_active["Website active<br/>namespace: website_user<br/>activity renews idle; persist ≤ once/24h"]
+        web_expired["Website expired<br/>idle 30d or absolute 90d"]
+        web_revoked["Website revoked<br/>logout or owner revocation"]
+        web_retry["Anonymous / new OIDC required"]
+
+        web_pending -->|"valid callback + identity"| web_active
+        web_pending -. "deny, failure or transaction expiry" .-> web_retry
+        web_active -->|"deadline reached"| web_expired
+        web_active -->|"revocation committed"| web_revoked
+        web_expired --> web_retry
+        web_revoked --> web_retry
+    end
+
+    subgraph mini["Mini App session lifecycle"]
+        mini_pending["initData exchange pending"]
+        mini_active["Mini active<br/>namespace: mini_app_user<br/>fresh initData rotates credential"]
+        mini_expired["Mini expired<br/>absolute 24h"]
+        mini_revoked["Mini revoked<br/>logout or owner revocation"]
+        mini_retry["Anonymous / fresh initData required"]
+
+        mini_pending -->|"valid artifact + identity"| mini_active
+        mini_pending -. "deny, failure or artifact expiry" .-> mini_retry
+        mini_active -->|"24h reached"| mini_expired
+        mini_active -->|"revocation committed"| mini_revoked
+        mini_expired --> mini_retry
+        mini_revoked --> mini_retry
+    end
+
+    anonymous -->|"OIDC start"| web_pending
+    anonymous -->|"Mini exchange"| mini_pending

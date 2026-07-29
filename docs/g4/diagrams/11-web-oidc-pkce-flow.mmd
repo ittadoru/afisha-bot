@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    actor User as Пользователь
+    participant Browser as Website browser
+    participant API as Backend auth adapter
+    participant Tx as Logical auth transaction
+    participant TG as Telegram OIDC
+    participant Accounts as accounts.IdentityCommands
+    participant Sessions as Website session adapter
+
+    User->>Browser: Нажимает «Войти» на public page
+    Browser->>API: GET OIDC start + opaque return intent
+    API->>API: Проверяет return allowlist
+    API->>Tx: Создаёт state, nonce, PKCE verifier<br/>TTL 10m, single-use
+    API-->>Browser: Redirect: openid profile + S256 challenge
+    Browser->>TG: Authorization request
+    TG-->>Browser: Redirect callback with code + state
+    Browser->>API: GET callback with code + state
+    API->>Tx: Атомарно consume state transaction
+    API->>TG: Server-side code exchange + verifier
+    TG-->>API: ID token + short-lived access token
+    API->>API: Verify expected alg, JWKS signature,<br/>iss, aud, exp, iat, nonce
+    API->>Accounts: Resolve verified issuer, subject, Telegram ID
+    Accounts-->>API: Internal user_id
+    API->>Sessions: Issue revocable website session<br/>idle 30d, absolute 90d
+    Sessions-->>Browser: Host-only Secure HttpOnly cookie
+    API-->>Browser: 303 to consumed safe return target
+    Browser-->>User: Исходная карточка без auto-action
+
+    Note over API,TG: Authorization code и tokens не сохраняются и не логируются

@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    actor User as Пользователь
+    participant TG as Telegram client
+    participant Mini as Mini App WebView
+    participant API as Backend mini auth adapter
+    participant Guard as Replay and bootstrap guard
+    participant Accounts as accounts.IdentityCommands
+    participant Sessions as Mini session adapter
+
+    User->>TG: Открывает Mini App
+    TG->>Mini: Загружает отдельный Mini App origin
+    TG-->>Mini: Предоставляет raw initData
+    Mini->>API: Запрашивает one-time bootstrap nonce
+    API->>Guard: Создаёт nonce bound to origin/bootstrap cookie<br/>TTL 5m
+    Guard-->>Mini: Bootstrap proof
+    Mini->>API: POST session exchange<br/>raw initData + bootstrap proof
+    API->>API: Exact Origin, size and shape checks
+    API->>API: Constant-time HMAC validation<br/>auth_date age max 5m, future skew 30s
+    API->>Guard: Atomically consume nonce and initData digest
+    Guard-->>API: Fresh and not replayed
+    API->>Accounts: Resolve verified Telegram ID
+    Accounts-->>API: Same internal user_id
+    API->>Sessions: Issue or rotate revocable Mini session<br/>absolute 24h, no sliding
+    Sessions-->>Mini: Separate Secure HttpOnly cookie + CSRF proof
+    Mini-->>User: Авторизованный интерфейс
+
+    Note over Mini,API: initDataUnsafe не является identity
+    Note over API,Guard: Повтор, stale artifact или guard outage закрываются fail-closed
