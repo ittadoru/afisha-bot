@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Owner: модуль `accounts`, PostgreSQL schema `accounts`
 - Identity: один Telegram binding на один immutable internal `user_id`
 - Sessions: server-side website и Mini App sessions
@@ -956,7 +956,7 @@ reason codes, but no ciphertext/plaintext/digests/provider IDs.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ переведён в `ACCEPTED` после отдельного owner review.
 - [x] G4.4 ExternalIdentity/UserSession уточнены без конкурирующей модели.
 - [x] Пять owner-local accounts tables и exact relations каталогизированы.
 - [x] Columns, nullability, uniqueness, checks и indexes описаны.
@@ -971,5 +971,5 @@ reason codes, but no ciphertext/plaintext/digests/provider IDs.
 - [x] Три диаграммы имеют `.mmd` и текстовые альтернативы.
 - [x] Встроенный Mermaid должен совпасть с `.mmd` перед commit.
 - [x] Нет secrets, PII examples, production domains, raw IP/User-Agent.
-- [x] G4.12 checkbox/changelog принятия не изменены.
+- [x] G4.12 checkbox и changelog принятия обновлены отдельным изменением.
 - [x] G4.13 admin auth и production code/migrations не созданы заранее.

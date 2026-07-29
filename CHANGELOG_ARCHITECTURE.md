@@ -2,6 +2,32 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.12: Telegram identity, session и replay model
+
+### Принято
+
+- Утверждена owner-local модель `accounts.telegram_identity`, физически
+  уточняющая conceptual `ExternalIdentity` без отдельной пользовательской
+  Telegram domain identity.
+- Зафиксированы application AEAD для provider user IDs и versioned
+  domain-separated HMAC для equality lookup; raw provider/session/CSRF/auth
+  artifacts не сохраняются.
+- Приняты раздельные website/Mini sessions, PostgreSQL-authoritative
+  validation, rotation/revocation, OIDC claim fence, Mini bootstrap/replay
+  guard и короткие сроки retention.
+- Утверждены atomic identity resolution, one-to-one Telegram binding,
+  fail-closed conflict, `/start` без создания User и запрет перезаписи Profile
+  Telegram claims.
+
+### Изменения системы
+
+- Документ `docs/g4/12-telegram-identity-session-replay-model.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Telegram identity/session/replay пункт в `IMPLEMENTATION_PLAN.md` отмечен
+  завершённым.
+- Production migrations/code и staff authentication не создавались;
+  отдельный admin authentication flow остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.11: Web и Mini App authentication flow
 
 ### Принято
