@@ -115,7 +115,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] ReputationPolicy port: public signal/projection contracts, demo policy и external production configuration без weights/thresholds в Git.
 - [x] Geo provider ports, canonical DTOs, caching/privacy projections.
 - [x] Threat model/data-flow diagrams и security controls.
-- [ ] Observability model, SLO/RPO/RTO, dashboards/alerts.
+- [x] Observability model, SLO/RPO/RTO, dashboards/alerts.
 - [ ] CI/CD pipeline, migration discipline и Definition of Done.
 
 Exit criteria: владелец продукта отдельно подтверждает архитектуру, стек и модель данных.

@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha на одном physical server
 - Цель: минимальная low-overhead наблюдаемость приложения, диска и recovery
 - Alert channel: отдельный Telegram operations bot
@@ -274,7 +274,7 @@ budget допускает обычные releases; быстрый burn прио�
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] SLI/SLO и eligible request rules заданы.
 - [x] Public/user 99.5%, admin/background 99.0% закреплены.
 - [x] Latency objectives и zero-budget safety заданы.
@@ -288,4 +288,4 @@ budget допускает обычные releases; быстрый burn прио�
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Нет secrets, PII, production domains или sensitive rules.
 - [x] Production monitoring/config/code не создаются.
-- [x] G4.20 checkbox/changelog принятия не изменены.
+- [x] G4.20 checkbox и architecture changelog обновлены отдельным acceptance commit.

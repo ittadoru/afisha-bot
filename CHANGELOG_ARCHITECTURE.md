@@ -2,6 +2,27 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.20: Observability, SLO, RPO и RTO
+
+### Принято
+
+- Утверждены alpha SLO: public/user API 99,5%, admin/background 99,0%,
+  нормативные p95 latency и нулевой error budget для security/privacy.
+- Принят облегчённый monitoring baseline: Prometheus с минутным scrape,
+  filesystem-only node_exporter, Alertmanager и один внешний HTTPS probe.
+- Зафиксированы короткие bounded retention/caps: metrics и application logs
+  7 дней, security detection logs 14 дней, distributed traces отсутствуют.
+- Подтверждены компактный privileged/admin audit в PostgreSQL на 90 дней,
+  safe operations-bot alerts и alpha `RPO/RTO ≤24h`.
+
+### Изменения системы
+
+- Документ `docs/g4/20-observability-slo-rpo-rto.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Observability/SLO пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production monitoring/configuration не создавались; CI/CD discipline
+  остаётся последним пунктом G4.
+
 ## 2026-07-29 — принят G4.19: Threat model и security controls
 
 ### Принято
