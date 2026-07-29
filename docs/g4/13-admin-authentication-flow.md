@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Owner: модуль `trust_safety`, PostgreSQL schema `trust_safety`
 - Actors: `moderator` и `admin` как staff identities
@@ -919,7 +919,7 @@ permissions.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ переведён в `ACCEPTED` после отдельного owner review.
 - [x] Staff/User/Telegram identities и cookie namespaces разделены.
 - [x] Staff account, credential, invitation, reset, session, re-auth, throttle,
       bootstrap guard и audit records каталогизированы.
@@ -937,4 +937,4 @@ permissions.
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd` перед commit.
 - [x] Нет secrets, PII examples, production domains, raw IP/User-Agent.
 - [x] Production code/migrations, MFA и permission schema не созданы.
-- [x] G4.13 checkbox/changelog принятия не изменены.
+- [x] G4.13 checkbox и changelog принятия обновлены отдельным изменением.

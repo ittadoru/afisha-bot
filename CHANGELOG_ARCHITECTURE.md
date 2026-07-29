@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.13: Admin authentication flow
+
+### Принято
+
+- Утверждена отдельная `trust_safety` staff identity/password boundary для
+  `moderator` и `admin`, не связанная с Telegram user identity.
+- Зафиксированы one-time bootstrap command, 24-часовые invitations,
+  30-минутные password resets, Argon2id profile и password policy.
+- Приняты PostgreSQL-authoritative admin sessions с 8-часовым absolute и
+  30-минутным idle timeout, отдельным host-only cookie/CSRF namespace и
+  пятиминутным action-bound re-auth.
+- Утверждены durable throttling, generic anti-enumeration errors,
+  last-active-admin guard, immediate revocation и append-only security audit.
+
+### Изменения системы
+
+- Документ `docs/g4/13-admin-authentication-flow.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Admin authentication пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production auth code/migrations и MFA не создавались; exact-location
+  projection/reveal matrix остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.12: Telegram identity, session и replay model
 
 ### Принято
