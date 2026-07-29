@@ -1,0 +1,12 @@
+flowchart LR
+    U["Anonymous / User browser"] -->|"HTTPS public/session requests"| E["Reverse Proxy"]
+    T["Telegram OIDC / Mini runtime"] -->|"signed identity artifacts"| E
+    E --> W["Web / Mini frontends"]
+    E --> A["Backend API"]
+    A --> G["Auth, request-security and authorization gates"]
+    G --> P[("PostgreSQL/PostGIS")]
+    G --> R[("Redis<br/>rate/cache only")]
+    G --> N["Private Nominatim"]
+    U -->|"public style/tiles only"| O["OpenFreeMap"]
+    G -.->|"event data never sent"| O
+    U -.->|"no direct access"| N
