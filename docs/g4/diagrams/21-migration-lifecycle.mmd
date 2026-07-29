@@ -1,0 +1,11 @@
+flowchart LR
+    D["Module-owned model change"] --> R["One Alembic revision<br/>single linear chain"]
+    R --> E["Expand-compatible schema"]
+    E --> V["CI upgrade empty + current snapshot<br/>model/schema diff"]
+    V --> H["Backup + rehearsal + disk check"]
+    H --> P["Manual migration<br/>one runner + lock/fence"]
+    P --> C["Deploy compatible application"]
+    C --> O["Observe + reconcile"]
+    O --> K["Later contract cleanup revision"]
+    V -.->|"failure"| F["Forward fix; do not rewrite applied history"]
+    P -.->|"unsafe"| Q["Stop / restore rehearsed backup"]

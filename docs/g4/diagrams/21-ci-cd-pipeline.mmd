@@ -1,0 +1,11 @@
+flowchart LR
+    PR["Pull request"] --> F["Format + Ruff + Pyright strict"]
+    F --> T["Unit/property + architecture tests"]
+    T --> I["PostgreSQL/PostGIS integration<br/>API/security/concurrency"]
+    I --> M["Alembic empty/current snapshot<br/>single-head + schema checks"]
+    M --> S["Dependency + secret + SAST scans"]
+    S --> B["Reproducible image build<br/>SBOM + container scan"]
+    B --> K["Smoke tests + immutable artifact"]
+    K --> A{"Protected main + owner approval?"}
+    A -->|"no"| X["No production deployment"]
+    A -->|"manual approval"| D["Manual alpha deploy"]
