@@ -1,0 +1,14 @@
+stateDiagram-v2
+    [*] --> PENDING: producer transaction
+    PENDING --> LEASED: claim due row
+    RETRY_WAIT --> LEASED
+    LEASED --> SUCCEEDED: consumer receipt acknowledged
+    LEASED --> SKIPPED: stale or expired terminal result
+    LEASED --> RETRY_WAIT: retryable failure or expired lease recovered
+    LEASED --> DEAD_LETTER: terminal or attempts/time exhausted
+    RETRY_WAIT --> DEAD_LETTER: no longer retryable
+    DEAD_LETTER --> PENDING: authorized unchanged replay
+    DEAD_LETTER --> RESOLVED: obsolete or repaired elsewhere
+    SUCCEEDED --> [*]
+    SKIPPED --> [*]
+    RESOLVED --> [*]

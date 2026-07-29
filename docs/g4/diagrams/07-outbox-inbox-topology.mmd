@@ -1,0 +1,33 @@
+flowchart LR
+    subgraph PS["Producer owner schema"]
+        U["Owner use case"]
+        BS["Business aggregate"]
+        OF["outbox_fact<br/>immutable envelope + payload"]
+        OD["outbox_delivery<br/>one row per consumer"]
+        U --> BS
+        U --> OF
+        OF --> OD
+    end
+
+    DP["Dispatcher<br/>round-robin adapters<br/>lease with SKIP LOCKED"]
+    Q["Celery/Redis transport<br/>fact reference only"]
+
+    subgraph CS["Consumer owner schema"]
+        CA["Consumer adapter<br/>load + validate typed fact"]
+        IR["inbox_receipt<br/>dedup authority"]
+        CP["consumer_checkpoint<br/>ordering chain"]
+        ST["Consumer-owned state"]
+        CA --> IR
+        CA --> CP
+        CA --> ST
+    end
+
+    OD --> DP
+    DP --> Q
+    Q --> CA
+    CA -. "separate acknowledgement<br/>lease token + inbox digest" .-> OD
+
+    N1["Transaction A:<br/>business state + fact + deliveries"]
+    N2["Transaction B:<br/>consumer state + inbox + checkpoint"]
+    N1 -.-> PS
+    N2 -.-> CS
