@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Map/catalog owner: модуль `discovery`
 - Exact location и visibility owner: модуль `events`
@@ -403,7 +403,7 @@ action; exact marker открывает карточку. Hidden coordinates о�
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] Exact и approximate marker contracts разделены.
 - [x] Постоянная legend не зависит только от цвета.
 - [x] WCAG 2.2 AA, keyboard, touch и screen-reader rules заданы.
@@ -417,4 +417,4 @@ action; exact marker открывает карточку. Hidden coordinates о�
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Production code/migrations, colors и thresholds не создаются.
 - [x] Нет secrets, PII или production domains.
-- [x] G4.15 checkbox/changelog принятия не изменены.
+- [x] G4.15 checkbox и architecture changelog обновлены отдельным acceptance commit.

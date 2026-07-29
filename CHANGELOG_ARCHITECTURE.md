@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.15: Map legend, accessibility и approximate markers
+
+### Принято
+
+- Утверждён постоянный доступный map legend, различающий exact и approximate
+  markers формой, подписью и screen-reader semantics, а не только цветом.
+- Зафиксированы keyboard/touch/list parity, SSR text fallback и требования
+  WCAG 2.2 AA без выбора production palette.
+- Принят детерминированный street midpoint по канонической геометрии без
+  использования скрытой event point, fake house или route.
+- Утверждены fail-closed публикация при отсутствии valid street geometry,
+  cache/privacy boundaries и пересчёт после обновления геоданных.
+
+### Изменения системы
+
+- Документ
+  `docs/g4/15-map-legend-accessibility-and-approximate-markers.md` переведён
+  из `DRAFT` в `ACCEPTED`.
+- Map legend/approximate-marker пункт в `IMPLEMENTATION_PLAN.md` отмечен
+  завершённым.
+- Production UI/code/migrations не создавались; public-profile projection
+  остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.14: Exact-location projection и reveal matrix
 
 ### Принято
