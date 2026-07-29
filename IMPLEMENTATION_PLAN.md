@@ -109,7 +109,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Web/Mini App auth flow: Telegram initData + Telegram OIDC/PKCE → единый internal user; website 30/90 дней, Mini App 24 часа.
 - [x] Telegram identity table: unique user ID, OIDC issuer/subject, bot-start/delivery state, session/replay controls и запрет profile overwrite.
 - [x] Admin authentication flow: invitation/reset/bootstrap, Argon2id, отдельные cookies, 8-часовой absolute и 30-минутный idle timeout, re-auth, CSRF/rate limit/audit.
-- [ ] Exact-location projection/reveal matrix: street/public/participant modes, reminders, audit, cache isolation и irreversible disclosure warning.
+- [x] Exact-location projection/reveal matrix: street/public/participant modes, reminders, audit, cache isolation и irreversible disclosure warning.
 - [ ] Map legend/accessibility contract и deterministic approximate-marker placement по street geometry.
 - [ ] Public-profile projection: random public ID, avatar processing, anonymous/authorized visibility и enumeration limits.
 - [ ] ReputationPolicy port: public signal/projection contracts, demo policy и external production configuration без weights/thresholds в Git.

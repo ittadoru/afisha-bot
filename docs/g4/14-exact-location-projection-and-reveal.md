@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Owner точной location и access policy: модуль `events`
 - Public map/card consumer: `discovery`
@@ -767,7 +767,7 @@ receipt.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем 2026-07-29.
 - [x] Three modes и exact/street DTO separation зафиксированы.
 - [x] Actor/mode/lifecycle matrix покрывает anonymous through staff.
 - [x] Interest/waitlist/offer не дают hidden exact access.
@@ -784,4 +784,4 @@ receipt.
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd` перед commit.
 - [x] Нет secrets, PII examples, production domains или anti-fraud internals.
 - [x] G4.15 legend/anchor algorithm и production code не созданы.
-- [x] G4.14 checkbox/changelog принятия не изменены.
+- [x] G4.14 checkbox и architecture changelog обновлены при принятии.

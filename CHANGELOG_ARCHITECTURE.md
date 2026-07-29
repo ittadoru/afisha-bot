@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.14: Exact-location projection и reveal matrix
+
+### Принято
+
+- Утверждены три режима location visibility: `STREET_ONLY`,
+  `EXACT_PARTICIPANTS` и `EXACT_PUBLIC`, с caller-safe street/exact
+  projections и явным подтверждением первичной публичной публикации.
+- Зафиксирован participant reveal receipt на каждый participation episode:
+  interest, waitlist и offer не дают exact access, а выход, исключение и отмена
+  закрывают дальнейшую выдачу немедленно.
+- Принят fail-closed public-hide barrier до смены owner mode, исключающий окно
+  раскрытия через устаревшую discovery projection.
+- Утверждены cache/provider/SEO/notification boundaries, street-only
+  reminders, безопасный audit и street-only итоговая публичная карточка.
+
+### Изменения системы
+
+- Документ `docs/g4/14-exact-location-projection-and-reveal.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Exact-location пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production code/migrations не создавались; legend/accessibility contract и
+  deterministic street anchor остаются G4.15.
+
 ## 2026-07-29 — принят G4.13: Admin authentication flow
 
 ### Принято
