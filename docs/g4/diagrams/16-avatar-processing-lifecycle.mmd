@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> UploadedTemporary: validated upload intent
+    UploadedTemporary --> Decoded: bounded safe decode
+    UploadedTemporary --> Rejected: type/size/decode failure
+    Decoded --> Cropped: validated square crop
+    Cropped --> Encoded: resize 256x256 and WebP re-encode
+    Encoded --> Ready: metadata stripped and technical checks pass
+    Ready --> Active: accounts atomically selects attachment_id
+    Active --> Replaced: newer ready avatar selected
+    Replaced --> Deleted: lifecycle cleanup
+    Rejected --> Deleted: temporary cleanup
+    UploadedTemporary --> Deleted: abandoned or timeout
+    Active --> Deleted: account erasure
+    note right of Ready
+        Original bytes are never public
+        and are deleted no later than 24h
+    end note
