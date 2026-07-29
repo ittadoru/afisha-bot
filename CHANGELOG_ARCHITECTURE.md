@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.16: Public-profile projection
+
+### Принято
+
+- Утверждена owner-local публичная profile projection со случайным неизменяемым
+  восьмизначным public ID и collision-safe выдачей.
+- Зафиксированы разные anonymous/authenticated/crawler projections,
+  organizer-only indexing и запрет раскрытия участия через профиль.
+- Принят общий пустой системный avatar и безопасный pipeline
+  decode/crop/`256×256 WebP` без EXIF и публикации original.
+- Утверждены exact authenticated lookup, enumeration controls, cache/privacy
+  boundaries, fail-closed safety hide и асинхронное получение безопасных
+  event/reputation summaries.
+
+### Изменения системы
+
+- Документ `docs/g4/16-public-profile-projection.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Public-profile пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production API/code/migrations не создавались; ReputationPolicy port
+  остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.15: Map legend, accessibility и approximate markers
 
 ### Принято

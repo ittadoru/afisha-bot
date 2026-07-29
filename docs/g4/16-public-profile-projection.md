@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Profile и public projection owner: модуль `accounts`
 - Avatar bytes/lifecycle owner: модуль `media`
@@ -459,7 +459,7 @@ Search-engine removal may lag externally and is not a confidentiality control.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] Owner records и public projection разделены.
 - [x] Random immutable eight-digit ID и collision handling заданы.
 - [x] Anonymous/authenticated/crawler matrix определена.
@@ -474,4 +474,4 @@ Search-engine removal may lag externally and is not a confidentiality control.
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Нет secrets, PII examples, production domains или reputation internals.
 - [x] Production code, migrations и HTTP schemas не создаются.
-- [x] G4.16 checkbox/changelog принятия не изменены.
+- [x] G4.16 checkbox и architecture changelog обновлены отдельным acceptance commit.
