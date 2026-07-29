@@ -2,6 +2,33 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.7: transactional outbox/inbox и reconciliation
+
+### Принято
+
+- Утверждены owner-local `outbox_fact`, per-consumer `outbox_delivery`,
+  `inbox_receipt`, ordering checkpoints и reconciliation metadata без
+  cross-schema JOIN/transaction.
+- Зафиксированы at-least-once delivery, атомарные producer/consumer
+  транзакции, отдельный acknowledgement, lease/fencing и fair dispatcher с
+  `FOR UPDATE SKIP LOCKED`.
+- Приняты bounded retry defaults, terminal/dead-letter/replay guards,
+  30/60/90-дневные retention windows и controlled consumer decommission.
+- Каталогизированы reconciliation jobs для delivery/inbox/order,
+  safety/public projections, LookingPost, attendance/reputation,
+  notifications, media/compaction и account erasure.
+- Redis/Celery остаются transport, PostgreSQL — authoritative state; временная
+  недоступность transport/provider не откатывает owner transaction.
+
+### Изменения системы
+
+- Документ `docs/g4/07-outbox-inbox-and-reconciliation.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Пункт transactional outbox/inbox и reconciliation в
+  `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Dead-letter admin workflow, operations bot safe alerts, Kafka и production
+  migrations/code не создавались.
+
 ## 2026-07-29 — принят G4.6: Domain Event Catalogue
 
 ### Принято

@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha на одном PostgreSQL/PostGIS server
 - Delivery guarantee: at-least-once
 - MVP transport: owner-local PostgreSQL outbox → dispatcher → Celery/Redis
