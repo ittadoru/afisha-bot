@@ -1,0 +1,10 @@
+stateDiagram-v2
+    [*] --> UNBOUND
+    UNBOUND --> VERIFICATION_PENDING: admin begins protected chat binding
+    VERIFICATION_PENDING --> ACTIVE: one-time code confirmed in admin panel
+    VERIFICATION_PENDING --> UNBOUND: code expired or attempts exhausted
+    ACTIVE --> SUSPENDED: staff inactive, permission revoked or subscription disabled
+    SUSPENDED --> ACTIVE
+    ACTIVE --> REVOKED: explicit unbind or security revocation
+    SUSPENDED --> REVOKED: explicit unbind or security revocation
+    REVOKED --> VERIFICATION_PENDING: new binding requires new challenge
