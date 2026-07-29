@@ -1,0 +1,23 @@
+sequenceDiagram
+    actor Organizer
+    participant UI as Public Web / Mini App
+    participant API as Backend API
+    participant Disc as discovery
+    participant Cache as Private geo cache
+    participant Nom as Nominatim
+    Organizer->>UI: move marker
+    UI->>UI: debounce 500 ms after moveend
+    UI->>API: selected point + request generation
+    API->>Disc: ResolveLocation command
+    Disc->>Cache: lookup HMAC(normalized point + dataset version)
+    alt fresh cache hit
+        Cache-->>Disc: canonical result
+    else miss
+        Disc->>Nom: private reverse request (2.5 s total, max 1 retry)
+        Nom-->>Disc: provider response
+        Disc->>Disc: validate and map to canonical DTO
+        Disc->>Cache: store safe result, TTL <= 24 h
+    end
+    Disc-->>API: canonical result or typed failure
+    API-->>UI: result + request generation
+    UI->>UI: ignore stale generation

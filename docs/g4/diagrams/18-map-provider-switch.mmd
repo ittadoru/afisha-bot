@@ -1,0 +1,12 @@
+flowchart LR
+    C["Validated deployment config<br/>MAP_STYLE_URL + attribution"] --> M["MapProvider config port"]
+    M --> F["Public Web / Mini App<br/>MapLibre"]
+    F --> H["Hosted OpenFreeMap<br/>MVP"]
+    F --> S["Self-hosted regional tiles<br/>post-MVP geo server"]
+    H -->|"manual config cutover"| S
+    Q{"Style or tiles unavailable?"} -->|"yes"| L["Accessible text/list view<br/>events remain usable"]
+    H --> Q
+    S --> Q
+    E["Event marker API"] --> F
+    E -.->|"event payload never sent"| H
+    E -.->|"event payload never sent"| S
