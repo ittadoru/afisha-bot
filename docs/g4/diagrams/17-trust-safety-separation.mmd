@@ -1,0 +1,11 @@
+flowchart TD
+    R["reputation<br/>safe role projection"] -->|"versioned fact"| L["trust_safety local projection"]
+    O["Current restrictions,<br/>cases and policy"] --> E["Eligibility port"]
+    L --> E
+    C["Sensitive command context"] --> E
+    E --> D{"Decision"}
+    D -->|"allow"| A["Leading domain use case may continue"]
+    D -->|"deny"| X["Command rejected with safe reason"]
+    D -->|"hold"| H["Moderation / premoderation path"]
+    R -. "Cannot ban, restrict<br/>or mutate foreign state" .-> X
+    R -. "Cannot ban, restrict<br/>or mutate foreign state" .-> H

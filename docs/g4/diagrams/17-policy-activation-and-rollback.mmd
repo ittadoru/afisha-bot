@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant Adapter as Admin adapter
+    participant Reputation as reputation
+    participant Store as Protected policy source
+    participant DB as PostgreSQL
+    participant Worker as Rebuild worker
+    Admin->>Adapter: Activate opaque policy version
+    Adapter->>Reputation: Permission + re-auth + idempotency
+    Reputation->>Store: Load by opaque version
+    Store-->>Reputation: Protected config
+    Reputation->>Reputation: Schema/checksum/invariant validation
+    Reputation->>Worker: Build shadow generation at ledger checkpoint
+    Worker->>DB: Store candidate projections
+    Worker->>Worker: Catch up and compare safe invariants
+    Worker-->>Reputation: Ready generation + report
+    Reputation->>DB: Atomic active-generation switch + audit/outbox
+    DB-->>Reputation: Activation committed
+    Reputation-->>Adapter: Safe activation receipt
+    opt Rollback
+        Admin->>Adapter: Select prior valid opaque version
+        Adapter->>Reputation: Audited rollback request
+        Reputation->>DB: Atomic switch to retained valid generation
+    end

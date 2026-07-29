@@ -1,0 +1,11 @@
+flowchart TD
+    O["Owner final outcomes<br/>events / trust_safety"] -->|"versioned facts"| I["Reputation inbox<br/>dedup + current-state check"]
+    I --> S["Immutable signal ledger<br/>or compensating signal"]
+    S --> V["Typed component vector"]
+    V --> P["ReputationPolicy port<br/>active opaque version"]
+    P --> R["Candidate role projections"]
+    R --> T["Owner transaction<br/>projection + outbox"]
+    T --> A["accounts<br/>public role summary"]
+    T --> G["trust_safety<br/>local safe projection"]
+    T --> N["analytics<br/>safe aggregates"]
+    P -. "No direct restriction command" .-> G
