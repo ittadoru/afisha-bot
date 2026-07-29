@@ -112,7 +112,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Exact-location projection/reveal matrix: street/public/participant modes, reminders, audit, cache isolation и irreversible disclosure warning.
 - [x] Map legend/accessibility contract и deterministic approximate-marker placement по street geometry.
 - [x] Public-profile projection: random public ID, avatar processing, anonymous/authorized visibility и enumeration limits.
-- [ ] ReputationPolicy port: public signal/projection contracts, demo policy и external production configuration без weights/thresholds в Git.
+- [x] ReputationPolicy port: public signal/projection contracts, demo policy и external production configuration без weights/thresholds в Git.
 - [ ] Geo provider ports, canonical DTOs, caching/privacy projections.
 - [ ] Threat model/data-flow diagrams и security controls.
 - [ ] Observability model, SLO/RPO/RTO, dashboards/alerts.

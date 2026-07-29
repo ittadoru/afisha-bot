@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Горизонт: MVP/alpha
 - Signal ledger, policy и projection owner: модуль `reputation`
 - Final source outcomes: `events` и `trust_safety`
@@ -647,7 +647,7 @@ policy contents.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] Signal ledger, component vector, policy и projections разделены.
 - [x] Final-only signals и compensation semantics определены.
 - [x] Два role projections и public sample/level contract зафиксированы.
@@ -663,4 +663,4 @@ policy contents.
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Production code/migrations/configuration не создаются.
 - [x] Нет secrets, PII examples, production domains или protected rules.
-- [x] G4.17 checkbox/changelog принятия не изменены.
+- [x] G4.17 checkbox и architecture changelog обновлены отдельным acceptance commit.

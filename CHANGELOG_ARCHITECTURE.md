@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.17: ReputationPolicy port и safe projections
+
+### Принято
+
+- Утверждены immutable signal ledger, typed component vector и независимые
+  participant/organizer projections с minimum-sample gates.
+- Зафиксирован capability-level `ReputationPolicy` port, deterministic
+  versioned evaluation, typed errors и rebuild/reconciliation semantics.
+- Приняты публичные закрытые уровни без numeric score и role-specific safe
+  projections; production weights, thresholds и anti-fraud rules остаются
+  вне Git, API, admin UI и telemetry.
+- Утверждены shadow activation, atomic policy cutover/rollback, compensating
+  signals и единоличная ответственность `trust_safety` за ограничения.
+
+### Изменения системы
+
+- Документ `docs/g4/17-reputation-policy-port.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- ReputationPolicy пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production policy/code/migrations не создавались; geo provider ports
+  остаются следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.16: Public-profile projection
 
 ### Принято
