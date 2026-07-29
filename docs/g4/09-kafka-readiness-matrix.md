@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - MVP transport: PostgreSQL outbox + Celery/Redis
 - Kafka status: не развёрнута и не разрешена к production adoption
 - Purpose: доказать transport readiness и определить измеримый adoption gate

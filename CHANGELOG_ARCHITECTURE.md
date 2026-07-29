@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.9: Kafka-readiness matrix
+
+### Принято
+
+- Подтверждено отсутствие Kafka в MVP и сохранение PostgreSQL
+  state+outbox transaction как единственной producer atomic boundary.
+- Утверждены transport-neutral `EventPublisherPort`, one-publication-per-stream,
+  per-consumer inbox/ack и at-least-once semantics без ложного exactly-once.
+- Зафиксированы topic-family/privacy/order/ACL principles и current/previous
+  schema compatibility без выбора production vendor/topology.
+- Приняты обязательные prerequisites и шесть измеримых demand triggers для
+  отдельного Kafka adoption ADR.
+- Утверждены shadow, analytics canary, sequential single-writer cutover,
+  safety-critical gate, route fencing, rollback, replay и reconciliation.
+
+### Изменения системы
+
+- Документ `docs/g4/09-kafka-readiness-matrix.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Kafka-readiness пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Kafka cluster/topics/ACLs/code/migrations не создавались; deployment
+  architecture остаётся следующим самостоятельным пунктом G4.
+
 ## 2026-07-29 — принят G4.8: dead-letter operations и безопасные alerts
 
 ### Принято
