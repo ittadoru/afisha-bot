@@ -1,0 +1,26 @@
+flowchart TB
+    request["Event/location request<br/>event ID + server-resolved actor"] --> current["Load current EventLocation policy<br/>event lifecycle + access version"]
+    current --> safety{"Event publicly/currently visible<br/>and dependencies available?"}
+    safety -->|"no"| denied["Deny / safe not-found<br/>no location fields"]
+    safety -->|"yes"| actor{"Viewer relationship"}
+
+    actor -->|"organizer"| exact["ExactLocationProjection<br/>selected point + exact address + landmark"]
+    actor -->|"case-bound staff<br/>permission + re-auth"| exact
+    actor -->|"active/recent participant"| participant{"Eligible episode +<br/>disclosure receipt?"}
+    actor -->|"anonymous / crawler / user<br/>interest / waitlist / offer"| publicMode{"Current public mode"}
+
+    participant --> ppublic["Public active"]
+    participant --> preceipt["Participant mode + receipt<br/>or eligible post-event receipt"]
+    participant --> pstreet["No receipt or STREET_ONLY"]
+
+    publicMode --> apublic["Public active"]
+    publicMode --> ahidden["Hidden mode or final card"]
+
+    ppublic --> exact
+    preceipt --> exact
+    pstreet --> street["StreetLocationProjection<br/>city + street, no house/point/landmark"]
+    apublic --> exact
+    ahidden --> street
+
+    street --> group["StreetGroupMarkerProjection<br/>one stable street anchor + safe count"]
+    exact --> nostore["Exact response<br/>no-store, no shared/application cache"]

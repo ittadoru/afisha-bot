@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    actor U as Joined participant
+    participant API as Public API adapter
+    participant E as events owner
+    participant DB as PostgreSQL events schema
+    participant A as Audit/outbox
+
+    U->>API: POST location-reveal + acknowledgement
+    API->>E: RevealExactLocation(actor, event, episode, expected access version)
+    E->>DB: Lock EventLocation and participation episode
+    DB-->>E: Current lifecycle, mode, episode and receipt
+    E->>E: Recheck safety, deadline and exact eligibility
+    alt Not eligible, stale, STREET_ONLY or dependency unavailable
+        E-->>API: Generic deny / conflict without location
+        API-->>U: No exact fields
+    else Eligible and acknowledged
+        E->>DB: Insert/idempotently load disclosure receipt
+        E->>A: Append audit/outbox without address or coordinates
+        DB-->>E: Owner transaction committed
+        E-->>API: ExactLocationProjection + receipt/access version
+        API-->>U: no-store exact response
+    end
+    Note over U,E: Every later exact read rechecks current episode, mode, lifecycle and access version
+    Note over E,DB: Exit, exclusion, cancellation or expiry denies future reads<br/>Receipt never grants by itself

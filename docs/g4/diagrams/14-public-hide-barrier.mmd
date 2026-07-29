@@ -1,0 +1,24 @@
+sequenceDiagram
+    autonumber
+    actor O as Organizer
+    participant API as Public API adapter
+    participant E as events owner
+    participant D as discovery projection owner
+    participant DB as PostgreSQL
+
+    O->>API: Narrow EXACT_PUBLIC to hidden mode
+    API->>E: PrepareLocationVisibilityChange(expected version)
+    E->>DB: Commit pending intent<br/>Current mode remains EXACT_PUBLIC
+    DB-->>E: Intent ID + future access version
+    E->>D: Install public exact deny-barrier
+    D->>DB: Commit barrier before projection cleanup
+    DB-->>D: Barrier active
+    D-->>E: Barrier receipt
+    E->>DB: Finalize target mode + access version + audit/outbox
+    DB-->>E: New hidden mode committed
+    E-->>API: Successful change
+    API-->>O: Hidden mode confirmed
+
+    Note over API,D: Success is impossible before the barrier and final owner commit
+    Note over E,D: Failure after barrier may over-hide safely<br/>Reconciliation resumes finalization
+    Note over E,D: Broadening may appear late in discovery, but never before owner authorization
