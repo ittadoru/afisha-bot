@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED — подтверждено владельцем 2026-07-29`
 - Горизонт: MVP/alpha
 - Source of truth: owner state + immutable fact в одной PostgreSQL transaction
 - MVP transport: PostgreSQL outbox → transport-neutral dispatcher/Celery adapter

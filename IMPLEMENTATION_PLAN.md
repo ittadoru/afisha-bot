@@ -101,7 +101,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Для каждого продуктового сценария: analytics contract, schema version, source, outcome/reason, retention class, data owner и quality checks.
 - [x] Compaction/cleanup flow: final-state guard, dispute/legal hold, aggregate update, media lifecycle deletion, idempotency и reconciliation.
 - [x] API contracts, error model, idempotency and authorization matrix.
-- [ ] Domain event catalogue с producer/consumer/payload/schema version/order/dedup/retry/replay.
+- [x] Domain event catalogue с producer/consumer/payload/schema version/order/dedup/retry/replay.
 - [ ] Transactional outbox/inbox design и reconciliation jobs.
 - [ ] Dead-letter admin view, permission `ops_alerts.receive`, отдельный operations bot, safe alert DTO и expiry/retry policy.
 - [ ] Kafka-readiness matrix: event envelope, schema evolution, publisher port, lag/fan-out/replay triggers.

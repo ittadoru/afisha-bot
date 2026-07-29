@@ -2,6 +2,30 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.6: Domain Event Catalogue
+
+### Принято
+
+- Утверждены transport-neutral envelope v1, per-aggregate ordering,
+  at-least-once delivery, inbox/domain deduplication и immutable compensation.
+- Каталогизированы 69 typed domain facts/analytics observations для семи owner
+  modules с producer, trigger, minimal payload v1, consumers, retry и retention.
+- Зафиксированы bounded retry classes, expiry/stale/dead-letter/replay semantics
+  и compatibility current/previous schema versions.
+- Protected location, private text/media, credentials и production policy
+  internals исключены; `EXACT_PUBLIC` point разрешён только public card
+  projection.
+- Analytics observations не получают command authority, а transfer интересов
+  LookingPost выполняется отдельным идемпотентным fact на пользователя.
+
+### Изменения системы
+
+- Документ `docs/g4/06-domain-event-catalogue.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Пункт Domain Event Catalogue в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Physical outbox/inbox, reconciliation jobs, Kafka и production schemas не
+  создавались.
+
 ## 2026-07-29 — принят G4.5: API contracts и request security
 
 ### Принято
