@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Метод: architecture-level DFD + STRIDE threat catalogue
 - Горизонт: MVP/alpha на одном физическом сервере
 - Risk owner: владелец продукта/системы; control owner указан по boundary
@@ -280,7 +280,7 @@ material attack-surface change or accepted PD/ADR supersession.
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] Assets, classifications и trust boundaries каталогизированы.
 - [x] Три DFD имеют текстовые альтернативы.
 - [x] STRIDE threat register содержит risk/control/test/residual target.
@@ -292,4 +292,4 @@ material attack-surface change or accepted PD/ADR supersession.
 - [x] Четыре встроенных Mermaid blocks должны совпасть с `.mmd`.
 - [x] Нет secrets, PII, production domains, weights или anti-fraud rules.
 - [x] Production code/infrastructure/pentest не создаются.
-- [x] G4.19 checkbox/changelog принятия не изменены.
+- [x] G4.19 checkbox и architecture changelog обновлены отдельным acceptance commit.

@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.19: Threat model и security controls
+
+### Принято
+
+- Утверждены assets, classifications и trust boundaries для public/auth/
+  location, async/media/notifications и admin/backup flows.
+- Принят STRIDE threat register с preventive/detective/recovery controls,
+  verification evidence и residual-risk targets.
+- Зафиксированы release gates: unresolved Critical запрещён, а High требует
+  владельца, контроля, теста и срока и блокирует затронутую функцию.
+- Подтверждены fail-closed authorization/location/chat semantics, отдельная
+  staff boundary и отсутствие application-layer encryption exact coordinates.
+
+### Изменения системы
+
+- Документ
+  `docs/g4/19-threat-model-data-flows-and-security-controls.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Threat-model пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production security code/infrastructure и penetration test не создавались;
+  observability остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.18: Geo provider ports и canonical DTOs
 
 ### Принято
