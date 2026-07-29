@@ -2,6 +2,32 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.10: deployment topology, backups и migration
+
+### Принято
+
+- Утверждены этапы размещения на одном, двух и трёх core servers, а также
+  отдельный post-MVP geo server при переходе с hosted tiles на собственный
+  vector tile stack.
+- Зафиксированы Docker/private network boundaries: только reverse proxy
+  публикует `80/443`, а application, data, operations и backup flows остаются
+  в закрытом контуре.
+- Принят ежедневный restore point с инкрементальным/deduplicated media backup
+  вместо ежедневной полной копии, 14-дневным хранением, еженедельной проверкой
+  и ежеквартальным restore drill; alpha targets — `RPO ≤ 24 часа`,
+  `RTO ≤ 24 часа`.
+- Утверждены staged migrations `1 → 2 → 3`, восстановление Redis из
+  authoritative PostgreSQL/outbox, переключение media через adapter,
+  fencing, validation gates и rollback conditions.
+
+### Изменения системы
+
+- Документ `docs/g4/10-deployment-topology-and-migration.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Deployment topology пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Production infrastructure, providers, domains и auth flows не создавались;
+  Web/Mini App authentication остаётся следующим самостоятельным пунктом G4.
+
 ## 2026-07-29 — принят G4.9: Kafka-readiness matrix
 
 ### Принято

@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - MVP/alpha: один физический сервер, Docker Compose
 - Growth path: два, затем три core servers по измеримым triggers
 - Deferred geo path: отдельный четвёртый сервер при отказе от hosted tiles
