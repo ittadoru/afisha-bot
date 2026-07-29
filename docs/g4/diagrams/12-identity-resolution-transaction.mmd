@@ -1,0 +1,23 @@
+flowchart TB
+    verified["Verified Telegram auth context<br/>no raw token/initData/profile"]
+    lookup["Normalize issuer/method<br/>derive versioned HMAC lookup keys"]
+    begin["BEGIN accounts owner transaction"]
+    lock["Lookup Telegram and optional OIDC keys<br/>lock matching identity rows"]
+    classify{"Resolution result"}
+
+    verified --> lookup --> begin --> lock --> classify
+
+    classify -->|"both keys absent"| create["Create User + telegram_identity<br/>create random default Profile"]
+    classify -->|"same User or one compatible key"| attach["Use existing User<br/>attach missing OIDC pair if safe"]
+    classify -->|"keys point to different Users<br/>or erased/restricted guard denies"| conflict["No identity/session mutation<br/>caller records protocol denial"]
+
+    create --> current["Update first/last auth and method<br/>bot state only from allowed evidence"]
+    attach --> current
+    current --> session["Create website or Mini session row<br/>credential + CSRF HMAC only"]
+    session --> facts["Write identity/profile facts when new<br/>same transaction outbox"]
+    facts --> commit{"COMMIT succeeds?"}
+    commit -->|"yes"| cookie["Return internal user_id<br/>set matching session cookie after commit"]
+    commit -->|"no"| abort["No usable session or cookie<br/>safe new auth flow required"]
+
+    lock -. "unique race" .-> retry["Rollback and bounded re-resolve<br/>never merge rows"]
+    retry --> begin
