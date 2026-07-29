@@ -1,0 +1,17 @@
+flowchart TB
+    S0["Stage 0 — MVP baseline<br/>PostgreSQL outbox + Celery/Redis"]
+    S1["Stage 1 — 7-day shadow publisher<br/>Kafka validation consumer only"]
+    S2["Stage 2 — 7-day analytics canary<br/>single authoritative writer"]
+    S3["Stage 3 — one consumer at a time<br/>route epoch + reconciliation"]
+    S4["Stage 4 — safety-critical eligible<br/>after 14 clean days + rollback drill"]
+
+    S0 -->|"new ADR + gate passed"| S1
+    S1 -->|"zero unexplained loss/order/privacy mismatch"| S2
+    S2 -->|"fact/projection parity"| S3
+    S3 -->|"per-consumer acceptance"| S4
+
+    S1 -. "failure" .-> RB["Fence Kafka route<br/>resume direct route from checkpoints"]
+    S2 -. "failure" .-> RB
+    S3 -. "failure" .-> RB
+    S4 -. "failure" .-> RB
+    RB --> S0
