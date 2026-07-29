@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - CI provider: GitHub Actions
 - Migration tool: Alembic, одна линейная revision chain
 - Alpha production deployment: только manual owner approval/trigger
@@ -334,7 +334,7 @@ Slice допускается к реализации, если:
 
 ## Acceptance checklist
 
-- [x] Документ остаётся `DRAFT` до отдельного owner review.
+- [x] Документ принят владельцем и имеет статус `ACCEPTED`.
 - [x] GitHub Actions logical pipeline and protected artifact flow заданы.
 - [x] Production deploy manual-only.
 - [x] One Alembic linear chain/single head and module schema ownership совместимы.
@@ -347,4 +347,4 @@ Slice допускается к реализации, если:
 - [x] Встроенные Mermaid blocks должны совпасть с `.mmd`.
 - [x] Нет secrets, PII, production domains or real production data.
 - [x] Workflows/migrations/code/infrastructure не создаются.
-- [x] G4.21 checkbox/changelog принятия не изменены.
+- [x] G4.21 checkbox и architecture changelog обновлены отдельным acceptance commit.

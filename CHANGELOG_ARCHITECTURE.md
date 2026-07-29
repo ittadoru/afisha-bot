@@ -2,6 +2,28 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.21: CI/CD, migrations и Definition of Done
+
+### Принято
+
+- Утверждён логический GitHub Actions pipeline со static, test, migration,
+  security, image/SBOM и smoke gates.
+- Зафиксированы одна линейная Alembic chain, один head/runner, module-owned
+  schema revisions и expand/contract/forward-fix discipline.
+- Приняты coverage не ниже 85% без снижения, обязательные critical scenario
+  tests и блокировка applicable Critical/High vulnerabilities.
+- Утверждены immutable artifacts, только ручной alpha deploy, pre-deploy gates
+  и schema-aware rollback/restore semantics.
+
+### Изменения системы
+
+- Документ
+  `docs/g4/21-ci-cd-migrations-definition-of-done.md` переведён из `DRAFT` в
+  `ACCEPTED`.
+- Последний CI/CD-пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Все пункты G4 приняты; production workflow/code/migrations остаются G6 после
+  согласования G5.
+
 ## 2026-07-29 — принят G4.20: Observability, SLO, RPO и RTO
 
 ### Принято

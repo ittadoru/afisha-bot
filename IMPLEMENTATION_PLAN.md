@@ -116,7 +116,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Geo provider ports, canonical DTOs, caching/privacy projections.
 - [x] Threat model/data-flow diagrams и security controls.
 - [x] Observability model, SLO/RPO/RTO, dashboards/alerts.
-- [ ] CI/CD pipeline, migration discipline и Definition of Done.
+- [x] CI/CD pipeline, migration discipline и Definition of Done.
 
 Exit criteria: владелец продукта отдельно подтверждает архитектуру, стек и модель данных.
 
