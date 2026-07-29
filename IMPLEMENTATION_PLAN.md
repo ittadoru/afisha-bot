@@ -106,7 +106,7 @@ Exit criteria: ни один Critical риск не остаётся без owne
 - [x] Dead-letter admin view, permission `ops_alerts.receive`, отдельный operations bot, safe alert DTO и expiry/retry policy.
 - [x] Kafka-readiness matrix: event envelope, schema evolution, publisher port, lag/fan-out/replay triggers.
 - [x] Deployment diagrams для этапов 1/2/3 серверов, Docker networks, exposed ports, backups и migration steps.
-- [ ] Web/Mini App auth flow: Telegram initData + Telegram OIDC/PKCE → единый internal user; website 30/90 дней, Mini App 24 часа.
+- [x] Web/Mini App auth flow: Telegram initData + Telegram OIDC/PKCE → единый internal user; website 30/90 дней, Mini App 24 часа.
 - [ ] Telegram identity table: unique user ID, OIDC issuer/subject, bot-start/delivery state, session/replay controls и запрет profile overwrite.
 - [ ] Admin authentication flow: invitation/reset/bootstrap, Argon2id, отдельные cookies, 8-часовой absolute и 30-минутный idle timeout, re-auth, CSRF/rate limit/audit.
 - [ ] Exact-location projection/reveal matrix: street/public/participant modes, reminders, audit, cache isolation и irreversible disclosure warning.

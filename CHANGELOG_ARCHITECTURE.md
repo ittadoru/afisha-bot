@@ -2,6 +2,29 @@
 
 Все даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-07-29 — принят G4.11: Web и Mini App authentication flow
+
+### Принято
+
+- Утверждены раздельные website OIDC Authorization Code + `S256` PKCE и
+  Mini App `initData` flows, разрешаемые в один immutable internal `user_id`.
+- Зафиксированы single-use `state`/nonce/code, JWKS/claims validation,
+  HMAC/freshness/replay guards и отсутствие доверия к `initDataUnsafe`.
+- Приняты отдельные website/Mini session types и cookie namespaces:
+  website — rolling idle 30 дней и absolute 90 дней, Mini App — absolute
+  24 часа с обновлением только через новое valid `initData`.
+- Утверждены exact Origin + session-bound CSRF, безопасный return intent без
+  auto-action, fail-closed identity conflict и запрет перезаписи публичного
+  профиля Telegram claims.
+
+### Изменения системы
+
+- Документ `docs/g4/11-web-mini-app-authentication-flow.md` переведён из
+  `DRAFT` в `ACCEPTED`.
+- Web/Mini App auth-flow пункт в `IMPLEMENTATION_PLAN.md` отмечен завершённым.
+- Physical identity/session/replay tables, production auth code и admin flow
+  не создавались; Telegram identity model остаётся следующим пунктом G4.
+
 ## 2026-07-29 — принят G4.10: deployment topology, backups и migration
 
 ### Принято

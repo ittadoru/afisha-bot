@@ -2,7 +2,7 @@
 
 ## Статус, цель и границы
 
-- Статус: `DRAFT — ожидает подтверждения владельца`
+- Статус: `ACCEPTED`
 - Website identity protocol: Telegram OIDC Authorization Code Flow + PKCE
 - Mini App identity protocol: server-validated Telegram `initData`
 - Domain result: один immutable internal `user_id`
