@@ -31,3 +31,8 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Local runtime data and G6 evidence generated on the VPS
+var/
+artifacts/
+deploy/image-digests.env.generated

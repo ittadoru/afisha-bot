@@ -1,0 +1,1 @@
+"""Afisha modular-monolith backend."""

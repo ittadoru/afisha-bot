@@ -1,0 +1,11 @@
+route:
+  receiver: local-log-only
+  group_by: ["alertname"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: local-log-only
+
+# No Telegram or production receiver is configured in G6.

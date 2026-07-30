@@ -1,0 +1,351 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app: &app
+  image: ${AFISHA_APP_IMAGE:-afishabot-g6:local}
+  build:
+    context: .
+    target: runtime
+    args:
+      PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-slim}
+      UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.8.15}
+  env_file:
+    - .env
+  restart: unless-stopped
+  init: true
+  read_only: true
+  tmpfs:
+    - /tmp:size=64m,mode=1777
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  logging: *default-logging
+  networks:
+    - app_net
+    - data_net
+
+services:
+  postgres:
+    image: ${POSTGIS_IMAGE:-postgis/postgis:18-3.6}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-afisha}
+      POSTGRES_USER: ${POSTGRES_USER:-afisha}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - data_net
+    deploy:
+      resources:
+        limits:
+          memory: 900m
+
+  redis:
+    image: ${REDIS_IMAGE:-redis:8.2-alpine}
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /data:size=64m
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - data_net
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  migrate:
+    <<: *app
+    command: ["/app/.venv/bin/alembic", "upgrade", "head"]
+    restart: "no"
+    volumes: []
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app
+    volumes:
+      - media_data:/var/lib/afisha/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+
+  worker:
+    <<: *app
+    command:
+      [
+        "/app/.venv/bin/celery",
+        "-A",
+        "afishabot.adapters.tasks.celery_app:celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--concurrency=1",
+      ]
+    volumes:
+      - media_data:/var/lib/afisha/media
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 384m
+
+  beat:
+    <<: *app
+    command:
+      [
+        "/app/.venv/bin/celery",
+        "-A",
+        "afishabot.adapters.tasks.celery_app:celery_app",
+        "beat",
+        "--loglevel=INFO",
+        "--schedule=/tmp/celerybeat-schedule",
+      ]
+    volumes: []
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
+  checks:
+    profiles: ["verify"]
+    build:
+      context: .
+      target: checks
+      args:
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-slim}
+        UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.8.15}
+    env_file:
+      - .env
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest && uv run pip-audit && uv run bandit -q -r src",
+      ]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+    networks:
+      - app_net
+      - data_net
+
+  nginx:
+    image: ${NGINX_IMAGE:-nginx:1.29-alpine}
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=32m
+      - /var/run:size=4m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+    networks:
+      - edge_net
+      - app_net
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+
+  nominatim:
+    image: ${NOMINATIM_IMAGE:-mediagis/nominatim:5.3}
+    profiles: ["geo"]
+    environment:
+      PBF_URL: ${NOMINATIM_PBF_URL:-disabled-in-core-profile}
+      PBF_SHA256: ${NOMINATIM_PBF_SHA256:-disabled-in-core-profile}
+      IMPORT_WIKIPEDIA: "false"
+      REPLICATION_URL: ""
+      NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
+    volumes:
+      - nominatim_data:/var/lib/postgresql/18/main
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/status.php || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - app_net
+      - geo_net
+    deploy:
+      resources:
+        limits:
+          memory: 1400m
+
+  nominatim-import:
+    image: ${NOMINATIM_IMAGE:-mediagis/nominatim:5.3}
+    profiles: ["geo-import"]
+    environment:
+      PBF_URL: ${NOMINATIM_PBF_URL:-disabled-in-core-profile}
+      PBF_SHA256: ${NOMINATIM_PBF_SHA256:-disabled-in-core-profile}
+      IMPORT_WIKIPEDIA: "false"
+      REPLICATION_URL: ""
+      NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
+    volumes:
+      - nominatim_data:/var/lib/postgresql/18/main
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - geo_net
+    deploy:
+      resources:
+        limits:
+          memory: 2800m
+
+  prometheus:
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0}
+    profiles: ["ops"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+      - --storage.tsdb.retention.size=512MB
+    volumes:
+      - ./deploy/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - app_net
+      - ops_net
+    deploy:
+      resources:
+        limits:
+          memory: 640m
+
+  alertmanager:
+    image: ${ALERTMANAGER_IMAGE:-prom/alertmanager:v0.28.1}
+    profiles: ["ops"]
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./deploy/alertmanager:/etc/alertmanager:ro
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /alertmanager:size=16m
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - ops_net
+    deploy:
+      resources:
+        limits:
+          memory: 96m
+
+  node-exporter:
+    image: ${NODE_EXPORTER_IMAGE:-prom/node-exporter:v1.9.1}
+    profiles: ["ops"]
+    command:
+      - --collector.disable-defaults
+      - --collector.filesystem
+      - --collector.textfile
+      - --collector.textfile.directory=/var/lib/node_exporter/textfile
+      - --path.rootfs=/host
+    volumes:
+      - /:/host:ro,rslave
+      - ./var/node_exporter:/var/lib/node_exporter/textfile:ro
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    logging: *default-logging
+    networks:
+      - ops_net
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+
+networks:
+  edge_net:
+  app_net:
+    internal: true
+  data_net:
+    internal: true
+  geo_net:
+    internal: true
+  ops_net:
+    internal: true
+
+volumes:
+  postgres_data:
+  media_data:
+  nominatim_data:
+  prometheus_data:

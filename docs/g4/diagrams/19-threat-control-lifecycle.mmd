@@ -1,9 +1,0 @@
-flowchart LR
-    I["Inventory data flows<br/>assets + boundaries"] --> T["Identify STRIDE threats"]
-    T --> R["Rate impact and likelihood<br/>Low / Medium / High / Critical"]
-    R --> C["Assign owner + preventive/detective control"]
-    C --> V["Verification test / evidence"]
-    V --> D{"Residual risk acceptable?"}
-    D -->|"no"| C
-    D -->|"yes"| A["Owner records acceptance<br/>and review trigger"]
-    A --> I

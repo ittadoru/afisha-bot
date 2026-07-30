@@ -1,0 +1,24 @@
+groups:
+  - name: disk
+    rules:
+      - alert: DiskFreeWarning
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 30
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk free space is below 30%"
+      - alert: DiskFreeCritical
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 15
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disk free space is below 15%"
+      - alert: DiskFreeEmergency
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 10
+        for: 1m
+        labels:
+          severity: emergency
+        annotations:
+          summary: "Disk free space is below 10%"

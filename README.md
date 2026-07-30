@@ -1,28 +1,57 @@
 # AfishaBot
 
-Я разрабатываю Telegram Mini App и адаптивный сайт для поиска бесплатных офлайн-событий и людей по интересам на карте городов Дагестана.
+Afisha — социальная карта бесплатных безопасных офлайн-событий для городов
+Дагестана. G0–G5 приняты; G6 skeleton подготовлен, но ожидает VPS verification.
+Продуктовые функции и frontend ещё не реализованы.
 
-Продуктовые решения и все существующие ADR согласованы. Сейчас я готовлю подробный архитектурный пакет G4 и backlog G5; production-реализация начнётся только после их подтверждения и моей отдельной однозначной команды.
+## Источники
 
-Актуальные источники:
+- [актуальный обзор](CURRENT_SPECIFICATION_V1.md);
+- [продуктовые решения](PRODUCT_DECISIONS.md);
+- [ADR](DECISIONS.md);
+- [семь документов G4](docs/g4);
+- [облегчённый G5](docs/g5/01-lightweight-mvp-backlog.md);
+- [текущий план](IMPLEMENTATION_PLAN.md);
+- [риски](RISKS.md);
+- [исходная спецификация](SOURCE_SPECIFICATION.md) и
+  [traceability](REQUIREMENTS_TRACEABILITY.md).
 
-- [SOURCE_SPECIFICATION.md](SOURCE_SPECIFICATION.md) — полная неизменяемая Markdown-копия исходной спецификации 0.9;
-- [CURRENT_SPECIFICATION_V1.md](CURRENT_SPECIFICATION_V1.md) — читаемый снимок действующих продуктовых и архитектурных правил v1.0;
-- [REQUIREMENTS_TRACEABILITY.md](REQUIREMENTS_TRACEABILITY.md) — связь всех 28 пакетов исходных требований с текущими решениями;
-- [PRODUCT_DECISIONS.md](PRODUCT_DECISIONS.md) — продуктовые правила `PD-001…PD-019`;
-- [DECISIONS.md](DECISIONS.md) — актуальные архитектурные решения;
-- [RISKS.md](RISKS.md) — риски и принятые остаточные риски;
-- [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) — порядок дальнейшей работы.
+Приоритет: PD → ADR → G4 → незаменённая исходная спецификация.
 
-## Требования
+## Правило разработки
 
-- Python 3.14
-- uv
+MacBook используется только для редактирования, просмотра diff и разрешённой
+Git-доставки. `uv`, Python, тесты, Docker, migrations и image downloads
+запускаются только на resettable Ubuntu 24.04 `linux/amd64` VPS.
 
-## Установка
+G6 не открывает production `80/443`, domains или TLS. Nginx доступен только
+через `127.0.0.1:8080` и SSH tunnel.
+
+## Подготовка на VPS
+
+В clean checkout:
 
 ```bash
-uv sync
+cp .env.example .env
+bash scripts/vps/preflight.sh
+bash scripts/vps/pin_images.sh
+bash scripts/vps/refresh_lock.sh
 ```
 
-Команды запуска и общей проверки будут добавлены после утверждения архитектурного skeleton.
+Заполнить `.env` только staging values; файл не коммитить. Проверить и
+закоммитить `uv.lock` и `deploy/image-digests.env`, затем создать новый clean
+checkout получившегося exact commit.
+
+## Authoritative gate
+
+```bash
+bash scripts/vps/verify_g6.sh
+```
+
+Скрипт проверяет locked dependencies, Ruff, Pyright strict, tests/coverage,
+architecture, migrations/PostGIS, Redis/Celery, Nginx boundaries, security
+scans, SBOM и container/Compose smoke. Evidence пишется в ignored
+`artifacts/g6`.
+
+GitHub Actions выполняет только дополнительный secret-free subset. После
+зелёного VPS gate владелец отдельно принимает G6; затем начинается Slice 1.

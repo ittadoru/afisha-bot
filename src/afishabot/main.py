@@ -1,6 +1,9 @@
-def main():
-    print("Hello from afishabot!")
+from afishabot.app import create_app
+
+app = create_app()
 
 
-if __name__ == "__main__":
-    main()
+def run() -> None:
+    import uvicorn
+
+    uvicorn.run("afishabot.main:app", host="0.0.0.0", port=8000)

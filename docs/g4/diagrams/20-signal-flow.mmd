@@ -1,9 +1,0 @@
-flowchart LR
-    API["Backend API"] -->|"low-cardinality /metrics"| P["Prometheus<br/>60 s scrape, 7 d / 512 MB cap"]
-    W["Worker / Beat"] -->|"task/outbox metrics"| P
-    N["node_exporter<br/>filesystem collector only"] -->|"disk bytes/inodes only"| P
-    API -->|"bounded structured log + request_id"| L[("Rotated local logs<br/>7 d / 250 MB")]
-    W --> L
-    P --> A["Alertmanager"]
-    X["External HTTPS health probe"] -->|"whole-host availability alert"| O["Operations Telegram bot"]
-    A -->|"safe alert DTO"| O

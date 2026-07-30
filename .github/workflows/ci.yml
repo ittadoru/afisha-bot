@@ -1,36 +1,54 @@
-name: Test and lint
+name: Optional G6 checks
 
 on:
-  push:
   pull_request:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: optional-g6-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  checks:
+  safe-subset:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
-      - name: Скачать репозиторий
-        uses: actions/checkout@v4
-
-      - name: Установить uv
-        uses: astral-sh/setup-uv@v6
+      - name: Checkout exact commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          enable-cache: true
+          persist-credentials: false
 
-      - name: Установить Python
-        run: uv python install 3.14
+      - name: Prepare secret-free test configuration
+        run: |
+          cp .env.example .env
+          test -f deploy/image-digests.env
+          cat deploy/image-digests.env >> .env
 
-      - name: Установить зависимости
-        run: uv sync --locked --dev
+      - name: Verify Compose configuration
+        run: docker compose config --quiet
 
-      - name: Проверить стиль
-        run: uv run ruff check .
+      - name: Start test data services and migrate
+        run: |
+          docker compose up --detach --wait postgres redis
+          docker compose run --rm migrate
 
-      - name: Проверить форматирование
-        run: uv run ruff format --check .
+      - name: Run locked static, test and security subset
+        run: docker compose --profile verify run --rm checks
 
-      - name: Проверить типы
-        run: uv run pyright
+      - name: Verify staging-only Nginx boundary
+        run: |
+          docker compose up --detach --wait api worker beat nginx
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/metrics)" = "404"
 
-      - name: Запустить тесты
-        run: uv run pytest
+      - name: Stop services
+        if: always()
+        run: docker compose down --volumes
+
+# ADR-021: this workflow has no secrets or deployment authority. Only the
+# versioned clean-VPS gate for the exact commit is authoritative.

@@ -1,0 +1,1 @@
+"""Telegram/webhook delivery boundary; no handlers are implemented in G6."""
