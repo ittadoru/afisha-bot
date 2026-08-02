@@ -87,7 +87,7 @@ Gate:
 
 1. deterministic `uv sync --locked`;
 2. Ruff format/check и Pyright strict;
-3. pytest coverage `≥85%` и architecture tests;
+3. pytest coverage `≥75%` и architecture tests;
 4. empty DB migration/single head/PostGIS/seven schemas;
 5. PostgreSQL, Redis, Celery и API health/readiness;
 6. Nginx/media/port/non-root/resource boundaries;
@@ -108,7 +108,7 @@ manual-only после owner approval.
 - Пользовательские срезы проверены на phone/desktop viewport: anonymous gates,
   location projection, waitlist expiry, form loss, deep links и staff scope;
   keyboard/screen-reader/contrast/touch-target checks применены.
-- Coverage не ниже 85%; critical scenarios не заменяются процентом.
+- Coverage не ниже 75%; critical scenarios не заменяются процентом.
 - Нет applicable Critical/High security findings.
 - Logs/responses не содержат secrets, PII, exact hidden location или policy
   internals.

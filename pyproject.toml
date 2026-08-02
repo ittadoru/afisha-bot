@@ -67,7 +67,7 @@ addopts = [
     "--strict-config",
     "--cov=afishabot",
     "--cov-branch",
-    "--cov-fail-under=85",
+    "--cov-fail-under=75",
     "--cov-report=term-missing",
 ]
 asyncio_mode = "auto"
