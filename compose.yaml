@@ -29,6 +29,16 @@ x-app: &app
     - data_net
 
 services:
+  bot:
+    <<: *app
+    command: ["/app/.venv/bin/python", "-m", "afishabot.bot"]
+    networks:
+      - edge_net
+    deploy:
+      resources:
+        limits:
+          memory: 192m
+
   frontend:
     image: ${AFISHA_FRONTEND_IMAGE:-afishabot-frontend:local}
     build:
