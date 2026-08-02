@@ -21,6 +21,8 @@ COPY pyproject.toml uv.lock README.md ./
 FROM base AS runtime
 RUN uv sync --locked --no-dev --no-install-project
 COPY src ./src
+COPY alembic.ini ./
+COPY migrations ./migrations
 RUN uv sync --locked --no-dev \
     && mkdir -p /var/lib/afisha/media \
     && chown -R afisha:afisha /app /var/lib/afisha
