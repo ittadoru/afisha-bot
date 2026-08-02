@@ -4,7 +4,10 @@ from pydantic import ValidationError
 from afishabot.bot.config import BotSettings
 
 
-def test_bot_settings_require_token_and_proxy() -> None:
+def test_bot_settings_require_token_and_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TG_PROXY_URL", raising=False)
+
     with pytest.raises(ValidationError):
         BotSettings.model_validate({})
 
