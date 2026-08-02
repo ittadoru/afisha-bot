@@ -25,6 +25,10 @@ appeals, emergency decisions, staff permissions и privileged audit.
 - Appeal создаёт отдельный lifecycle; upheld/reversed outcome публикует
   compensating fact, а не переписывает ledger.
 - Staff читает sensitive evidence только по permission + case scope.
+- Обычные LookingPost questions не видны staff. Жалоба на asker через profile
+  автоматически связывает case с source question ID; текст вопроса становится
+  evidence только в пределах назначенного case permission. Жалоба на
+  опубликованный answer создаётся через LookingPost.
 - Emergency action минимально достаточен, ограничен сроком и требует последующей
   review.
 
@@ -63,7 +67,7 @@ reversal создаёт compensating signal.
 | Forged identity/webhook | signature/secret, expiry, replay и dedup |
 | BOLA/IDOR | deny-by-default object permission и negative tests |
 | Exact-location leakage | caller-specific serializer, separate cache, fail-closed hide |
-| XSS/chat abuse | plain text/default encoding, CSP и rate limits |
+| XSS/chat/Q&A abuse | plain text/default encoding, CSP, limits и rate limits |
 | Malicious media/SSRF | no arbitrary fetch URL, decode/re-encode и resource limits |
 | Privileged misuse | least privilege, re-auth и append-only audit |
 | Duplicate/race | unique keys, version, transaction и lock |
@@ -92,7 +96,8 @@ Critical finding блокирует выпуск. High блокирует зат
 - Exact public address и адрес, увиденный участником, нельзя сделать снова
   неизвестным.
 - Общий attendance code можно передать внешним каналом.
-- Chat evidence удаляется через 24 часа.
+- Chat и закрытое LookingPost Q&A evidence удаляются через 24 часа, кроме
+  отдельно зафиксированного report/safety evidence.
 - Password-only admin не имеет MFA в MVP.
 - Репутационная policy требует реальных данных и отдельной production tuning.
 

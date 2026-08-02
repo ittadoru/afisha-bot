@@ -3,6 +3,18 @@
 Краткая история принятых решений. Детальные предыдущие формулировки доступны в
 Git history. Даты указаны в часовом поясе Europe/Moscow.
 
+## 2026-08-01 — принят UI/UX-контракт и синхронизированы продуктовые правила
+
+- Создан единый UI-документ для сайта, Mini App и admin-панели с разделами
+  MVP/Post-MVP, навигацией, ключевыми экранами, состояниями и accessibility.
+- Принят `PD-020`: LookingPost Q&A, safe anonymous preview, новые text limits,
+  report-based moderation и связанные уведомления.
+- Persistent Event drafts удалены из активного G4/G5/retention: форма живёт
+  только в открытом клиенте, а сервер принимает полный финальный submit.
+- Deep links закреплены как ссылки на object/action без передачи permission;
+  Telegram write access не запрашивается.
+- Код, макеты, ветки и commits этим изменением не создавались.
+
 ## 2026-07-30 — документация сокращена без изменения решений
 
 - 22 принятых документа G4 объединены в семь тематических файлов.
@@ -37,6 +49,7 @@ Git history. Даты указаны в часовом поясе Europe/Moscow.
 | Identity | единый internal user; staff identity отдельно от Telegram |
 | Архитектура | модульный монолит, семь owner-модулей и отдельные schemas |
 | Данные | PostgreSQL/PostGIS truth, immutable revisions, compact final snapshots |
+| Интерфейс | mobile map-first, desktop list/map/panel, shared UI contract без готовой design system |
 | Async | transactional outbox, Celery/Redis, Kafka только по triggers |
 | Карта | MapLibre + OpenFreeMap + закрытый regional Nominatim |
 | Приватность | street/exact projections, fail-closed hide и минимизация telemetry |

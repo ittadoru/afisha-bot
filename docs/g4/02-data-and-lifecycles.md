@@ -10,7 +10,7 @@ machines. Точные продуктовые правила определяю�
 | Schema | Основные записи |
 |---|---|
 | `accounts` | user, telegram identity, profile, preferences, sessions и auth transactions |
-| `discovery` | safe event/profile projections, city/category, LookingPost projection |
+| `discovery` | safe event/profile projections, city/category, LookingPost, question/answer и conversion |
 | `events` | event, immutable revision, interest, participation episode, waitlist entry/offer, attendance |
 | `communication` | chat grant/message, announcement, notification и delivery |
 | `trust_safety` | staff account/session, permission grant, moderation case/report/appeal, privileged audit |
@@ -40,9 +40,11 @@ Technical outbox/inbox records имеют явно назначенного owne
 - [participation и waitlist](diagrams/04-participation-waitlist-state.mmd);
 - [attendance](diagrams/04-attendance-state.mmd).
 
-Event хранит lifecycle отдельно от moderation/public visibility. Публикация
-возможна только для полной revision, валидного городского полигона, готовых
-media и разрешённого moderation state.
+Event хранит lifecycle отдельно от moderation/public visibility. Сервер не
+хранит Event draft: четырёхшаговая форма живёт только в открытом клиенте, а
+финальный submit принимает полную revision, валидный городской polygon и
+готовое media. Публичная projection появляется только при разрешённом
+moderation state.
 
 После публикации:
 
@@ -52,8 +54,16 @@ media и разрешённого moderation state.
 - одновременно существует не более одной ожидающей moderation revision;
 - cancellation terminal для вступления, offers и будущих reminders.
 
-LookingPost живёт 72 часа. Conversion в Event создаёт ровно один draft,
-переносит допустимый interest идемпотентно и не переносит скрытые права.
+LookingPost живёт 72 часа. Conversion сначала заполняет клиентскую форму, но
+не создаёт draft. Финальный submit одной идемпотентной транзакцией создаёт
+ровно один полный Event, помечает LookingPost преобразованным и переносит
+только активный interest без участия/capacity или скрытых прав. До submit
+LookingPost остаётся активным.
+
+У вошедшего пользователя может быть не более одного unanswered question на
+LookingPost. До ответа текст видят только asker и author; после ответа
+публичная пара не раскрывает asker. Опубликованные question/answer immutable.
+Новые вопросы запрещены после close/conversion.
 
 ## Interest, participation и waitlist
 
@@ -112,7 +122,7 @@ reputation facts и lifecycle reason. Полные промежуточные т
 |---|---|
 | Chat и announcements | удалить через 24 часа после окончания |
 | Event/profile фотографии | удалить через 7 дней после применимого terminal state |
-| Неактивные drafts и LookingPost details | 7 дней |
+| Закрытый LookingPost и Q&A details | удалить через 24 часа после закрытия/conversion |
 | Attendance evidence | 30 дней после окончательного dispute |
 | Revision old/new details | 90 дней, затем compact facts |
 | Moderation и privileged audit | 90 дней |

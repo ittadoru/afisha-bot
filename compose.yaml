@@ -29,6 +29,39 @@ x-app: &app
     - data_net
 
 services:
+  frontend:
+    image: ${AFISHA_FRONTEND_IMAGE:-afishabot-frontend:local}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: runtime
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22.22.0-alpine}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.29-alpine}
+        VITE_API_BASE_URL: /api
+        VITE_MAP_STYLE_URL: ${OPENFREEMAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:size=16m
+      - /var/run:size=4m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging: *default-logging
+    networks:
+      - app_net
+    deploy:
+      resources:
+        limits:
+          memory: 64m
+
   postgres:
     image: ${POSTGIS_IMAGE:-postgis/postgis:18-3.6}
     environment:
@@ -197,6 +230,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      frontend:
+        condition: service_healthy
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -227,7 +262,7 @@ services:
     volumes:
       - nominatim_data:/var/lib/postgresql/18/main
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/status.php || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/status || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 20

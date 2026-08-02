@@ -43,7 +43,7 @@ provider. Браузер получает tiles напрямую, но event mar
 | Модуль | Владеет |
 |---|---|
 | `accounts` | Telegram identity, внутренний User, profile, preferences и user sessions |
-| `discovery` | публичные projections, карта, категории, поиск и LookingPost |
+| `discovery` | публичные projections, карта, категории, поиск, LookingPost и его Q&A |
 | `events` | Event, revisions, location visibility, interest, participation, waitlist и attendance |
 | `communication` | чат, объявления, центр уведомлений, Telegram delivery и reminders |
 | `trust_safety` | staff identity, permissions, moderation, жалобы, ограничения, appeals и audit |
@@ -92,7 +92,7 @@ event envelope и transaction protocols. Общие бизнес-правила 
 |---|---|
 | `accounts` | resolve identity, load safe profile/session subject |
 | `discovery` | publish/hide projection, query city viewport/list |
-| `events` | draft/publish/revise/cancel, join/leave/waitlist, attendance |
+| `events` | create/revise/cancel, join/leave/waitlist, attendance |
 | `communication` | authorize chat, enqueue notification/announcement |
 | `trust_safety` | authorize staff, moderation decision, restriction lookup |
 | `reputation` | accept finalized signal, return safe level projection |

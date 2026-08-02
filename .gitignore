@@ -4,6 +4,12 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+frontend/node_modules/
+frontend/dist/
+frontend/storybook-static/
+frontend/playwright-report/
+frontend/test-results/
+frontend/*.tsbuildinfo
 
 # Environments
 .venv/

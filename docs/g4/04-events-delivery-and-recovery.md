@@ -25,7 +25,7 @@ dead-letter. Ordering гарантируется только для одног�
 ## Семейства фактов
 
 - accounts: identity/profile/session lifecycle без credential contents;
-- discovery: LookingPost и safe projection lifecycle;
+- discovery: LookingPost, question/answer, conversion и safe projection lifecycle;
 - events: publication/revision/cancellation, participation/waitlist/attendance;
 - communication: notification/announcement/delivery terminal state;
 - trust_safety: moderation/restriction/appeal safe facts;
@@ -63,6 +63,8 @@ inbox receipt и не повторяет side effect.
 - Ошибка классифицируется как transient, permanent, expired или unsafe.
 - Task всегда повторно проверяет aggregate lifecycle/version.
 - Expired notification не отправляется после потери актуальности.
+- Notification payload хранит только safe target reference; переход к object или
+  action screen всегда заново проходит permission check.
 - Permanent/исчерпавшая retry запись получает terminal dead-letter и safe
   reason code.
 - Redis outage оставляет outbox pending; committed operation не откатывается.

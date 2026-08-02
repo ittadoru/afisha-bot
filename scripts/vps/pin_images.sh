@@ -27,6 +27,7 @@ pin NOMINATIM_IMAGE mediagis/nominatim:5.3
 pin PROMETHEUS_IMAGE prom/prometheus:v3.5.0
 pin ALERTMANAGER_IMAGE prom/alertmanager:v0.28.1
 pin NODE_EXPORTER_IMAGE prom/node-exporter:v1.9.1
+pin NODE_IMAGE node:22.22.0-alpine
 pin PYTHON_IMAGE python:3.14.6-slim
 pin UV_IMAGE ghcr.io/astral-sh/uv:0.8.15
 pin GITLEAKS_IMAGE ghcr.io/gitleaks/gitleaks:v8.28.0

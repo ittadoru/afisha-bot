@@ -105,6 +105,9 @@ manual-only после owner approval.
 - Mutation идемпотентна, авторизована и имеет transaction/failure semantics.
 - Migration linear, owner-scoped и проверена.
 - Unit, DB/API, permission и применимые concurrency/recovery tests зелёные.
+- Пользовательские срезы проверены на phone/desktop viewport: anonymous gates,
+  location projection, waitlist expiry, form loss, deep links и staff scope;
+  keyboard/screen-reader/contrast/touch-target checks применены.
 - Coverage не ниже 85%; critical scenarios не заменяются процентом.
 - Нет applicable Critical/High security findings.
 - Logs/responses не содержат secrets, PII, exact hidden location или policy

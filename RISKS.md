@@ -9,7 +9,7 @@
 | R-003 | High | Самодекларация 14+ не доказывает возраст | prohibited content, moderation, report/emergency flow и legal review перед public launch | Да |
 | R-004 | High | Маленькая команда не успевает модерировать опасный UGC | premode новых organizers, queues, audit, escalation и измерение backlog | Да |
 | R-009 | High | Join/waitlist race превышает capacity | transaction, lock/constraint, version и concurrency tests | Нет |
-| R-011 | High | Chat evidence удаляется через 24 часа | жалоба/важный факт фиксируется отдельно; срок явно принят | Да |
+| R-011 | High | Chat/LookingPost Q&A evidence удаляется через 24 часа | report связывает source ID и нужный evidence фиксируется отдельно; срок явно принят | Да |
 | R-015/016 | High | Attendance code можно передать отсутствующему | joined-only, 5 попыток, hash, one redemption, rate limit и dispute | Да |
 | R-019 | High | Короткий retention теряет evidence, длинный нарушает privacy | final-state guards, legal hold, compaction audit и restore tests | Да |
 | R-101 | Critical | Forged Telegram identity/initData | server signature/JWKS, expiry, replay/session binding и internal user ID | Нет |

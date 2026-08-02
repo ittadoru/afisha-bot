@@ -14,7 +14,7 @@ G6 начат владельцем 2026-07-30. MacBook используется 
 | G0 | Изучены источники; созданы source copy и traceability |
 | G1 | Проведены product/security/architecture audits, создан risk register |
 | G2 | Проверены технологии, Telegram, geo и инфраструктурные варианты |
-| G3 | Приняты `PD-001…PD-019`, закрыты blocking product questions |
+| G3 | Приняты `PD-001…PD-020`, включая UI-связанные product contracts |
 | G4 | Принята архитектура; 22 исходных документа позднее объединены в семь |
 | G5 | Принят облегчённый backlog из девяти slices |
 
@@ -53,8 +53,8 @@ secrets/PII. Optional GitHub CI не заменяет VPS gate.
 3. admin, outbox/worker и media;
 4. создание/moderation/revision/cancellation Event;
 5. interest/participation/waitlist/chat;
-6. internal/Telegram notifications;
-7. LookingPost и cold start;
+6. internal/Telegram notifications и permission-safe deep links;
+7. LookingPost, Q&A и cold start;
 8. attendance и reputation;
 9. cleanup, backup/restore и выпуск.
 

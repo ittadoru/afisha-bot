@@ -18,7 +18,7 @@ set +a
 for ref in \
   "$POSTGIS_IMAGE" "$REDIS_IMAGE" "$NGINX_IMAGE" "$NOMINATIM_IMAGE" \
   "$PROMETHEUS_IMAGE" "$ALERTMANAGER_IMAGE" "$NODE_EXPORTER_IMAGE" \
-  "$PYTHON_IMAGE" "$UV_IMAGE" "$GITLEAKS_IMAGE" "$TRIVY_IMAGE" \
+  "$NODE_IMAGE" "$PYTHON_IMAGE" "$UV_IMAGE" "$GITLEAKS_IMAGE" "$TRIVY_IMAGE" \
   "$SYFT_IMAGE"; do
   [[ "$ref" == *@sha256:* ]] || {
     printf 'Floating image reference rejected: %s\n' "$ref" >&2
@@ -77,10 +77,18 @@ docker build \
   --tag afishabot-g6-checks:verify \
   .
 
+docker build \
+  --build-arg "NODE_IMAGE=$NODE_IMAGE" \
+  --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
+  --target checks \
+  --tag afishabot-frontend-checks:verify \
+  --file frontend/Dockerfile \
+  .
+
 docker compose up --detach --wait postgres redis
 docker compose run --rm migrate
 docker compose --profile verify run --rm checks
-docker compose up --detach --wait api worker beat nginx
+docker compose up --detach --wait api worker beat frontend nginx
 
 curl --fail --silent --show-error http://127.0.0.1:8080/health/live >/dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/health/ready >/dev/null
@@ -94,8 +102,8 @@ for path in / /app /admin; do
     curl --silent --output /dev/null --write-out '%{http_code}' \
       "http://127.0.0.1:8080${path}"
   )"
-  [[ "$status" == "404" ]] || {
-    printf 'Frontend placeholder %s returned %s instead of 404\n' \
+  [[ "$status" == "200" ]] || {
+    printf 'Frontend route %s returned %s instead of 200\n' \
       "$path" "$status" >&2
     exit 1
   }
@@ -139,7 +147,7 @@ for service in api worker beat; do
     exit 1
   }
 done
-for service in postgres redis api worker beat nginx; do
+for service in postgres redis api worker beat frontend nginx; do
   container_id="$(docker compose ps --quiet "$service")"
   memory_limit="$(docker inspect "$container_id" --format '{{.HostConfig.Memory}}')"
   [[ "$memory_limit" -gt 0 ]] || {

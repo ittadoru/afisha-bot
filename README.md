@@ -11,6 +11,7 @@ Afisha — социальная карта бесплатных безопасн
 - [ADR](DECISIONS.md);
 - [семь документов G4](docs/g4);
 - [облегчённый G5](docs/g5/01-lightweight-mvp-backlog.md);
+- [принятый UI/UX-контракт](docs/ui/01-ui-ux-decisions.md);
 - [текущий план](IMPLEMENTATION_PLAN.md);
 - [риски](RISKS.md);
 - [исходная спецификация](SOURCE_SPECIFICATION.md) и

@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     redis_url: SecretStr = SecretStr("redis://redis:6379/0")
     media_root: Path = Path("/var/lib/afisha/media")
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    nominatim_url: str = "http://nominatim:8080"
+    nominatim_timeout_seconds: float = Field(default=1.2, gt=0, le=2.5)
 
     def database_dsn(self) -> str:
         return self.database_url.get_secret_value()

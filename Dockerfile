@@ -9,7 +9,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
-RUN groupadd --system --gid 10001 afisha \
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends libvips42 \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 afisha \
     && useradd --system --uid 10001 --gid afisha --home /app afisha
 WORKDIR /app
 COPY --from=uv /uv /usr/local/bin/uv

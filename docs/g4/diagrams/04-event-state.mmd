@@ -1,8 +1,6 @@
 stateDiagram-v2
     state "Event lifecycle" as lifecycle {
-        [*] --> DRAFT
-        DRAFT --> SCHEDULED: publish approved/not required
-        DRAFT --> CANCELLED: owner cancels
+        [*] --> SCHEDULED: complete submission accepted
         SCHEDULED --> IN_PROGRESS: starts_at reached
         SCHEDULED --> CANCELLED: owner/admin cancels
         IN_PROGRESS --> COMPLETION_PENDING: ends_at reached

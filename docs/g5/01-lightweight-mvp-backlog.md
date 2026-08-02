@@ -51,12 +51,15 @@
 
 ### 4. Создание и жизнь события
 
-- Результат: draft, point/Nominatim/polygon, publication, moderation,
-  revisions, cancellation и deep link.
+- Результат: четырёхшаговая клиентская форма без persistent Event draft,
+  complete submit, point/Nominatim/polygon, обязательная фотография `16:9`,
+  publication/moderation, revisions, cancellation и deep link.
 - Зависимости: slices 1–3.
 - Готовность: вне города publish невозможен; защищённые поля неизменяемы;
-  stale version не перезаписывает новую.
-- Риск/тесты: неверное место и lifecycle race; DB/API/version/privacy tests.
+  stale version не перезаписывает новую; выход из заполненной формы предупреждает
+  о потере, а reload её не восстанавливает.
+- Риск/тесты: неверное место, раскрытие exact address и lifecycle race;
+  DB/API/version/privacy и form-loss tests.
 - Отключение: закрыть create/publish, public safe read сохраняется.
 
 ### 5. Интерес, участие и общение
@@ -73,21 +76,27 @@
 ### 6. Уведомления и изменения
 
 - Результат: internal center, Telegram delivery, critical banners,
-  aggregation, retry и dead-letter.
+  aggregation, object/action deep links, retry и dead-letter; Telegram write
+  access не запрашивается, settings показывает фактический delivery status.
 - Зависимости: outbox и event/participation facts.
 - Готовность: блокировка бота не запрещает действие, повтор не дублирует
   доставку.
-- Риск/тесты: потеря/спам/stale message; adapter, retry, expiry и replay tests.
+- Риск/тесты: потеря/спам/stale message или обход права через ссылку; adapter,
+  retry, expiry, replay и deep-link permission tests.
 - Отключение: остановить external delivery, оставить internal center/banner.
 
 ### 7. LookingPost и холодный старт
 
-- Результат: LookingPost 72 часа, likes, idempotent conversion, civic event и
-  city low-activity flag.
+- Результат: LookingPost 72 часа с title `30`, text `300`, likes, Q&A
+  (`question 200`, `answer 300`), safe anonymous preview, idempotent conversion,
+  civic event и city low-activity flag.
 - Зависимости: discovery/events/moderation.
-- Готовность: interest переносится один раз; civic event не получает
-  join/chat/attendance/reputation.
-- Риск/тесты: fake activity и conversion race; TTL, idempotency и flag tests.
+- Готовность: один unanswered question на пользователя; до ответа его видят
+  только asker/author; опубликованная пара immutable и не раскрывает asker;
+  interest переносится один раз; civic event не получает join/chat/attendance/
+  reputation.
+- Риск/тесты: identity leak, staff overreach, fake activity и conversion race;
+  Q&A permission/report context, TTL, idempotency и flag tests.
 - Отключение: per-city flags для creation/cleanup/civic content.
 
 ### 8. Attendance и reputation
@@ -107,7 +116,8 @@
   restore drill и end-to-end release checks.
 - Зависимости: все предыдущие срезы.
 - Готовность: clean gates, restore доказан, карты/Nominatim проверены в трёх
-  городах, admin/moderator готовы.
+  городах, admin/moderator готовы; закрытый LookingPost/Q&A удаляется через
+  24 часа по правилам safety/legal hold.
 - Риск/тесты: необратимая потеря данных; retention, restore, recovery, E2E и
   Telegram-client map tests.
 - Отключение: остановить public entry и mutations; выполнить принятую recovery
@@ -120,6 +130,10 @@
 контроля каждого applicable High. Ответы/logs не содержат secrets, hidden
 coordinates, лишние PII или policy internals. External outage безопасен, а
 функция закрывается flag/deny barrier либо откатывается по G4.
+
+Применимый UI flow проверяется на phone и desktop: loading/error/empty state,
+keyboard и screen reader, contrast, touch target `≥44 px`, anonymous/auth gate,
+а также отсутствие hidden data в response/HTML, а не только на экране.
 
 Первый выпуск требует clean authoritative gate, обязательные E2E,
 backup/restore drill, проверки MapLibre/Nominatim, отдельные staff accounts и

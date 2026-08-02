@@ -25,15 +25,16 @@ owner use cases через permissions.
 | Группа | Основные операции |
 |---|---|
 | Auth/account | OIDC start/callback, Mini exchange, refresh/logout, sessions, profile/preferences |
-| Discovery | cities/categories, viewport/list, public event/profile, LookingPost |
-| Events | draft, media attach, publish/revise/cancel, interest/join/waitlist/leave |
+| Discovery | cities/categories, viewport/list, public event/profile, LookingPost/Q&A/conversion |
+| Events | complete create submit, media attach, revise/cancel, interest/join/waitlist/leave |
 | Communication | participant chat, announcements, notification center |
 | Attendance/reputation | code redemption, preliminary result, dispute, safe levels |
 | Safety | report, own appeal/status |
 | Admin | staff auth, queues, cases, decisions, configuration и operations |
 
-Deep link открывает публичную карточку и никогда не несёт право, PII,
-координату или автоматическую mutation.
+Deep link открывает связанный object/action screen и никогда не несёт право,
+PII, координату или автоматическую mutation. После identity resolution сервер
+повторно проверяет object permission; недоступный объект скрывается безопасно.
 
 ## Пользовательская identity
 
@@ -126,7 +127,9 @@ Backend проверяет:
 Телефон, Telegram username, выбранный город, координаты и история участия не
 публикуются.
 
-Anonymous видит только разрешённый organizer profile. Exact lookup public ID
+Anonymous видит только разрешённый organizer profile. Из LookingPost anonymous
+видит safe preview pseudonym/avatar, но профиль автора, Q&A и действия требуют
+user session. Exact lookup public ID
 доступен authenticated пользователю с enumeration throttling. Search/indexing
 не раскрывает обычных участников. Safety hide немедленно закрывает projection.
 
@@ -160,4 +163,5 @@ notification text, provider call или log. Уже увиденный адре�
 Обязательны positive/negative сценарии forged/expired/replayed auth, duplicate
 identity resolution, session rotation/revocation, CSRF/Origin, IDOR/BOLA,
 mass assignment, stale version, permission scope, re-auth, public ID
-enumeration и exact-location leakage.
+enumeration, exact-location leakage, Q&A auth/privacy/report context и deep-link
+permission re-check.

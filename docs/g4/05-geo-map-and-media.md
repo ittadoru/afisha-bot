@@ -77,14 +77,15 @@ Pipeline:
 3. проверить размер, declared/decoded type и pixel limit;
 4. полностью decode, применить orientation/crop и re-encode;
 5. удалить EXIF/metadata и original;
-6. создать безопасный derivative;
+6. создать безопасный derivative: для единственной обязательной фотографии
+   Event — `16:9`, для avatar — `256×256 WebP`;
 7. moderation/owner use case переводит attachment в ready/rejected;
 8. выдавать файл только через scoped application check.
 
 Arbitrary remote URL не принимается. Filename, MIME и client metadata не
 доверяются. Image bomb, malformed или неподдерживаемый файл удаляется и не
-публикуется. Profile avatar получает `256×256 WebP`; event media следует
-отдельным разрешённым размерам.
+публикуется. В MVP Event принимает ровно одну фотографию; смена фотографии
+проходит тот же pipeline и moderation path.
 
 Attachment lifecycle и object-owner lifecycle согласуются фактами.
 Idempotent cleanup удаляет orphan/quarantine/expired media. Off-server backup

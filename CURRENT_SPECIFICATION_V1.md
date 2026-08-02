@@ -9,13 +9,15 @@
 Afisha — Telegram Mini App и адаптивный сайт бесплатных безопасных офлайн-
 событий для Махачкалы, Хасавюрта и Дербента. Возраст — 14+ по самодекларации.
 
-Anonymous видит карту/list, публичное событие, deep link и organizer profile.
-Лайк, вступление, chat, создание, жалоба и profile mutation требуют Telegram
-login. Staff работает в отдельной закрытой admin-панели.
+Anonymous видит карту/list, публичное событие, deep link, organizer profile и
+safe preview активного LookingPost. Q&A, профиль автора LookingPost, лайк,
+вступление, chat, создание, жалоба и profile mutation требуют Telegram login.
+Staff работает в отдельной закрытой admin-панели.
 
 MVP включает Event, LookingPost 72 часа, interest, join, FIFO waitlist, простой
-participant chat, notifications, attendance/dispute/rating, четыре публичных
-reputation level, moderation/appeals, public web и civic events.
+participant chat, LookingPost Q&A, notifications, attendance/dispute/rating,
+четыре публичных reputation level, moderation/appeals, public web и civic
+events.
 
 В MVP нет minimum/confirmation, user geolocation/«Рядом со мной», clustering,
 QR/geofence, WebSocket chat, achievements/challenges, AI/ML и Kafka.
@@ -44,6 +46,11 @@ street geometry без скрытой event point. MapLibre использует
 
 ## Событие и участие
 
+Создание — четыре шага в открытом клиенте: основное, время/участие, место и
+одна обязательная фотография `16:9`. Название ограничено 60, описание — 1000
+символами. Persistent Event draft отсутствует: при выходе заполненная форма
+предупреждает о потере и после закрытия/reload не восстанавливается.
+
 Event имеет начало/окончание; capacity необязателен. Like не занимает место.
 Join занимает место сразу; при заполнении пользователь вручную входит в FIFO
 waitlist. Offers резервируют освободившиеся места первым подходящим.
@@ -60,6 +67,19 @@ Attendance подтверждает шестизначный server code: joined
 один success. Без code возникает preliminary no-show; dispute длится 24 часа,
 финальное решение принимает moderator.
 
+LookingPost живёт 72 часа, не имеет фото и отдельного времени; title ограничен
+30, text — 300 символами. У пользователя может быть один unanswered question
+до 200 символов; ответ автора — до 300. До ответа вопрос закрыт для остальных,
+а опубликованная immutable пара не раскрывает asker. Обычный Q&A staff не
+видит без связанной жалобы и case permission.
+
+## Интерфейс
+
+Принятая структура сайта, Mini App и admin-панели, состояния экранов и
+визуальное направление находятся в
+[UI/UX decisions](docs/ui/01-ui-ux-decisions.md). Точные HEX, полный icon set,
+детальная design system и 3D-объект пока не выбраны.
+
 ## Safety и reputation
 
 Новые organizers проходят premode до трёх успешных events. Reports,
@@ -74,7 +94,7 @@ thresholds и anti-fraud rules находятся вне Git/API/logs.
 
 - chat/announcements — 24 часа после Event;
 - фотографии — 7 дней после применимого terminal state;
-- inactive drafts — 7 дней;
+- закрытый LookingPost и Q&A — 24 часа;
 - attendance evidence — 30 дней после dispute;
 - revision details и staff audit — 90 дней;
 - encrypted backups — 14 дней.
