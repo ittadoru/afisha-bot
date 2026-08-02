@@ -207,6 +207,8 @@ services:
         UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.8.15}
     env_file:
       - .env
+    environment:
+      UV_CACHE_DIR: /tmp/uv-cache
     command:
       [
         "/bin/sh",
