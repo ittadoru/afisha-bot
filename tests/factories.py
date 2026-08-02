@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-import factory
+from factory.base import Factory
+from factory.declarations import LazyFunction
 from faker import Faker
 
 fake = Faker("ru_RU")
@@ -22,19 +23,19 @@ class EventFixture:
     city: str
 
 
-class UserFactory(factory.Factory):
-    class Meta:
+class UserFactory(Factory[UserFixture]):
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         model = UserFixture
 
-    user_id = factory.LazyFunction(uuid4)
-    pseudonym = factory.LazyFunction(lambda: fake.user_name()[:24])
+    user_id = LazyFunction(uuid4)
+    pseudonym = LazyFunction(lambda: fake.user_name()[:24])
 
 
-class EventFactory(factory.Factory):
-    class Meta:
+class EventFactory(Factory[EventFixture]):
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         model = EventFixture
 
-    event_id = factory.LazyFunction(uuid4)
-    owner_id = factory.LazyFunction(uuid4)
-    title = factory.LazyFunction(lambda: fake.sentence(nb_words=4)[:60])
+    event_id = LazyFunction(uuid4)
+    owner_id = LazyFunction(uuid4)
+    title = LazyFunction(lambda: fake.sentence(nb_words=4)[:60])
     city = "Махачкала"

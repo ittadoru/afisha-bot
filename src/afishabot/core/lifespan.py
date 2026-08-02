@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import cast
 
@@ -12,7 +12,7 @@ from afishabot.core.redis import create_redis_client, redis_is_available
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     settings = cast(Settings, app.state.settings)
     configure_logging(settings.log_level)
     settings.media_root.mkdir(mode=0o750, parents=True, exist_ok=True)

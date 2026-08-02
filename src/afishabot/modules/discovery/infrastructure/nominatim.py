@@ -1,5 +1,5 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import cast
 
 import httpx
 
@@ -42,7 +42,7 @@ class NominatimReverseGeocoder:
                     if response.status_code == 404:
                         raise ReverseGeocodingNotFound
                     response.raise_for_status()
-                    return self._parse(response.json(), locale)
+                    return self.parse(response.json(), locale)
                 except ReverseGeocodingNotFound:
                     raise
                 except (
@@ -57,29 +57,34 @@ class NominatimReverseGeocoder:
         raise ReverseGeocodingUnavailable
 
     @staticmethod
-    def _parse(payload: Any, locale: str) -> CanonicalAddress:
+    def parse(payload: object, locale: str) -> CanonicalAddress:
         if not isinstance(payload, Mapping):
             raise ReverseGeocodingMalformed
-        features = payload.get("features")
+        root = cast(Mapping[str, object], payload)
+        features = root.get("features")
         if not isinstance(features, list) or not features:
             raise ReverseGeocodingNotFound
-        first = features[0]
+        feature_list = cast(list[object], features)
+        first = feature_list[0]
         if not isinstance(first, Mapping):
             raise ReverseGeocodingMalformed
-        properties = first.get("properties")
+        feature = cast(Mapping[str, object], first)
+        properties = feature.get("properties")
         if not isinstance(properties, Mapping):
             raise ReverseGeocodingMalformed
-        geocoding = properties.get("geocoding")
+        properties_map = cast(Mapping[str, object], properties)
+        geocoding = properties_map.get("geocoding")
         if not isinstance(geocoding, Mapping):
             raise ReverseGeocodingMalformed
+        canonical = cast(Mapping[str, object], geocoding)
 
-        display_name = NominatimReverseGeocoder._text(geocoding, "label")
+        display_name = NominatimReverseGeocoder._text(canonical, "label")
         city = NominatimReverseGeocoder._first_text(
-            geocoding, "city", "town", "village"
+            canonical, "city", "town", "village"
         )
-        region = NominatimReverseGeocoder._first_text(geocoding, "state", "county")
-        place_id = NominatimReverseGeocoder._first_text(geocoding, "place_id", "osm_id")
-        street = NominatimReverseGeocoder._optional_text(geocoding, "street")
+        region = NominatimReverseGeocoder._first_text(canonical, "state", "county")
+        place_id = NominatimReverseGeocoder._first_text(canonical, "place_id", "osm_id")
+        street = NominatimReverseGeocoder._optional_text(canonical, "street")
         precision = "street" if street else "locality"
         return CanonicalAddress(
             display_name=display_name,
@@ -92,14 +97,14 @@ class NominatimReverseGeocoder:
         )
 
     @staticmethod
-    def _text(data: Mapping[str, Any], key: str) -> str:
+    def _text(data: Mapping[str, object], key: str) -> str:
         value = data.get(key)
         if not isinstance(value, (str, int)) or not str(value).strip():
             raise ReverseGeocodingMalformed
         return str(value).strip()
 
     @staticmethod
-    def _first_text(data: Mapping[str, Any], *keys: str) -> str:
+    def _first_text(data: Mapping[str, object], *keys: str) -> str:
         for key in keys:
             value = data.get(key)
             if isinstance(value, (str, int)) and str(value).strip():
@@ -107,7 +112,7 @@ class NominatimReverseGeocoder:
         raise ReverseGeocodingMalformed
 
     @staticmethod
-    def _optional_text(data: Mapping[str, Any], key: str) -> str | None:
+    def _optional_text(data: Mapping[str, object], key: str) -> str | None:
         value = data.get(key)
         if isinstance(value, (str, int)) and str(value).strip():
             return str(value).strip()

@@ -34,8 +34,10 @@ async def test_postgis_and_migration_head() -> None:
 
 
 async def test_redis_connection() -> None:
-    client = Redis.from_url(required_env("AFISHA_REDIS_URL"))
+    client = Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
+        required_env("AFISHA_REDIS_URL")
+    )
     try:
-        assert await client.ping()
+        assert await client.ping()  # pyright: ignore[reportUnknownMemberType]
     finally:
         await client.aclose()

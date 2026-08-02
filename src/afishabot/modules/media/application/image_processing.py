@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol, Self, cast
 from uuid import uuid4
 
 
@@ -35,6 +36,19 @@ class ImageLimits:
     output_height: int = 900
 
 
+class VipsImage(Protocol):
+    width: int
+    height: int
+
+    def autorot(self) -> Self: ...
+
+    def crop(self, left: int, top: int, width: int, height: int) -> Self: ...
+
+    def thumbnail_image(self, width: int, **kwargs: object) -> Self: ...
+
+    def webpsave(self, filename: str, **kwargs: object) -> None: ...
+
+
 class EventImageProcessor:
     """Decode, orient, crop and re-encode one quarantined Event image."""
 
@@ -51,8 +65,11 @@ class EventImageProcessor:
         try:
             import pyvips
 
-            image = pyvips.Image.new_from_file(
-                str(source), access="sequential", fail_on="warning"
+            image = cast(
+                VipsImage,
+                pyvips.Image.new_from_file(  # pyright: ignore[reportUnknownMemberType]
+                    str(source), access="sequential", fail_on="warning"
+                ),
             )
             if image.width <= 0 or image.height <= 0:
                 raise UnsafeImageError("invalid_dimensions")

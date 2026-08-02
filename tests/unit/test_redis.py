@@ -1,7 +1,8 @@
-from unittest.mock import AsyncMock, MagicMock
 from typing import cast
+from unittest.mock import AsyncMock, MagicMock
 
 from redis.asyncio import Redis
+
 from afishabot.core.redis import redis_is_available
 
 

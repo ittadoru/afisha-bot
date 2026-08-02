@@ -6,7 +6,7 @@ from afishabot.core.config import Settings
 def create_celery_app(settings: Settings | None = None) -> Celery:
     resolved = settings or Settings()
     application = Celery("afishabot", broker=resolved.redis_dsn())
-    application.conf.update(
+    application.conf.update(  # pyright: ignore[reportUnknownMemberType]
         beat_schedule={},
         broker_connection_retry_on_startup=True,
         result_backend=None,

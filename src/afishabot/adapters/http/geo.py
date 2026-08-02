@@ -37,9 +37,9 @@ async def reverse_geocode(
     request: Request,
     geocoder: Annotated[NominatimReverseGeocoder, Depends(get_reverse_geocoder)],
 ) -> ReverseGeocodingResponse:
-    language = request.headers.get("Accept-Language", "ru").split(
-        ",", maxsplit=1
-    )[0][:16]
+    language = request.headers.get("Accept-Language", "ru").split(",", maxsplit=1)[0][
+        :16
+    ]
     try:
         address: CanonicalAddress = await geocoder.reverse(
             latitude=latitude,

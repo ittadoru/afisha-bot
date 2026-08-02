@@ -1,12 +1,16 @@
 from fastapi import FastAPI
-from prometheus_client import make_asgi_app
+from prometheus_client import (
+    make_asgi_app,  # pyright: ignore[reportUnknownVariableType]
+)
 
 from afishabot.adapters.http.geo import router as geo_router
 from afishabot.adapters.http.health import router as health_router
 from afishabot.adapters.http.middleware import RequestContextMiddleware
 from afishabot.core.config import Settings
 from afishabot.core.lifespan import lifespan
-from afishabot.modules.discovery.infrastructure.nominatim import NominatimReverseGeocoder
+from afishabot.modules.discovery.infrastructure.nominatim import (
+    NominatimReverseGeocoder,
+)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -26,5 +30,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.add_middleware(RequestContextMiddleware)
     application.include_router(health_router)
     application.include_router(geo_router)
-    application.mount("/metrics", make_asgi_app())
+    application.mount(
+        "/metrics",
+        make_asgi_app(),  # pyright: ignore[reportUnknownArgumentType]
+    )
     return application

@@ -2,7 +2,7 @@ from redis.asyncio import Redis
 
 
 def create_redis_client(redis_url: str) -> Redis:
-    return Redis.from_url(
+    return Redis.from_url(  # pyright: ignore[reportUnknownMemberType]
         redis_url,
         decode_responses=True,
         socket_connect_timeout=1,
@@ -12,6 +12,6 @@ def create_redis_client(redis_url: str) -> Redis:
 
 async def redis_is_available(client: Redis) -> bool:
     try:
-        return bool(await client.ping())
+        return bool(await client.ping())  # pyright: ignore[reportUnknownMemberType]
     except Exception:
         return False
