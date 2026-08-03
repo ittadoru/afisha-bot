@@ -25,7 +25,9 @@ git ls-files --error-unmatch deploy/image-digests.env >/dev/null || {
   printf 'deploy/image-digests.env must be committed before verification.\n' >&2
   exit 1
 }
-if grep -Eq 'REPLACE|(^|=)[^[:space:]]+:[^@[:space:]]+$' deploy/image-digests.env; then
+if grep -Evq \
+  '^[A-Z0-9_]+=[^@[:space:]]+@sha256:[0-9a-f]{64}$' \
+  deploy/image-digests.env; then
   printf 'deploy/image-digests.env contains a placeholder or floating tag.\n' >&2
   exit 1
 fi
