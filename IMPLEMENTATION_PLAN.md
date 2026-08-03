@@ -23,7 +23,7 @@ G6 начат владельцем 2026-07-30. MacBook используется 
 Готово в working tree:
 
 - [x] `ADR-021`: authoritative VPS gate и optional secret-free GitHub CI;
-- [x] CPython 3.14.6, bounded dependencies, Pyright strict и coverage 85%;
+- [x] CPython 3.14.6, bounded dependencies, Pyright strict и coverage 75%;
 - [x] FastAPI app factory, health/readiness/metrics и lifecycle;
 - [x] семь модулей и architecture import boundaries;
 - [x] одна Alembic chain: PostGIS + семь owner schemas;

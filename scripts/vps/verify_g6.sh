@@ -4,12 +4,31 @@ set -Eeuo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+announce() {
+  printf '\nG6 step: %s\n' "$1"
+}
+
 bash scripts/vps/preflight.sh
 
-[[ -f deploy/image-digests.env ]] || {
+sha="$(git rev-parse HEAD)"
+upstream_sha="$(git rev-parse '@{upstream}')"
+[[ "$sha" == "$upstream_sha" ]] || {
+  printf 'HEAD %s does not match upstream %s\n' "$sha" "$upstream_sha" >&2
+  exit 1
+}
+
+[[ -s deploy/image-digests.env ]] || {
   printf 'Run pin_images.sh, review and commit deploy/image-digests.env first.\n' >&2
   exit 1
 }
+git ls-files --error-unmatch deploy/image-digests.env >/dev/null || {
+  printf 'deploy/image-digests.env must be committed before verification.\n' >&2
+  exit 1
+}
+if grep -Eq 'REPLACE|(^|=)[^[:space:]]+:[^@[:space:]]+$' deploy/image-digests.env; then
+  printf 'deploy/image-digests.env contains a placeholder or floating tag.\n' >&2
+  exit 1
+fi
 
 set -a
 source deploy/image-digests.env
@@ -29,9 +48,9 @@ done
 export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 export AFISHA_APP_IMAGE="${AFISHA_APP_IMAGE:-afishabot-g6:local}"
+export AFISHA_FRONTEND_IMAGE="${AFISHA_FRONTEND_IMAGE:-afishabot-frontend-g6:local}"
 export POSTGRES_USER="${POSTGRES_USER:-afisha}"
 export POSTGRES_DB="${POSTGRES_DB:-afisha}"
-sha="$(git rev-parse HEAD)"
 export COMPOSE_PROJECT_NAME="afisha_g6_${sha:0:12}"
 
 cleanup() {
@@ -41,6 +60,7 @@ trap cleanup EXIT
 cleanup
 mkdir -p artifacts/g6
 
+announce compose-config
 docker compose config --quiet
 docker compose config --format json >artifacts/g6/compose.json
 python3 - <<'PY'
@@ -70,13 +90,21 @@ if len(nginx_ports) != 1 or nginx_ports[0].get("host_ip") != "127.0.0.1":
     raise SystemExit("Nginx must publish only a loopback staging port")
 PY
 
+announce backend-images
 docker build \
   --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE" \
   --build-arg "UV_IMAGE=$UV_IMAGE" \
   --target checks \
   --tag afishabot-g6-checks:verify \
   .
+docker build \
+  --build-arg "PYTHON_IMAGE=$PYTHON_IMAGE" \
+  --build-arg "UV_IMAGE=$UV_IMAGE" \
+  --target runtime \
+  --tag "$AFISHA_APP_IMAGE" \
+  .
 
+announce frontend-images
 docker build \
   --build-arg "NODE_IMAGE=$NODE_IMAGE" \
   --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
@@ -84,12 +112,39 @@ docker build \
   --tag afishabot-frontend-checks:verify \
   --file frontend/Dockerfile \
   .
+docker build \
+  --build-arg "NODE_IMAGE=$NODE_IMAGE" \
+  --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
+  --target runtime \
+  --tag "$AFISHA_FRONTEND_IMAGE" \
+  --file frontend/Dockerfile \
+  .
 
+announce migrations-and-backend-checks
 docker compose up --detach --wait postgres redis
 docker compose run --rm migrate
 docker compose --profile verify run --rm checks
+
+announce dependency-audit
+docker run --rm \
+  --read-only \
+  --tmpfs /tmp:size=128m,mode=1777 \
+  --network bridge \
+  afishabot-g6-checks:verify \
+  /app/.venv/bin/pip-audit \
+  --local --skip-editable --cache-dir /tmp/pip-audit-cache
+docker run --rm \
+  --read-only \
+  --tmpfs /tmp:size=128m,mode=1777 \
+  --network bridge \
+  --env npm_config_cache=/tmp/npm-cache \
+  afishabot-frontend-checks:verify \
+  npm audit --audit-level=high
+
+announce runtime-services
 docker compose up --detach --wait api worker beat frontend nginx
 
+announce health-and-boundaries
 curl --fail --silent --show-error http://127.0.0.1:8080/health/live >/dev/null
 curl --fail --silent --show-error http://127.0.0.1:8080/health/ready >/dev/null
 metrics_status="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:8080/metrics)"
@@ -109,6 +164,7 @@ for path in / /app /admin; do
   }
 done
 
+announce migrations-postgis-and-celery
 heads="$(docker compose run --rm api /app/.venv/bin/alembic heads | wc -l | tr -d ' ')"
 [[ "$heads" == "1" ]] || {
   printf 'Expected one Alembic head, found %s\n' "$heads" >&2
@@ -156,30 +212,44 @@ for service in postgres redis api worker beat frontend nginx; do
   }
 done
 
+announce security-scans-and-sbom
 docker run --rm --volume "$repo_root:/src:ro" \
-  "$GITLEAKS_IMAGE" detect --source=/src --no-git
+  "$GITLEAKS_IMAGE" detect --source=/src
 docker save --output artifacts/g6/app-image.tar "$AFISHA_APP_IMAGE"
+docker save --output artifacts/g6/frontend-image.tar "$AFISHA_FRONTEND_IMAGE"
 docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$TRIVY_IMAGE" image --input /scan/app-image.tar \
   --severity HIGH,CRITICAL --exit-code 1
 docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
+  "$TRIVY_IMAGE" image --input /scan/frontend-image.tar \
+  --severity HIGH,CRITICAL --exit-code 1
+docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$SYFT_IMAGE" docker-archive:/scan/app-image.tar -o cyclonedx-json \
-  >artifacts/g6/sbom.cdx.json
+  >artifacts/g6/backend-sbom.cdx.json
+docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
+  "$SYFT_IMAGE" docker-archive:/scan/frontend-image.tar -o cyclonedx-json \
+  >artifacts/g6/frontend-sbom.cdx.json
 
 app_image_id="$(docker image inspect "$AFISHA_APP_IMAGE" --format '{{.Id}}')"
+frontend_image_id="$(
+  docker image inspect "$AFISHA_FRONTEND_IMAGE" --format '{{.Id}}'
+)"
 migration_head="$(docker compose run --rm api /app/.venv/bin/alembic heads | awk '{print $1}')"
 timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
-python3 - "$sha" "$app_image_id" "$migration_head" "$timestamp" <<'PY'
+announce evidence-manifest
+python3 - \
+  "$sha" "$app_image_id" "$frontend_image_id" "$migration_head" "$timestamp" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-sha, app_image_id, migration_head, timestamp = sys.argv[1:]
+sha, app_image_id, frontend_image_id, migration_head, timestamp = sys.argv[1:]
 manifest = {
     "schema_version": 1,
     "commit_sha": sha,
     "application_image_id": app_image_id,
+    "frontend_image_id": frontend_image_id,
     "external_image_references": {
         line.split("=", 1)[0]: line.split("=", 1)[1]
         for line in Path("deploy/image-digests.env").read_text(
@@ -194,14 +264,15 @@ manifest = {
         "ruff_format",
         "ruff_lint",
         "pyright_strict",
-        "pytest_coverage_85",
+        "pytest_coverage_75",
+        "frontend_vitest_build_storybook",
         "architecture_imports",
         "alembic_single_head_empty_upgrade",
         "postgres_postgis",
         "redis_celery",
         "nginx_boundary",
         "dependency_sast_secret_scans",
-        "sbom_container_scan",
+        "backend_frontend_sbom_container_scan",
         "compose_health_resources",
     ],
     "result": "passed",

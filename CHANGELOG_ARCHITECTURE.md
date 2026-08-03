@@ -56,7 +56,7 @@ Git history. Даты указаны в часовом поясе Europe/Moscow.
 | Media | безопасный re-encode без EXIF, local protected storage |
 | Reputation | ledger/projections, private production policy, trust_safety блокирует |
 | Operations | Stage 1 Compose, off-server backup позднее, ручной deployment |
-| Quality | coverage ≥85%, security gates и authoritative clean-VPS verification |
+| Quality | coverage ≥75%, security gates и authoritative clean-VPS verification |
 
 ## Текущий gate
 

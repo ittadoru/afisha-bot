@@ -31,8 +31,11 @@ EXPOSE 8000
 CMD ["/app/.venv/bin/uvicorn", "afishabot.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 FROM base AS checks
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
 RUN uv sync --locked --all-groups --no-install-project
 COPY . .
 RUN uv sync --locked --all-groups
 USER 10001:10001
-CMD ["/bin/sh", "-c", "uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest && uv run pip-audit && uv run bandit -q -r src"]
+CMD ["bash", "scripts/vps/run_backend_checks.sh"]

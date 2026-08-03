@@ -4,20 +4,27 @@ set -Eeuo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-output="deploy/image-digests.env"
-: >"$output"
+output="${1:-deploy/image-digests.env}"
+tmp_output="$(mktemp)"
+trap 'rm -f "$tmp_output"' EXIT
 
 pin() {
   local variable="$1"
   local image="$2"
   docker pull --platform linux/amd64 "$image" >/dev/null
+  local architecture
+  architecture="$(docker image inspect "$image" --format '{{.Architecture}}')"
+  [[ "$architecture" == "amd64" ]] || {
+    printf 'Unexpected architecture for %s: %s\n' "$image" "$architecture" >&2
+    exit 1
+  }
   local digest
   digest="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
-  [[ "$digest" == *@sha256:* ]] || {
+  [[ "$digest" == *@sha256:* && "$digest" != *REPLACE* ]] || {
     printf 'No immutable digest resolved for %s\n' "$image" >&2
     exit 1
   }
-  printf '%s=%s\n' "$variable" "$digest" >>"$output"
+  printf '%s=%s\n' "$variable" "$digest" >>"$tmp_output"
 }
 
 pin POSTGIS_IMAGE postgis/postgis:18-3.6
@@ -34,4 +41,9 @@ pin GITLEAKS_IMAGE ghcr.io/gitleaks/gitleaks:v8.28.0
 pin TRIVY_IMAGE aquasec/trivy:0.65.0
 pin SYFT_IMAGE anchore/syft:v1.30.1
 
-printf 'Pinned references written to %s. Review and commit them.\n' "$output"
+if [[ "$output" == "-" ]]; then
+  cat "$tmp_output"
+else
+  mv "$tmp_output" "$output"
+  printf 'Pinned references written to %s. Review and commit them.\n' "$output"
+fi

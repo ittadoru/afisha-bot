@@ -209,12 +209,9 @@ services:
       - .env
     environment:
       UV_CACHE_DIR: /tmp/uv-cache
-    command:
-      [
-        "/bin/sh",
-        "-c",
-        "uv run ruff format --check . && uv run ruff check . && uv run pyright && uv run pytest && uv run pip-audit && uv run bandit -q -r src",
-      ]
+      RUFF_CACHE_DIR: /tmp/ruff-cache
+      COVERAGE_FILE: /tmp/.coverage
+    command: ["bash", "scripts/vps/run_backend_checks.sh"]
     depends_on:
       migrate:
         condition: service_completed_successfully

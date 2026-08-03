@@ -35,13 +35,18 @@ G6 не открывает production `80/443`, domains или TLS. Nginx дос
 ```bash
 cp .env.example .env
 bash scripts/vps/preflight.sh
-bash scripts/vps/pin_images.sh
-bash scripts/vps/refresh_lock.sh
+bash scripts/vps/pin_images.sh /tmp/afisha-image-digests.env
 ```
 
-Заполнить `.env` только staging values; файл не коммитить. Проверить и
-закоммитить `uv.lock` и `deploy/image-digests.env`, затем создать новый clean
-checkout получившегося exact commit.
+Заполнить `.env` только staging values; файл не коммитить. Полученные на VPS
+digests перенести из временного файла в локальный
+`deploy/image-digests.env`. Проверить и закоммитить `uv.lock` и digest-файл
+локально, отправить `main`, затем выполнить на VPS только fast-forward pull.
+Если lock-файл требуется пересоздать, `refresh_lock.sh` запускается на VPS уже
+после появления закоммиченного digest-файла; полученный `uv.lock` также сначала
+переносится и коммитится локально.
+`verify_g6.sh` требует чистый checkout, совпадение `HEAD` с upstream и
+закоммиченные immutable digests.
 
 ## Authoritative gate
 

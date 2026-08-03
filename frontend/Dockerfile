@@ -14,7 +14,11 @@ ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
 RUN npm run api:generate && npm run build
 
 FROM build AS checks
-RUN npm test && npm run build-storybook
+RUN printf 'G6 frontend check: vitest\n' \
+    && npm test \
+    && printf 'G6 frontend check: storybook-build\n' \
+    && npm run build-storybook \
+    && printf 'G6 frontend checks passed\n'
 
 FROM ${NGINX_IMAGE} AS runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
