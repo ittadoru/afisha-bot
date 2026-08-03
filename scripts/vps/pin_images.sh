@@ -39,7 +39,7 @@ pin PYTHON_IMAGE python:3.14.6-slim
 pin UV_IMAGE ghcr.io/astral-sh/uv:0.8.15
 pin GITLEAKS_IMAGE ghcr.io/gitleaks/gitleaks:v8.28.0
 pin TRIVY_IMAGE aquasec/trivy:0.65.0
-pin SYFT_IMAGE anchore/syft:v1.30.1
+pin SYFT_IMAGE anchore/syft:v1.44.0
 
 if [[ "$output" == "-" ]]; then
   cat "$tmp_output"
