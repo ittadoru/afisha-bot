@@ -230,7 +230,13 @@ services:
       - data_net
 
   nginx:
-    image: ${NGINX_IMAGE:-nginx:1.29-alpine}
+    image: ${AFISHA_NGINX_IMAGE:-afishabot-nginx:local}
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: edge
+      args:
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginx:1.29-alpine}
     user: "101:101"
     ports:
       - "127.0.0.1:8080:8080"

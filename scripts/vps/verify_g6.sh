@@ -63,6 +63,7 @@ export DOCKER_BUILDKIT=1
 export COMPOSE_DOCKER_CLI_BUILD=1
 export AFISHA_APP_IMAGE="${AFISHA_APP_IMAGE:-afishabot-g6:local}"
 export AFISHA_FRONTEND_IMAGE="${AFISHA_FRONTEND_IMAGE:-afishabot-frontend-g6:local}"
+export AFISHA_NGINX_IMAGE="${AFISHA_NGINX_IMAGE:-afishabot-nginx-g6:local}"
 export POSTGRES_USER="${POSTGRES_USER:-afisha}"
 export POSTGRES_DB="${POSTGRES_DB:-afisha}"
 export COMPOSE_PROJECT_NAME="afisha_g6_${sha:0:12}"
@@ -124,6 +125,12 @@ docker build \
   --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
   --target checks \
   --tag afishabot-frontend-checks:verify \
+  --file frontend/Dockerfile \
+  .
+docker build \
+  --build-arg "NGINX_IMAGE=$NGINX_IMAGE" \
+  --target edge \
+  --tag "$AFISHA_NGINX_IMAGE" \
   --file frontend/Dockerfile \
   .
 docker build \
@@ -231,6 +238,7 @@ docker run --rm --volume "$repo_root:/src:ro" \
   "$GITLEAKS_IMAGE" detect --source=/src
 docker save --output artifacts/g6/app-image.tar "$AFISHA_APP_IMAGE"
 docker save --output artifacts/g6/frontend-image.tar "$AFISHA_FRONTEND_IMAGE"
+docker save --output artifacts/g6/nginx-image.tar "$AFISHA_NGINX_IMAGE"
 docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$TRIVY_IMAGE" image --input /scan/app-image.tar \
   --severity HIGH,CRITICAL --exit-code 1
@@ -238,32 +246,50 @@ docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$TRIVY_IMAGE" image --input /scan/frontend-image.tar \
   --severity HIGH,CRITICAL --exit-code 1
 docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
+  "$TRIVY_IMAGE" image --input /scan/nginx-image.tar \
+  --severity HIGH,CRITICAL --exit-code 1
+docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$SYFT_IMAGE" docker-archive:/scan/app-image.tar -o cyclonedx-json \
   >artifacts/g6/backend-sbom.cdx.json
 docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
   "$SYFT_IMAGE" docker-archive:/scan/frontend-image.tar -o cyclonedx-json \
   >artifacts/g6/frontend-sbom.cdx.json
+docker run --rm --volume "$repo_root/artifacts/g6:/scan:ro" \
+  "$SYFT_IMAGE" docker-archive:/scan/nginx-image.tar -o cyclonedx-json \
+  >artifacts/g6/nginx-sbom.cdx.json
 
 app_image_id="$(docker image inspect "$AFISHA_APP_IMAGE" --format '{{.Id}}')"
 frontend_image_id="$(
   docker image inspect "$AFISHA_FRONTEND_IMAGE" --format '{{.Id}}'
+)"
+nginx_image_id="$(
+  docker image inspect "$AFISHA_NGINX_IMAGE" --format '{{.Id}}'
 )"
 migration_head="$(docker compose run --rm api /app/.venv/bin/alembic heads | awk '{print $1}')"
 timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 announce evidence-manifest
 python3 - \
-  "$sha" "$app_image_id" "$frontend_image_id" "$migration_head" "$timestamp" <<'PY'
+  "$sha" "$app_image_id" "$frontend_image_id" "$nginx_image_id" \
+  "$migration_head" "$timestamp" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-sha, app_image_id, frontend_image_id, migration_head, timestamp = sys.argv[1:]
+(
+    sha,
+    app_image_id,
+    frontend_image_id,
+    nginx_image_id,
+    migration_head,
+    timestamp,
+) = sys.argv[1:]
 manifest = {
     "schema_version": 1,
     "commit_sha": sha,
     "application_image_id": app_image_id,
     "frontend_image_id": frontend_image_id,
+    "nginx_image_id": nginx_image_id,
     "external_image_references": {
         line.split("=", 1)[0]: line.split("=", 1)[1]
         for line in Path("deploy/image-digests.env").read_text(
@@ -286,7 +312,7 @@ manifest = {
         "redis_celery",
         "nginx_boundary",
         "dependency_sast_secret_scans",
-        "backend_frontend_sbom_container_scan",
+        "backend_frontend_nginx_sbom_container_scan",
         "compose_health_resources",
     ],
     "result": "passed",
