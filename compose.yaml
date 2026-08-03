@@ -53,8 +53,8 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs:
-      - /var/cache/nginx:size=16m
-      - /var/run:size=4m
+      - /var/cache/nginx:size=16m,uid=101,gid=101,mode=0750
+      - /var/run:size=4m,uid=101,gid=101,mode=0750
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 10s
@@ -231,6 +231,7 @@ services:
 
   nginx:
     image: ${NGINX_IMAGE:-nginx:1.29-alpine}
+    user: "101:101"
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -244,8 +245,8 @@ services:
     restart: unless-stopped
     read_only: true
     tmpfs:
-      - /var/cache/nginx:size=32m
-      - /var/run:size=4m
+      - /var/cache/nginx:size=32m,uid=101,gid=101,mode=0750
+      - /var/run:size=4m,uid=101,gid=101,mode=0750
     security_opt:
       - no-new-privileges:true
     cap_drop:
