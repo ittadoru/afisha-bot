@@ -206,7 +206,7 @@ schema_count="$(
 
 docker compose exec -T worker /app/.venv/bin/celery \
   -A afishabot.adapters.tasks.celery_app:celery_app inspect ping \
-  --timeout 10 | grep -q pong
+  --timeout 10 | grep pong >/dev/null
 docker compose exec -T worker python --version | grep -q 'Python 3.14.6'
 
 for service in api worker beat; do
