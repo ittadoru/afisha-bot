@@ -12,6 +12,8 @@ run_step() {
 
 export RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-/tmp/ruff-cache}"
 export COVERAGE_FILE="${COVERAGE_FILE:-/tmp/.coverage}"
+export VIRTUAL_ENV="/app/.venv"
+export PATH="$venv_bin:$PATH"
 
 run_step ruff-format "$venv_bin/ruff" format --check .
 run_step ruff-lint "$venv_bin/ruff" check .
