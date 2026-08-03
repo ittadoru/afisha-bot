@@ -4,9 +4,21 @@ set -Eeuo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+current_step="initialization"
+
 announce() {
+  current_step="$1"
   printf '\nG6 step: %s\n' "$1"
 }
+
+report_failure() {
+  local status="$?"
+  printf 'G6 failed: step=%s line=%s exit=%s\n' \
+    "$current_step" "${BASH_LINENO[0]}" "$status" >&2
+  exit "$status"
+}
+
+trap report_failure ERR
 
 bash scripts/vps/preflight.sh
 
