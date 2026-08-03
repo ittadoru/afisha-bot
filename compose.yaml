@@ -10,7 +10,7 @@ x-app: &app
     context: .
     target: runtime
     args:
-      PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-slim}
+      PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-alpine3.23}
       UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.8.15}
   env_file:
     - .env
@@ -203,7 +203,7 @@ services:
       context: .
       target: checks
       args:
-        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-slim}
+        PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.14.6-alpine3.23}
         UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.8.15}
     env_file:
       - .env
