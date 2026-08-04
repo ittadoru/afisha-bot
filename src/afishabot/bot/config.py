@@ -14,11 +14,11 @@ class BotSettings(BaseSettings):
     )
 
     bot_token: SecretStr
-    tg_proxy_url: SecretStr
+    tg_proxy_url: SecretStr | None = None
     afisha_mini_app_url: HttpUrl | None = None
     afisha_log_level: str = "INFO"
 
-    @field_validator("afisha_mini_app_url", mode="before")
+    @field_validator("tg_proxy_url", "afisha_mini_app_url", mode="before")
     @classmethod
     def empty_url_is_unset(cls, value: object) -> object:
         if value == "":
@@ -35,13 +35,14 @@ class BotSettings(BaseSettings):
     def token(self) -> str:
         return self.bot_token.get_secret_value()
 
-    def proxy_url(self) -> str:
-        return self.tg_proxy_url.get_secret_value()
+    def proxy_url(self) -> str | None:
+        if self.tg_proxy_url is None:
+            return None
+        value = self.tg_proxy_url.get_secret_value().strip()
+        return value or None
 
     def validated(self) -> Self:
-        """Make the required transport policy explicit at the call site."""
-        if not self.proxy_url().strip():
-            raise ValueError("TG_PROXY_URL must not be empty")
+        """Make transport validation explicit at the runtime call site."""
         return self
 
 

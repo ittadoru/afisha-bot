@@ -19,11 +19,11 @@
 
 ### 1. Инженерный каркас и доступ
 
-- Результат: принятый G6, Mini App auth, website OIDC, единый user/profile,
-  city и sessions.
+- Результат: принятый G6, Mini App auth, автоматически созданный при первом
+  входе единый user/profile, city и Mini sessions. Website OIDC не входит в MVP.
 - Зависимости: G6 exact-commit VPS gate.
-- Готовность: оба входа разрешают одну identity; forged/expired/replayed data
-  отклоняется.
+- Готовность: проверенный Mini App вход разрешает одну identity;
+  forged/expired/replayed data отклоняется, а публичный сайт не создаёт session.
 - Риск/тесты: account takeover и duplicate profile; auth, replay, race,
   session revocation и negative permission tests.
 - Отключение: закрыть authenticated entry points, public read остаётся.
@@ -89,12 +89,13 @@
 
 - Результат: LookingPost 72 часа с title `30`, text `300`, likes, Q&A
   (`question 200`, `answer 300`), safe anonymous preview, idempotent conversion,
-  civic event и city low-activity flag.
+  тип «Особое» и city low-activity flag.
 - Зависимости: discovery/events/moderation.
 - Готовность: один unanswered question на пользователя; до ответа его видят
   только asker/author; опубликованная пара immutable и не раскрывает asker;
-  interest переносится один раз; civic event не получает join/chat/attendance/
-  reputation.
+  interest переносится один раз; «Особое» создаётся только admin, остаётся до
+  конца/отмены и не получает organizer/join/capacity/waitlist/chat/attendance/
+  rating/reputation.
 - Риск/тесты: identity leak, staff overreach, fake activity и conversion race;
   Q&A permission/report context, TTL, idempotency и flag tests.
 - Отключение: per-city flags для creation/cleanup/civic content.

@@ -6,18 +6,19 @@
 
 ## Продукт
 
-Afisha — Telegram Mini App и адаптивный сайт бесплатных безопасных офлайн-
-событий для Махачкалы, Хасавюрта и Дербента. Возраст — 14+ по самодекларации.
+Afisha — Telegram Mini App и публичный адаптивный сайт бесплатных безопасных
+офлайн-событий для Махачкалы, Хасавюрта и Дербента. Возраст — 14+ по
+самодекларации.
 
-Anonymous видит карту/list, публичное событие, deep link, organizer profile и
-safe preview активного LookingPost. Q&A, профиль автора LookingPost, лайк,
-вступление, chat, создание, жалоба и profile mutation требуют Telegram login.
-Staff работает в отдельной закрытой admin-панели.
+В MVP пользователь входит только через Telegram Mini App. Обычный сайт публичен
+и не имеет пользовательского входа; website OIDC отложен. Q&A, лайк,
+вступление, chat, создание, жалоба и изменение профиля доступны только после
+проверки Mini App `initData`. Staff работает в отдельной закрытой admin-панели.
 
 MVP включает Event, LookingPost 72 часа, interest, join, FIFO waitlist, простой
 participant chat, LookingPost Q&A, notifications, attendance/dispute/rating,
-четыре публичных reputation level, moderation/appeals, public web и civic
-events.
+четыре публичных reputation level, moderation/appeals, public web и тип
+«Особое».
 
 В MVP нет minimum/confirmation, user geolocation/«Рядом со мной», clustering,
 QR/geofence, WebSocket chat, achievements/challenges, AI/ML и Kafka.
@@ -29,9 +30,8 @@ QR/geofence, WebSocket chat, achievements/challenges, AI/ML и Kafka.
 безопасный `256×256 WebP` avatar и отдельные participant/organizer levels.
 
 Telegram username/phone, выбранный город, координаты и история участия не
-публикуются. Website использует Telegram OIDC+PKCE, Mini App — проверенный
-`initData`; оба пути создают одну identity. Website session: rolling 30/absolute
-90 дней; Mini session — 24 часа.
+публикуются. Проверенный Mini App `initData` при первом входе создаёт или
+находит внутреннюю identity; Mini session живёт 24 часа.
 
 ## Карта и место
 
@@ -51,16 +51,17 @@ street geometry без скрытой event point. MapLibre использует
 символами. Persistent Event draft отсутствует: при выходе заполненная форма
 предупреждает о потере и после закрытия/reload не восстанавливается.
 
-Event имеет начало/окончание; capacity необязателен. Like не занимает место.
+Event имеет начало/окончание; capacity необязателен, а заданный лимит не может
+быть меньше трёх. Like не занимает место.
 Join занимает место сразу; при заполнении пользователь вручную входит в FIFO
 waitlist. Offers резервируют освободившиеся места первым подходящим.
 
-После publication время суммарно переносится не более двух раз через immutable
+После publication дата/начало/окончание суммарно меняются не более одного раза через immutable
 revision; place/category не меняются. Уведомление не требует reconfirmation.
 Stale edit возвращает conflict.
 
-Chat доступен active participants. После leave write закрывается сразу, read —
-через 24 часа; после exclude/ban доступ закрывается сразу. С началом Event
+Chat становится доступен после вступления, но не открывается автоматически.
+После leave/exclude/ban чтение и запись закрываются сразу. С началом Event
 произвольная отправка прекращается.
 
 Attendance подтверждает шестизначный server code: joined-only, пять попыток,
@@ -73,6 +74,13 @@ LookingPost живёт 72 часа, не имеет фото и отдельно
 а опубликованная immutable пара не раскрывает asker. Обычный Q&A staff не
 видит без связанной жалобы и case permission.
 
+Обычные категории: Спорт, Игры, Сходки, Кино, Кафе, Туризм, Обучение,
+Творчество, Автомобили, Волонтёрство, Работа, Развлечения, Музыка, Прогулки и
+Другое. «Работа» допускает только бесплатные профессиональные встречи и обмен
+опытом. «Особое» создаёт только administrator, показывается первым, не имеет
+публичного организатора, вступления, capacity, очереди, чата, attendance,
+оценок и reputation; низкая активность его не скрывает.
+
 ## Интерфейс
 
 Принятая структура сайта, Mini App и admin-панели, состояния экранов и
@@ -84,6 +92,10 @@ LookingPost живёт 72 часа, не имеет фото и отдельно
 
 Новые organizers проходят premode до трёх успешных events. Reports,
 restrictions, moderation и appeals принадлежат `trust_safety`.
+
+Успешное событие завершилось, не отменено и имеет минимум три посещения,
+подтверждённых кодом. После трёх таких событий без серьёзных нарушений
+организатор становится доверенным.
 
 Reputation хранит immutable signals и role-specific projections. Публично
 виден `Новый пользователь` либо четыре принятых уровня без чисел/формулы.

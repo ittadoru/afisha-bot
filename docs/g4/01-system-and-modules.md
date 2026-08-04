@@ -24,7 +24,7 @@ Telegram-уведомления и отдельную закрытую admin-п�
 
 | Контейнер | Назначение | Доступ |
 |---|---|---|
-| Public web | карта, список, карточки и публичные профили | anonymous/read-only и authenticated actions |
+| Public web | лендинг и будущие публичные страницы | только anonymous/read-only в MVP |
 | Mini App | полный пользовательский интерфейс внутри Telegram | только после проверки `initData` |
 | Admin web | moderation и operations | отдельная staff identity |
 | API | HTTP/application orchestration | единственная бизнес-граница клиентов |
@@ -34,7 +34,7 @@ Telegram-уведомления и отдельную закрытую admin-п�
 | Nominatim | закрытый reverse geocoding | только backend |
 | Local media | оригиналы в quarantine и безопасные производные | API/worker, без прямой раздачи |
 
-Внешние системы: Telegram Bot API/OIDC, OpenFreeMap и off-server backup
+Внешние системы: Telegram Bot API, Telegram Mini App runtime, OpenFreeMap и off-server backup
 provider. Браузер получает tiles напрямую, но event markers и защищённые
 координаты — только через API.
 

@@ -11,7 +11,7 @@ class FakeSession:
     last_proxy: ClassVar[str | None] = None
     closed: ClassVar[bool] = False
 
-    def __init__(self, proxy: str) -> None:
+    def __init__(self, proxy: str | None = None) -> None:
         type(self).last_proxy = proxy
         type(self).closed = False
 
@@ -75,6 +75,18 @@ async def test_check_only_probes_proxy_and_closes_session(
     assert FakeSession.last_proxy == "http://proxy.example:8080"
     assert FakeSession.closed is True
     assert FakeDispatcher.polling_started is False
+
+
+async def test_check_only_uses_direct_connection_without_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fakes(monkeypatch)
+    direct_settings = BotSettings.model_validate({"bot_token": "123456:test-token"})
+
+    await runtime.run_polling(direct_settings, check_only=True)
+
+    assert FakeSession.last_proxy is None
+    assert FakeSession.closed is True
 
 
 async def test_polling_starts_and_closes_session(

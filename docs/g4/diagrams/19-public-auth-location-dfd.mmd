@@ -1,6 +1,6 @@
 flowchart LR
-    U["Anonymous / User browser"] -->|"HTTPS public/session requests"| E["Reverse Proxy"]
-    T["Telegram OIDC / Mini runtime"] -->|"signed identity artifacts"| E
+    U["Anonymous public browser / Mini WebView"] -->|"HTTPS public or Mini requests"| E["Reverse Proxy"]
+    T["Telegram Mini runtime"] -->|"signed initData"| E
     E --> W["Web / Mini frontends"]
     E --> A["Backend API"]
     A --> G["Auth, request-security and authorization gates"]

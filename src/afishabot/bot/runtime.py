@@ -17,7 +17,8 @@ async def run_polling(
     check_only: bool = False,
 ) -> None:
     config = (settings or load_bot_settings()).validated()
-    session = AiohttpSession(proxy=config.proxy_url())
+    proxy_url = config.proxy_url()
+    session = AiohttpSession(proxy=proxy_url)
     bot = Bot(token=config.token(), session=session)
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
@@ -25,15 +26,16 @@ async def run_polling(
     try:
         identity = await bot.get_me()
         logger.info(
-            "Telegram Bot API check passed bot_id=%s username=%s proxy_enabled=true",
+            "Telegram Bot API check passed bot_id=%s username=%s proxy_enabled=%s",
             identity.id,
             identity.username,
+            proxy_url is not None,
         )
         if check_only:
             return
 
         await bot.delete_webhook(drop_pending_updates=False)
-        logger.info("Starting Telegram polling proxy_enabled=true")
+        logger.info("Starting Telegram polling proxy_enabled=%s", proxy_url is not None)
         await dispatcher.start_polling(  # pyright: ignore[reportUnknownMemberType]
             bot,
             settings=config,

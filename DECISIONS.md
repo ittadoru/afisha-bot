@@ -74,7 +74,7 @@
 
 - Статус: `ACCEPTED`
 - Event хранит lifecycle, существенные изменения — immutable `EventRevision`.
-- После publication дата/начало/окончание суммарно меняются не более двух раз.
+- После publication дата/начало/окончание суммарно меняются не более одного раза.
   Point/address/category неизменяемы; visibility того же адреса менять можно.
 - Participation сохраняется при revision; critical change уведомляется без
   reconfirmation.
@@ -137,6 +137,11 @@
 - Stage 1: proxy/frontends/API/worker/beat/PostgreSQL/PostGIS/Redis/Nominatim/
   local media на одном физическом сервере в раздельных containers/networks.
 - Наружу в production только `80/443`; data services private.
+- На этапе A внешний host Nginx принимает `80/443` и передаёт `podvval.xyz`
+  во внутренний Nginx на `127.0.0.1:8080`. Маршруты: `/` — лендинг,
+  `/app` — демонстрация Mini App, `/api` — пользовательский API.
+- `admin.podvval.xyz` получает HTTPS, но до реализации admin отвечает `404`.
+  Telegram bot, Nominatim и monitoring на этапе A не запускаются.
 - Media — protected local filesystem через replaceable adapter, не DB binary.
 - Alpha `RPO/RTO ≤24h`; encrypted backup database/media обязан уходить
   off-server и проходить restore drill.
@@ -162,19 +167,22 @@
 
 - Статус: `ACCEPTED`
 - Все domain records используют internal immutable `user_id`; Telegram
-  identity хранится отдельно с unique Telegram ID и OIDC issuer+subject.
+  identity хранится отдельно с unique Telegram ID.
 - Server проверяет signed initData, auth_date и replay/session binding;
   webhook — secret header + update dedup.
-- Website использует Telegram OIDC Code+PKCE с JWKS/iss/aud/exp/state/nonce и
-  scopes `openid profile`; phone/write access не запрашиваются.
-- Website/Mini App разрешаются одним identity use case; Telegram profile fields
-  не перезаписывают публичный Afisha profile.
+- В MVP user identity создаётся или находится только по проверенному Mini App
+  `initData`. Website OIDC отложен за рамки MVP; публичный сайт не создаёт
+  пользовательскую сессию.
+- Telegram profile fields не перезаписывают публичный Afisha profile.
 - Запуск/блокировка bot не запрещает действия; internal center/banner остаются
   fallback. Deep link не несёт PII/право.
 - Identity transfer/recovery на новый Telegram account отсутствует в MVP.
-- Website session rolling 30/absolute 90 дней; Mini — 24 часа.
+- Mini App session живёт 24 часа.
 - Staff auth отдельно: invite/bootstrap/reset, Argon2id, 8h absolute/30m idle,
   action re-auth, CSRF/rate limit/audit.
+- Первый владелец с логином `Atari` один раз создаётся из `.env`, затем хранится
+  в PostgreSQL. Пароль добавляется только вместе с реализацией admin-панели и
+  позднее меняется через неё; moderators создаются и хранятся в базе.
 - User и operations bots имеют разные tokens/webhook secrets.
 
 ## ADR-021 — authoritative G6 gate на clean VPS
@@ -192,3 +200,18 @@
 - GitHub Actions — optional secret-free subset без deployment authority.
 - Deployment manual-only; G6 не открывает traffic, public `80/443`, domains/TLS.
 - Остальные migration/security/coverage/immutable-artifact правила G4 сохранены.
+
+## ADR-022 — Stage A: конфигурация и серверный выпуск
+
+- Статус: `ACCEPTED`
+- Локальная машина используется только для правок файлов, просмотра diff и
+  Git-операций. Dependencies, builds, tests, migrations и Compose запускаются
+  только на Ubuntu 24.04 VPS.
+- Проверяемые адреса задаются как `AFISHA_PUBLIC_BASE_URL=https://podvval.xyz`,
+  `AFISHA_MINI_APP_URL=https://podvval.xyz/app` и
+  `AFISHA_ADMIN_BASE_URL=https://admin.podvval.xyz`.
+- `TG_PROXY_URL` необязателен: пустое значение означает прямое подключение к
+  Telegram, заполненное — подключение через указанный proxy.
+- `.env` не хранится в Git, переносится на VPS отдельно и доступен только root.
+- Stage A не добавляет product tables, user auth, настоящий admin или bot
+  runtime. Его назначение — clean exact-commit G6, core Compose и HTTPS-каркас.

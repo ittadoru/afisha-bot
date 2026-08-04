@@ -49,7 +49,8 @@ moderation state.
 После публикации:
 
 - category, точка и адрес неизменяемы;
-- дата/начало/окончание суммарно меняются не более двух раз;
+- дата/начало/окончание суммарно меняются не более одного раза; отклонённая
+  revision лимит не расходует;
 - существенное изменение создаёт immutable revision;
 - одновременно существует не более одной ожидающей moderation revision;
 - cancellation terminal для вступления, offers и будущих reminders.
@@ -69,6 +70,8 @@ LookingPost. До ответа текст видят только asker и autho
 
 `EventInterest`, `EventParticipation`, `WaitlistEntry/Offer` и attendance —
 разные факты.
+
+Capacity необязателен; если лимит задан, он не может быть меньше трёх.
 
 | Действие | Guard и результат |
 |---|---|
@@ -98,8 +101,9 @@ lock/constraint; два пользователя не получают посл�
 ## Communication и moderation lifecycle
 
 - Chat grant существует только для разрешённого participation episode.
-- После добровольного выхода write закрывается сразу, read — через 24 часа.
-- После исключения/бана read/write закрываются сразу.
+- После вступления chat grant становится доступен, но клиент не открывает чат
+  автоматически.
+- После добровольного выхода, исключения или бана read/write закрываются сразу.
 - С началом события произвольная отправка закрывается; объявления остаются
   отдельным организаторским каналом.
 - Report, moderation decision и appeal имеют собственные immutable audit facts.
@@ -115,6 +119,11 @@ policy signal source. Конкретные SQL constraints добавляютс�
 финальное время, защищённое место, normalized outcomes, counts, ratings,
 reputation facts и lifecycle reason. Полные промежуточные тексты и media в
 долгосрочный snapshot не копируются.
+
+`Особое` хранится как отдельный вид события с внутренним audit actor, но без
+публичного организатора и participation-модели. Оно разрешает только safe view
+и like, не имеет capacity/waitlist/chat/attendance/rating/reputation и не
+попадает под скрытие из-за низкой активности.
 
 ## Retention
 

@@ -16,10 +16,10 @@ const benefits = [
 ];
 
 export default function App() {
-  const [view, setView] = useState<View>("landing");
+  const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
-    return <Suspense fallback={<LoadingScreen />}><EventMap onBack={() => setView("landing")} onOpenPhoto={() => setView("photo")} /></Suspense>;
+    return <Suspense fallback={<LoadingScreen />}><EventMap onBack={() => window.location.assign("/")} onOpenPhoto={() => setView("photo")} /></Suspense>;
   }
 
   if (view === "photo") {
@@ -30,7 +30,7 @@ export default function App() {
     <main>
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Afisha, на главную">Афиша</a>
-        <Button variant="ghost" onClick={() => setView("map")}>Открыть карту</Button>
+        <Button variant="ghost" asChild><a href="/app">Открыть карту</a></Button>
       </header>
 
       <section id="top" className="hero" aria-labelledby="hero-title">
@@ -38,7 +38,7 @@ export default function App() {
           <span className="eyebrow"><CalendarDays aria-hidden="true" /> Дагестан встречается здесь</span>
           <h1 id="hero-title">Есть куда пойти.<br />Есть с кем.</h1>
           <p>Карта бесплатных событий и встреч в крупных городах Дагестана.</p>
-          <Button className="hero-action" onClick={() => setView("map")}>Ехала →</Button>
+          <Button className="hero-action" asChild><a href="/app">Ехала →</a></Button>
         </div>
         <div className="dagestan-motif" aria-hidden="true">
           <span className="sun" />

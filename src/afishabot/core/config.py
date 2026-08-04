@@ -1,7 +1,7 @@
 from enum import StrEnum
 from pathlib import Path
 
-from pydantic import Field, SecretStr
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +31,15 @@ class Settings(BaseSettings):
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     nominatim_url: str = "http://nominatim:8080"
     nominatim_timeout_seconds: float = Field(default=1.2, gt=0, le=2.5)
+    public_base_url: HttpUrl = HttpUrl("https://podvval.xyz")
+    admin_base_url: HttpUrl = HttpUrl("https://admin.podvval.xyz")
+
+    @field_validator("public_base_url", "admin_base_url")
+    @classmethod
+    def public_urls_must_use_https(cls, value: HttpUrl) -> HttpUrl:
+        if value.scheme != "https":
+            raise ValueError("public URLs must use HTTPS")
+        return value
 
     def database_dsn(self) -> str:
         return self.database_url.get_secret_value()

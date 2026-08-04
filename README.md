@@ -2,7 +2,8 @@
 
 Afisha — социальная карта бесплатных безопасных офлайн-событий для городов
 Дагестана. G0–G5 приняты; G6 skeleton подготовлен, но ожидает VPS verification.
-Продуктовые функции и frontend ещё не реализованы.
+Продуктовые функции ещё не реализованы; текущий frontend — демонстрационный
+лендинг и карта Stage A.
 
 ## Источники
 
@@ -25,8 +26,9 @@ MacBook используется только для редактировани�
 Git-доставки. `uv`, Python, тесты, Docker, migrations и image downloads
 запускаются только на resettable Ubuntu 24.04 `linux/amd64` VPS.
 
-G6 не открывает production `80/443`, domains или TLS. Nginx доступен только
-через `127.0.0.1:8080` и SSH tunnel.
+Внутренний Nginx всегда доступен только через `127.0.0.1:8080`. После зелёного
+G6 Stage A добавляет отдельный host Nginx и HTTPS по инструкции
+[Stage A — VPS и HTTPS](docs/deployment/stage-a-vps.md).
 
 ## Подготовка на VPS
 

@@ -12,8 +12,10 @@ Core: Nginx, API, worker, beat, PostgreSQL/PostGIS, Redis и local media.
 Nominatim и monitoring включаются отдельными profiles.
 
 - PostgreSQL, Redis, Nominatim, metrics и media не публикуют host ports.
-- В G6 Nginx доступен только на `127.0.0.1:8080` через SSH tunnel.
-- Production `80/443`, domains и TLS не входят в G6.
+- Внутренний Nginx остаётся доступен только на `127.0.0.1:8080`; это сохраняет
+  границу G6 и после Stage A.
+- После зелёного G6 Stage A добавляет host Nginx на `80/443`: `podvval.xyz`
+  передаётся на loopback, а `admin.podvval.xyz` до реализации отвечает `404`.
 - Application containers работают non-root, read-only где возможно, без
   Docker socket, с limits и log rotation.
 - Media доступна только API/worker; database/media backups уходят off-server

@@ -24,7 +24,7 @@ owner use cases через permissions.
 
 | Группа | Основные операции |
 |---|---|
-| Auth/account | OIDC start/callback, Mini exchange, refresh/logout, sessions, profile/preferences |
+| Auth/account | Mini exchange, refresh/logout, sessions, profile/preferences |
 | Discovery | cities/categories, viewport/list, public event/profile, LookingPost/Q&A/conversion |
 | Events | complete create submit, media attach, revise/cancel, interest/join/waitlist/leave |
 | Communication | participant chat, announcements, notification center |
@@ -40,22 +40,12 @@ PII, координату или автоматическую mutation. Посл
 
 Диаграммы:
 
-- [website OIDC + PKCE](diagrams/11-web-oidc-pkce-flow.mmd);
 - [Mini App initData](diagrams/11-mini-app-initdata-flow.mmd);
 - [identity resolution transaction](diagrams/12-identity-resolution-transaction.mmd).
 
 Внутренний immutable `user_id` отделён от Telegram identity. Одна защищённая
-запись обеспечивает unique Telegram user ID и unique `issuer + subject`.
-Telegram username/name/photo не идентификаторы и не перезаписывают публичный
-профиль.
-
-Website:
-
-- Telegram OIDC Authorization Code + PKCE;
-- проверка `state`, nonce, issuer, audience, signature/JWKS, expiry и code
-  transaction;
-- scopes только `openid profile`;
-- authorization code и token никогда не логируются.
+запись обеспечивает unique Telegram user ID. Telegram username/name/photo не
+идентификаторы и не перезаписывают публичный профиль.
 
 Mini App:
 
@@ -65,20 +55,20 @@ Mini App:
 - bootstrap/replay claim выполняется атомарно;
 - повтор payload не создаёт новый User или параллельную identity.
 
-Website и Mini разрешают identity одним transaction use case. Потеря Telegram
-аккаунта не даёт ручного переноса identity в MVP.
+В MVP identity разрешает только Mini App transaction use case. Website OIDC
+отложен; публичный сайт не создаёт user session. Потеря Telegram аккаунта не
+даёт ручного переноса identity в MVP.
 
 ## Пользовательские sessions
 
 | Канал | Sliding/absolute срок |
 |---|---|
-| Website | rolling 30 дней, absolute 90 дней |
 | Mini App | 24 часа, обновление только свежим проверенным initData |
 
 Session token хранится только в защищённом виде; rotation/revocation атомарны.
-Website использует `Secure`, `HttpOnly`, подходящий `SameSite` cookie, CSRF,
-Origin/CORS allowlist. Пользователь может завершить свои sessions. Logout,
-block, account deletion и credential compromise отзывают применимые sessions.
+Website session/cookie contract определяется только отдельным post-MVP
+решением. Пользователь может завершить свои Mini sessions. Logout, block,
+account deletion и credential compromise отзывают применимые sessions.
 
 ## Staff authentication
 
@@ -86,7 +76,8 @@ Admin-панель не использует пользовательский Te
 password credential и session принадлежат `trust_safety`.
 
 - Саморегистрации нет.
-- Первый admin создаётся одноразовой server command.
+- Первый admin `Atari` один раз создаётся из server `.env`, затем хранится в
+  PostgreSQL; пароль добавляется вместе с реализацией admin-панели.
 - Moderator получает одноразовое приглашение на 24 часа.
 - Reset выполняет другой уполномоченный admin.
 - Password хранится как Argon2id hash; login имеет generic errors и durable

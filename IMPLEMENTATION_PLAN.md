@@ -43,6 +43,26 @@ G6 начат владельцем 2026-07-30. MacBook используется 
 G6 evidence: commit SHA, image digests, migration head, проверки и result без
 secrets/PII. Optional GitHub CI не заменяет VPS gate.
 
+## Stage A — решения, каркас, VPS и HTTPS
+
+Статус: `IN PROGRESS`, начат владельцем 2026-08-04.
+
+- [x] Принятые продуктовые правила синхронизированы без изменения
+  `SOURCE_SPECIFICATION.md`.
+- [x] Подготовлены необязательный Telegram proxy, HTTPS-адреса, настоящий
+  маршрут `/app`, серверные тесты и host Nginx templates.
+- [ ] Ветка Stage A должна пройти полный G6 на точном опубликованном commit.
+- [ ] После зелёного gate выполнить fast-forward в `main`, обновить evidence и
+  повторить gate на окончательном `main`.
+- [ ] Запустить только PostgreSQL, Redis, migrations, API, worker, beat,
+  frontend и внутренний Nginx.
+- [ ] После появления публичного DNS выпустить сертификат на `podvval.xyz` и
+  `admin.podvval.xyz`, включить redirect и проверить внешний контур.
+
+Bot, Nominatim, geo-import и monitoring в Stage A не запускаются. Текущее
+`/app` является демонстрацией, не готовым MVP; новые product tables и auth не
+добавляются.
+
 ## G7 — порядок реализации
 
 После clean G6 выполняются девять срезов из
