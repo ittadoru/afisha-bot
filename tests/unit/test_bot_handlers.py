@@ -26,19 +26,23 @@ def test_main_keyboard_opens_mini_app() -> None:
     assert button.web_app.url == "https://afisha.example/mini"
 
 
-async def test_start_sends_welcome_without_inactive_button() -> None:
+async def test_start_sends_welcome_with_mini_app_button() -> None:
     answer = AsyncMock()
     message = cast(Message, SimpleNamespace(answer=answer))
     settings = BotSettings.model_validate(
         {
             "bot_token": "123456:test-token",
             "tg_proxy_url": "http://proxy.example:8080",
+            "afisha_mini_app_url": "https://afisha.example/app",
         }
     )
 
     await handle_start(message, settings)
 
-    answer.assert_awaited_once_with(START_TEXT, reply_markup=None)
+    answer.assert_awaited_once_with(
+        START_TEXT,
+        reply_markup=build_main_keyboard(settings.afisha_mini_app_url),
+    )
 
 
 async def test_help_sends_command_summary() -> None:
