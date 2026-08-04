@@ -2,7 +2,7 @@
 
 ## Текущий gate
 
-`G0–G5 ACCEPTED — G6 IN PROGRESS`
+`G0–G5 ACCEPTED — G6 VERIFIED, OWNER ACCEPTANCE PENDING`
 
 G6 начат владельцем 2026-07-30. MacBook используется только для редактирования
 и Git-доставки; authoritative проверки выполняются на clean resettable VPS.
@@ -32,12 +32,13 @@ G6 начат владельцем 2026-07-30. MacBook используется 
 - [x] baseline unit/architecture/migration/integration tests;
 - [x] README, G4, G5, risks и changelog синхронизированы.
 
-Осталось:
+Проверено на VPS:
 
-- [ ] создать окончательный `uv.lock` на VPS;
-- [ ] получить и закоммитить immutable image digests;
-- [ ] повторить authoritative gate на новом clean exact commit;
-- [ ] закрыть applicable Critical/High findings;
+- [x] окончательный `uv.lock` создан и проверен на VPS;
+- [x] immutable image digests закоммичены;
+- [x] authoritative gate пройден на опубликованном commit
+  `940f0281405a00cf83335367f465840bf042ab2e`;
+- [x] applicable Critical/High findings отсутствуют;
 - [ ] получить отдельное подтверждение владельца о завершении G6.
 
 G6 evidence: commit SHA, image digests, migration head, проверки и result без
@@ -51,9 +52,10 @@ secrets/PII. Optional GitHub CI не заменяет VPS gate.
   `SOURCE_SPECIFICATION.md`.
 - [x] Подготовлены необязательный Telegram proxy, HTTPS-адреса, настоящий
   маршрут `/app`, серверные тесты и host Nginx templates.
-- [ ] Ветка Stage A должна пройти полный G6 на точном опубликованном commit.
-- [ ] После зелёного gate выполнить fast-forward в `main`, обновить evidence и
-  повторить gate на окончательном `main`.
+- [x] Ветка Stage A прошла полный G6 на точном опубликованном commit
+  `940f0281405a00cf83335367f465840bf042ab2e`.
+- [x] Проверенный commit перенесён fast-forward в `main`.
+- [ ] Повторить gate на окончательном `main` после этого evidence commit.
 - [ ] Запустить только PostgreSQL, Redis, migrations, API, worker, beat,
   frontend и внутренний Nginx.
 - [ ] После появления публичного DNS выпустить сертификат на `podvval.xyz` и
