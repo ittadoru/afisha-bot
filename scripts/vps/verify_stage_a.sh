@@ -53,7 +53,7 @@ metrics_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
 
 admin_status="$(curl --silent --output /dev/null --write-out '%{http_code}' \
   https://admin.podvval.xyz/)"
-[[ "$admin_status" == "404" ]] || fail "admin root returned $admin_status"
+[[ "$admin_status" == "200" ]] || fail "admin root returned $admin_status"
 
 certificate="$(openssl s_client -connect podvval.xyz:443 -servername podvval.xyz \
   </dev/null 2>/dev/null | openssl x509 -noout -ext subjectAltName)"

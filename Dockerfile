@@ -17,11 +17,13 @@ COPY --from=uv /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock README.md ./
 
 FROM base AS runtime
-RUN uv sync --locked --no-dev --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev --no-install-project
 COPY src ./src
 COPY alembic.ini ./
 COPY migrations ./migrations
-RUN uv sync --locked --no-dev \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev \
     && mkdir -p /var/lib/afisha/media \
     && chown -R afisha:afisha /app /var/lib/afisha
 USER 10001:10001
@@ -30,8 +32,10 @@ CMD ["/app/.venv/bin/uvicorn", "afishabot.main:app", "--host", "0.0.0.0", "--por
 
 FROM base AS checks
 RUN apk add --no-cache bash nodejs
-RUN uv sync --locked --all-groups --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --all-groups --no-install-project
 COPY . .
-RUN uv sync --locked --all-groups
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --all-groups
 USER 10001:10001
 CMD ["bash", "scripts/vps/run_backend_checks.sh"]

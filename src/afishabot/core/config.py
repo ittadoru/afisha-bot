@@ -38,6 +38,16 @@ class Settings(BaseSettings):
         validation_alias="BOT_TOKEN",
     )
     auth_hmac_secret: SecretStr | None = Field(default=None, min_length=32)
+    admin_login: str | None = Field(
+        default=None,
+        max_length=64,
+        validation_alias="ADMIN_LOGIN",
+    )
+    admin_password: SecretStr | None = Field(
+        default=None,
+        max_length=256,
+        validation_alias="ADMIN_PASSWORD",
+    )
 
     @field_validator("public_base_url", "admin_base_url")
     @classmethod
@@ -61,3 +71,8 @@ class Settings(BaseSettings):
         if self.auth_hmac_secret is None:
             return None
         return self.auth_hmac_secret.get_secret_value().encode()
+
+    def bootstrap_admin_password(self) -> str | None:
+        if self.admin_password is None:
+            return None
+        return self.admin_password.get_secret_value()

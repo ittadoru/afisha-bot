@@ -1,0 +1,183 @@
+import {
+  Activity,
+  CalendarClock,
+  ClipboardCheck,
+  History,
+  LayoutDashboard,
+  LogOut,
+  ShieldCheck,
+  UserCog,
+  Users,
+} from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+
+type Staff = { login: string; role: "admin" | "moderator" };
+type Counts = {
+  active_users: number;
+  upcoming_events: number;
+  pending_events: number;
+  open_profile_reports: number;
+  active_moderators: number;
+};
+type AuditEntry = {
+  id: string;
+  created_at: string;
+  actor: string | null;
+  action: string;
+  result: "success" | "failure" | "blocked";
+};
+type AuditPage = { items: AuditEntry[]; next_before: string | null };
+type View = "dashboard" | "audit";
+
+const csrfHeader = "X-Afisha-Admin-CSRF";
+
+export function AdminApp() {
+  const [staff, setStaff] = useState<Staff | null>(null);
+  const [csrf, setCsrf] = useState("");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    void api<Staff>("/account/me").then(({ data, response }) => {
+      setStaff(data);
+      setCsrf(response.headers.get(csrfHeader) ?? "");
+    }).catch(() => undefined).finally(() => setChecking(false));
+  }, []);
+
+  if (checking) return <AdminStatus text="Проверяем доступ…" />;
+  if (!staff) {
+    return <AdminLogin onLogin={(account, token) => { setStaff(account); setCsrf(token); }} />;
+  }
+  return <AdminShell staff={staff} csrf={csrf} onCsrf={setCsrf} onLogout={() => setStaff(null)} />;
+}
+
+function AdminLogin({ onLogin }: { onLogin: (staff: Staff, csrf: string) => void }) {
+  const [login, setLogin] = useState("Atari");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      const bootstrap = await api<{ csrf_token: string }>("/auth/bootstrap", { method: "POST" });
+      const result = await api<{ account: Staff; csrf_token: string }>("/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [csrfHeader]: bootstrap.data.csrf_token },
+        body: JSON.stringify({ login, password }),
+      });
+      onLogin(result.data.account, result.data.csrf_token);
+    } catch (reason) {
+      setError(reason instanceof AdminApiError && reason.status === 429
+        ? "Слишком много попыток. Попробуйте через 15 минут."
+        : "Не удалось войти. Проверьте данные и попробуйте снова.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="admin-login-page">
+      <section className="admin-login-card" aria-labelledby="admin-login-title">
+        <div className="admin-mark"><ShieldCheck aria-hidden="true" /></div>
+        <p className="admin-kicker">PODVVAL · УПРАВЛЕНИЕ</p>
+        <h1 id="admin-login-title">Вход в панель</h1>
+        <p className="admin-muted">Закрытая область для команды сервиса.</p>
+        <form onSubmit={submit} className="admin-login-form">
+          <label>Логин<input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" maxLength={64} required /></label>
+          <label>Пароль<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={256} required autoFocus /></label>
+          {error && <p className="admin-form-error" role="alert">{error}</p>}
+          <button type="submit" disabled={busy}>{busy ? "Входим…" : "Войти"}</button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: string; onCsrf: (value: string) => void; onLogout: () => void }) {
+  const [view, setView] = useState<View>("dashboard");
+
+  const logout = async () => {
+    try { await api("/auth/logout", { method: "POST", headers: { [csrfHeader]: csrf } }); }
+    finally { onLogout(); }
+  };
+
+  return (
+    <div className="admin-layout">
+      <aside className="admin-sidebar">
+        <div className="admin-brand"><span><ShieldCheck /></span><div><strong>PODVVAL</strong><small>Панель управления</small></div></div>
+        <nav aria-label="Разделы панели">
+          <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><LayoutDashboard />Главная</button>
+          <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}><History />История действий</button>
+        </nav>
+        <div className="admin-sidebar-footer">
+          <div className="admin-person"><span>{staff.login.slice(0, 1).toUpperCase()}</span><div><strong>{staff.login}</strong><small>Администратор</small></div></div>
+          <button onClick={() => void logout()}><LogOut />Выйти</button>
+        </div>
+      </aside>
+      <main className="admin-content">
+        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} staff={staff} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
+      </main>
+    </div>
+  );
+}
+
+function Dashboard({ staff, onCsrf }: { csrf: string; onCsrf: (value: string) => void; staff: Staff }) {
+  const [counts, setCounts] = useState<Counts | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    void api<Counts>("/dashboard").then(({ data, response }) => {
+      setCounts(data); onCsrf(response.headers.get(csrfHeader) ?? "");
+    }).catch(() => setFailed(true));
+  }, [onCsrf]);
+  const cards = counts ? [
+    ["Активные пользователи", counts.active_users, Users],
+    ["Будущие события", counts.upcoming_events, CalendarClock],
+    ["На проверке", counts.pending_events, ClipboardCheck],
+    ["Открытые жалобы", counts.open_profile_reports, Activity],
+    ["Активные модераторы", counts.active_moderators, UserCog],
+  ] as const : [];
+  return (
+    <section>
+      <header className="admin-page-header"><div><p>Обзор сервиса</p><h1>Добрый день, {staff.login}</h1></div><span className="admin-live"><i />Система работает</span></header>
+      {failed ? <AdminEmpty title="Не удалось загрузить данные" text="Обновите страницу и попробуйте снова." /> : !counts ? <AdminStatus text="Загружаем показатели…" /> : <div className="admin-stat-grid">{cards.map(([label, value, Icon]) => <article className="admin-stat" key={label}><span><Icon /></span><p>{label}</p><strong>{value.toLocaleString("ru-RU")}</strong></article>)}</div>}
+    </section>
+  );
+}
+
+function Audit({ onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
+  const [items, setItems] = useState<AuditEntry[]>([]);
+  const [next, setNext] = useState<string | null>(null);
+  const [busy, setBusy] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const load = useCallback(async (before?: string) => {
+    setBusy(true); setFailed(false);
+    try {
+      const result = await api<AuditPage>(`/audit${before ? `?before=${encodeURIComponent(before)}` : ""}`);
+      onCsrf(result.response.headers.get(csrfHeader) ?? "");
+      setItems((current) => before ? [...current, ...result.data.items] : result.data.items);
+      setNext(result.data.next_before);
+    } catch { setFailed(true); } finally { setBusy(false); }
+  }, [onCsrf]);
+  useEffect(() => { void load(); }, [load]);
+  return (
+    <section>
+      <header className="admin-page-header"><div><p>Безопасность</p><h1>История действий</h1></div></header>
+      {failed && !items.length ? <AdminEmpty title="История недоступна" text="Обновите страницу и попробуйте снова." /> : !busy && !items.length ? <AdminEmpty title="Действий пока нет" text="Здесь появятся входы и административные изменения." /> : <div className="admin-table-wrap"><table><thead><tr><th>Время</th><th>Администратор</th><th>Действие</th><th>Результат</th></tr></thead><tbody>{items.map((entry) => <tr key={entry.id}><td>{new Date(entry.created_at).toLocaleString("ru-RU")}</td><td>{entry.actor ?? "Система"}</td><td>{actionLabel(entry.action)}</td><td><span className={`admin-result ${entry.result}`}>{resultLabel(entry.result)}</span></td></tr>)}</tbody></table>{next && <button className="admin-more" disabled={busy} onClick={() => void load(next)}>{busy ? "Загружаем…" : "Показать ещё"}</button>}</div>}
+    </section>
+  );
+}
+
+function AdminStatus({ text }: { text: string }) { return <main className="admin-status" role="status"><span /><p>{text}</p></main>; }
+function AdminEmpty({ title, text }: { title: string; text: string }) { return <div className="admin-empty"><History /><h2>{title}</h2><p>{text}</p></div>; }
+function actionLabel(action: string) { return ({ "staff.bootstrap": "Создан первый администратор", "staff.login_bootstrap": "Подготовлен вход", "staff.login": "Вход в панель", "staff.logout": "Выход из панели" } as Record<string, string>)[action] ?? action; }
+function resultLabel(result: AuditEntry["result"]) { return result === "success" ? "Успешно" : result === "blocked" ? "Заблокировано" : "Отказ"; }
+
+class AdminApiError extends Error { constructor(public status: number) { super("Admin request failed"); } }
+async function api<T = undefined>(path: string, init?: RequestInit): Promise<{ data: T; response: Response }> {
+  const response = await fetch(`/api/admin${path}`, { ...init, credentials: "same-origin", headers: { Accept: "application/json", ...init?.headers } });
+  if (!response.ok) throw new AdminApiError(response.status);
+  const data = response.status === 204 ? undefined : await response.json();
+  return { data: data as T, response };
+}

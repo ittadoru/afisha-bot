@@ -30,6 +30,8 @@ async def test_lifespan_owns_dependency_cleanup(
         "redis_is_available",
         AsyncMock(return_value=False),
     )
+    bootstrap = AsyncMock()
+    monkeypatch.setattr(lifespan_module, "bootstrap_first_admin", bootstrap)
     app = create_app(settings)
 
     async with lifespan_module.lifespan(app):
@@ -39,3 +41,4 @@ async def test_lifespan_owns_dependency_cleanup(
 
     engine.dispose.assert_awaited_once()
     redis_client.aclose.assert_awaited_once()
+    bootstrap.assert_awaited_once()

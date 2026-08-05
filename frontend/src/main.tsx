@@ -6,6 +6,7 @@ import "@fontsource-variable/manrope";
 import "cropperjs/dist/cropper.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "@/styles.css";
+import "@/admin.css";
 
 function initializeTelegramMiniApp(): void {
   const webApp = window.Telegram?.WebApp;

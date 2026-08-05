@@ -3,6 +3,7 @@ from prometheus_client import (
     make_asgi_app,  # pyright: ignore[reportUnknownVariableType]
 )
 
+from afishabot.adapters.admin.http import router as admin_router
 from afishabot.adapters.http.auth import router as auth_router
 from afishabot.adapters.http.geo import router as geo_router
 from afishabot.adapters.http.health import router as health_router
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(geo_router)
     application.include_router(auth_router)
     application.include_router(profiles_router)
+    application.include_router(admin_router)
     application.mount(
         "/metrics",
         make_asgi_app(),  # pyright: ignore[reportUnknownArgumentType]

@@ -19,7 +19,16 @@ EXPECTED_TABLES = {
         "participation_episodes",
     },
     "media": {"assets"},
-    "trust_safety": {"event_reviews", "profile_reports"},
+    "trust_safety": {
+        "event_reviews",
+        "profile_reports",
+        "staff_accounts",
+        "staff_credentials",
+        "staff_sessions",
+        "staff_login_limits",
+        "staff_permissions",
+        "staff_audit_log",
+    },
     "reputation": {"organizer_profiles"},
 }
 

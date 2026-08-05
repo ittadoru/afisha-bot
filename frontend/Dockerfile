@@ -5,7 +5,8 @@ ARG NGINX_IMAGE=nginx:1.29-alpine
 FROM ${NODE_IMAGE} AS build
 WORKDIR /app
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm ci --ignore-scripts --no-audit --no-fund
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --ignore-scripts --no-audit --no-fund
 COPY frontend/ ./
 ARG VITE_API_BASE_URL=/api
 ARG VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty

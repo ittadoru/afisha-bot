@@ -2,6 +2,7 @@ import { CalendarDays, Map, ShieldCheck, Users } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
 import { MiniAppAuth } from "@/auth";
+import { AdminApp } from "@/admin-app";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,6 +18,7 @@ const benefits = [
 ];
 
 export default function App() {
+  if (window.location.hostname === "admin.podvval.xyz") return <AdminApp />;
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
