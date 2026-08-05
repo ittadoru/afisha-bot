@@ -20,7 +20,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
-    return <MiniAppAuth>{({ profile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
+    return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
   }
 
   if (view === "photo") {

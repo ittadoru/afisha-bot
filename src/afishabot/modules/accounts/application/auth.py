@@ -104,6 +104,12 @@ async def resolve_identity_and_issue_session(
                     "display_name": display_name,
                 },
             )
+            await connection.execute(
+                text(
+                    "INSERT INTO reputation.organizer_profiles (user_id) VALUES (:user_id)"
+                ),
+                {"user_id": user_id},
+            )
             profile = AccountProfile(
                 user_id=user_id,
                 public_id=public_id,

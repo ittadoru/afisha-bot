@@ -7,6 +7,7 @@ from afishabot.adapters.http.auth import router as auth_router
 from afishabot.adapters.http.geo import router as geo_router
 from afishabot.adapters.http.health import router as health_router
 from afishabot.adapters.http.middleware import RequestContextMiddleware
+from afishabot.adapters.http.profiles import router as profiles_router
 from afishabot.core.config import Settings
 from afishabot.core.lifespan import lifespan
 from afishabot.modules.discovery.infrastructure.nominatim import (
@@ -32,6 +33,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(health_router)
     application.include_router(geo_router)
     application.include_router(auth_router)
+    application.include_router(profiles_router)
     application.mount(
         "/metrics",
         make_asgi_app(),  # pyright: ignore[reportUnknownArgumentType]

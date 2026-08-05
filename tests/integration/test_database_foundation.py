@@ -19,7 +19,8 @@ EXPECTED_TABLES = {
         "participation_episodes",
     },
     "media": {"assets"},
-    "trust_safety": {"event_reviews"},
+    "trust_safety": {"event_reviews", "profile_reports"},
+    "reputation": {"organizer_profiles"},
 }
 
 

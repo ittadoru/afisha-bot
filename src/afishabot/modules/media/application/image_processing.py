@@ -105,3 +105,37 @@ class EventImageProcessor:
         finally:
             source.unlink(missing_ok=True)
         return destination
+
+
+class AvatarImageProcessor:
+    """Create a metadata-free square WebP avatar from a client-selected crop."""
+
+    def process(self, source: Path, destination: Path) -> Path:
+        limits = ImageLimits(max_file_bytes=5 * 1024 * 1024, max_pixels=20_000_000, output_width=256, output_height=256)
+        if not source.is_file() or source.is_symlink() or source.stat().st_size > limits.max_file_bytes:
+            source.unlink(missing_ok=True)
+            raise UnsafeImageError("file_too_large")
+        try:
+            import pyvips
+
+            image = cast(VipsImage, pyvips.Image.new_from_file(str(source), access="sequential", fail_on="warning"))  # pyright: ignore[reportUnknownMemberType]
+            if image.width <= 0 or image.height <= 0 or image.width * image.height > limits.max_pixels:
+                raise UnsafeImageError("invalid_dimensions")
+            image = image.autorot()
+            side = min(image.width, image.height)
+            image = image.crop((image.width - side) // 2, (image.height - side) // 2, side, side)
+            image = image.thumbnail_image(256, height=256, size="force", crop="centre")
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
+            try:
+                image.webpsave(str(temporary), Q=84, effort=5, strip=True)
+                os.replace(temporary, destination)
+            finally:
+                temporary.unlink(missing_ok=True)
+        except UnsafeImageError:
+            raise
+        except Exception as exc:
+            raise UnsafeImageError("image_decode_or_encode_failed") from exc
+        finally:
+            source.unlink(missing_ok=True)
+        return destination

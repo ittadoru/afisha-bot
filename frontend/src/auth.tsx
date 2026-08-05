@@ -9,6 +9,14 @@ export interface AccountProfile {
   bio: string | null;
   selected_city_id: string | null;
   age_confirmed: boolean;
+  city_name?: string | null;
+  avatar_url?: string | null;
+  version?: number;
+  next_name_change_at?: string | null;
+  organizer_status?: "new" | "trusted";
+  successful_events?: number;
+  upcoming_count?: number;
+  completed_count?: number;
 }
 
 interface SessionResponse {
@@ -26,7 +34,7 @@ type AuthState =
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
-export function MiniAppAuth({ children }: { children: (props: { profile: AccountProfile; logout: () => Promise<void> }) => React.ReactNode }) {
+export function MiniAppAuth({ children }: { children: (props: { profile: AccountProfile; csrfToken: string; updateProfile: (profile: AccountProfile) => void; logout: () => Promise<void> }) => React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
 
   const exchangeTelegramSession = async () => {
@@ -93,11 +101,15 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
 
   useEffect(() => { void authenticate(); }, []);
 
+  const updateProfile = (profile: AccountProfile) => {
+    setState((current) => current.status === "ready" ? { ...current, profile } : current);
+  };
+
   if (state.status === "loading") return <AuthScreen icon={<LoaderCircle className="spin" />} title="Входим через Telegram" text="Проверяем безопасный вход…" />;
   if (state.status === "outside-telegram") return <AuthScreen icon={<ShieldCheck />} title="Откройте приложение через Telegram" text="Вход доступен только из Mini App. Откройте бота и нажмите кнопку приложения." />;
   if (state.status === "error") return <AuthScreen icon={<ShieldCheck />} title="Не получилось войти" text="Закройте Mini App, откройте его снова и повторите попытку." action={<Button onClick={() => void authenticate()}>Повторить</Button>} />;
   if (state.status === "age") return <AuthScreen icon={<ShieldCheck />} title="Подтвердите возраст" text="Чтобы пользоваться Афишей, вам должно быть не меньше 14 лет." action={<div className="auth-actions"><Button onClick={() => void confirmAge()}>Мне исполнилось 14 лет</Button><Button variant="outline" onClick={() => void logout()}><LogOut /> Выйти</Button></div>} />;
-  return <>{children({ profile: state.profile, logout })}</>;
+  return <>{children({ profile: state.profile, csrfToken: state.csrfToken, updateProfile, logout })}</>;
 }
 
 function AuthScreen({ icon, title, text, action }: { icon: React.ReactNode; title: string; text: string; action?: React.ReactNode }) {

@@ -21,6 +21,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import type { AccountProfile } from "@/auth";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
+import { AvatarCropper } from "@/components/avatar-cropper";
 import type { MapCity, ResolvedLocation } from "@/components/event-map";
 
 const EventMap = lazy(async () => ({ default: (await import("@/components/event-map")).EventMap }));
@@ -42,6 +43,7 @@ interface Catalog {
   cities: MapCity[];
   categories: Category[];
 }
+interface ProfileEvent { id: string; title: string; starts_at: string; ends_at: string; category: string; role?: string | null }
 
 const demoEvents = [
   { id: 1, category: "Особое", title: "Фестиваль на Родопском бульваре", time: "Сегодня, 17:00", place: "Родопский бульвар", people: 48, special: true },
@@ -55,8 +57,9 @@ const demoPeople = [
   { id: 3, name: "Амина", category: "Обучение", title: "Практика английского за кофе", text: "Хочу собрать небольшую разговорную компанию на выходных.", likes: 16, questions: 4 },
 ];
 
-export function MiniApp({ profile, onLogout }: { profile: AccountProfile; onLogout: () => Promise<void> }) {
-  const [section, setSection] = useState<Section>("events");
+export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { profile: AccountProfile; csrfToken: string; onProfileUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void> }) {
+  const initialPublicId = window.location.pathname.match(/^\/app\/profile\/(\d{8})$/)?.[1] ?? null;
+  const [section, setSection] = useState<Section>(initialPublicId ? "profile" : "events");
   const [eventsMode, setEventsMode] = useState<EventsMode>("map");
   const [previewState, setPreviewState] = useState<PreviewState>(null);
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -85,12 +88,19 @@ export function MiniApp({ profile, onLogout }: { profile: AccountProfile; onLogo
     setSection(next);
   };
 
+  const saveCity = async (city: MapCity) => {
+    setSelectedCity(city);
+    setChoosingCity(false);
+    const response = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ display_name: profile.display_name, bio: profile.bio, selected_city_id: city.id, version: profile.version ?? 1 }) });
+    if (response.ok) onProfileUpdate(await response.json() as AccountProfile);
+  };
+
   return (
     <main className="mini-app">
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => setChoosingCity(true)} />
       <div className="mini-content">
         {choosingCity ? (
-          <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} onSelect={(city) => { setSelectedCity(city); setChoosingCity(false); }} onClose={() => setChoosingCity(false)} />
+          <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} onSelect={(city) => void saveCity(city)} onClose={() => setChoosingCity(false)} />
         ) : previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
@@ -99,7 +109,7 @@ export function MiniApp({ profile, onLogout }: { profile: AccountProfile; onLogo
             {section === "people" && <PeopleList onCreate={() => setSection("create")} />}
             {section === "create" && <CreateScreen city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} onChooseCity={() => setChoosingCity(true)} onDone={() => setSection("events")} />}
             {section === "notifications" && <Notifications />}
-            {section === "profile" && <Profile profile={profile} onLogout={onLogout} onPreview={setPreviewState} />}
+            {section === "profile" && <Profile profile={profile} initialPublicId={initialPublicId} csrfToken={csrfToken} onUpdate={onProfileUpdate} onChooseCity={() => setChoosingCity(true)} onLogout={onLogout} onPreview={setPreviewState} />}
           </Suspense>
         )}
       </div>
@@ -165,9 +175,40 @@ function Notification({ icon, title, text, urgent = false }: { icon: React.React
   return <article className={`notification${urgent ? " urgent" : ""}`}><span>{icon}</span><div><strong>{title}</strong><p>{text}</p></div><ChevronRight /></article>;
 }
 
-function Profile({ profile, onLogout, onPreview }: { profile: AccountProfile; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void }) {
+function Profile({ profile, initialPublicId, csrfToken, onUpdate, onChooseCity, onLogout, onPreview }: { profile: AccountProfile; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onChooseCity: () => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void }) {
   const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
-  return <section className="feed profile-screen"><div className="profile-card"><span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span><div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id}{profile.selected_city_id ? " · город выбран" : " · город не выбран"}</p></div></div><div className="profile-stats"><div><strong>0</strong><span>будущих</span></div><div><strong>0</strong><span>посещено</span></div><div><strong>0</strong><span>создано</span></div></div><h2 className="group-title">Моё</h2>{["Ближайшие события", "История", "Мои обращения", "Настройки"].map((item) => <button className="menu-row" type="button" key={item}><span>{item}</span><ChevronRight /></button>)}<Button variant="outline" onClick={() => void onLogout()}>Выйти</Button><h2 className="group-title">Состояния экранов</h2><p className="state-hint">Можно заранее посмотреть, как приложение поведёт себя без данных или при сбое.</p><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(profile.display_name);
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [lookup, setLookup] = useState(initialPublicId ?? "");
+  const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
+  const [message, setMessage] = useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [eventMode, setEventMode] = useState<"upcoming" | "completed" | null>(null);
+  const save = async () => { if (!profile.selected_city_id) { onChooseCity(); return; } const response = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ display_name: name, bio, selected_city_id: profile.selected_city_id, version: profile.version ?? 1 }) }); if (response.ok) { onUpdate(await response.json() as AccountProfile); setEditing(false); setMessage("Профиль сохранён"); } else setMessage(response.status === 409 ? "Псевдоним можно менять раз в 7 дней" : "Не удалось сохранить профиль"); };
+  const upload = async (file: Blob) => { const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file }); if (response.ok) { onUpdate(await response.json() as AccountProfile); setAvatarFile(null); } else setMessage("Не удалось обработать фотографию"); };
+  const removeAvatar = async () => { const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); if (response.ok) onUpdate(await response.json() as AccountProfile); };
+  const openPublic = useCallback(async () => { const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${lookup}`, { credentials: "include" }); if (response.ok) { setPublicProfile(await response.json() as AccountProfile); window.history.pushState({}, "", `/app/profile/${lookup}`); } else setMessage("Профиль не найден"); }, [lookup]);
+  useEffect(() => { if (initialPublicId) void openPublic(); }, [initialPublicId, openPublic]);
+  if (publicProfile) return <PublicProfile profile={publicProfile} csrfToken={csrfToken} onBack={() => { setPublicProfile(null); window.history.pushState({}, "", "/app"); }} />;
+  if (avatarFile) return <AvatarCropper file={avatarFile} onCancel={() => setAvatarFile(null)} onConfirm={(blob) => void upload(blob)} />;
+  if (eventMode) return <AccountEvents state={eventMode} onBack={() => setEventMode(null)} />;
+  return <section className="feed profile-screen"><div className="profile-card">{profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Ваш аватар" /> : <span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span>}<div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p>ID <button className="copy-id" type="button" onClick={() => void navigator.clipboard.writeText(profile.public_id)}>{profile.public_id}</button> · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><div className="profile-stats"><div><strong>{profile.upcoming_count ?? 0}</strong><span>будущих</span></div><div><strong>{profile.completed_count ?? 0}</strong><span>завершено</span></div><div><strong>{profile.successful_events ?? 0}</strong><span>успешных</span></div></div>{editing ? <div className="profile-editor"><label>Псевдоним<input value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /></label><label>О себе<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} /></label><button className="selected-city" type="button" onClick={onChooseCity}><MapPin /><span><small>Город</small>{profile.city_name ?? "Выберите"}</span><ChevronRight /></button><Button onClick={() => void save()}>Сохранить</Button></div> : <><p className="profile-bio">{profile.bio || "Описание пока не заполнено"}</p><Button onClick={() => setEditing(true)}>Редактировать профиль</Button></>}<div className="profile-photo-actions"><label className="file-picker"><span>Загрузить фотографию</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setAvatarFile(file); }} /></label>{profile.avatar_url && <Button variant="outline" onClick={() => void removeAvatar()}>Удалить фотографию</Button>}</div>{message && <p className="success-message" role="status">{message}</p>}<h2 className="group-title">События</h2><button className="menu-row" type="button" onClick={() => setEventMode("upcoming")}><span>Будущие события</span><ChevronRight /></button><button className="menu-row" type="button" onClick={() => setEventMode("completed")}><span>Завершённые события</span><ChevronRight /></button><h2 className="group-title">Открыть профиль</h2><div className="profile-lookup"><input inputMode="numeric" maxLength={8} placeholder="Восьмизначный номер" value={lookup} onChange={(event) => setLookup(event.target.value.replace(/\D/g, ""))} /><Button disabled={lookup.length !== 8} onClick={() => void openPublic()}>Открыть</Button></div><Button variant="outline" onClick={() => void onLogout()}>Выйти</Button><h2 className="group-title">Состояния экранов</h2><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
+}
+
+function AccountEvents({ state, onBack }: { state: "upcoming" | "completed"; onBack: () => void }) {
+  const [items, setItems] = useState<ProfileEvent[] | null>(null);
+  useEffect(() => { void fetch(`${appConfig.apiBaseUrl}/account/events?state=${state}&limit=20`, { credentials: "include" }).then(async (response) => setItems(response.ok ? ((await response.json()) as { items: ProfileEvent[] }).items : [])); }, [state]);
+  return <section className="feed"><button className="text-back" type="button" onClick={onBack}>← Назад</button><h1>{state === "upcoming" ? "Будущие события" : "Завершённые события"}</h1>{items === null ? <p>Загружаем…</p> : items.length ? items.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.role === "organizer" ? "Вы организатор" : "Вы участник"} · {event.category}</span></article>) : <p>Здесь пока пусто.</p>}</section>;
+}
+
+function PublicProfile({ profile, csrfToken, onBack }: { profile: AccountProfile; csrfToken: string; onBack: () => void }) {
+  const [reason, setReason] = useState("photo"); const [comment, setComment] = useState(""); const [sent, setSent] = useState(false);
+  const [upcoming, setUpcoming] = useState<ProfileEvent[]>([]); const [completed, setCompleted] = useState<ProfileEvent[]>([]); const [nextCompleted, setNextCompleted] = useState<number | null>(null);
+  useEffect(() => { void Promise.all([fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=upcoming&limit=20`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10`, { credentials: "include" })]).then(async ([future, history]) => { if (future.ok) setUpcoming(((await future.json()) as { items: ProfileEvent[] }).items); if (history.ok) { const data = await history.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted(data.items); setNextCompleted(data.next_offset); } }); }, [profile.public_id]);
+  const loadMore = async () => { if (nextCompleted === null) return; const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10&offset=${nextCompleted}`, { credentials: "include" }); if (response.ok) { const data = await response.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted((items) => [...items, ...data.items]); setNextCompleted(data.next_offset); } };
+  const report = async () => { const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ reason, comment: comment || null }) }); if (response.ok) setSent(true); };
+  return <section className="feed profile-screen"><button className="text-back" type="button" onClick={onBack}>← Назад</button><div className="profile-card">{profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Аватар пользователя" /> : <span className="profile-avatar">{profile.display_name[0]}</span>}<div><p className="section-kicker">Публичный профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id} · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><p className="profile-bio">{profile.bio || "Описание не заполнено"}</p><h2 className="group-title">Будущие события</h2>{upcoming.length ? upcoming.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.starts_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">Опубликованных событий пока нет.</p>}<h2 className="group-title">Завершённые события</h2>{completed.length ? completed.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.ends_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">История пока пуста.</p>}{nextCompleted !== null && <Button variant="outline" onClick={() => void loadMore()}>Загрузить ещё</Button>}<h2 className="group-title">Пожаловаться на профиль</h2>{sent ? <p className="success-message">Жалоба отправлена</p> : <div className="profile-editor"><select value={reason} onChange={(event) => setReason(event.target.value)}><option value="photo">Фотография</option><option value="display_name">Псевдоним</option><option value="bio">Описание</option><option value="other">Другое</option></select>{reason === "other" && <textarea maxLength={300} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Опишите причину" />}<Button disabled={reason === "other" && !comment.trim()} onClick={() => void report()}>Отправить жалобу</Button></div>}</section>;
 }
 
 function DemoState({ state, onClose }: { state: Exclude<PreviewState, null>; onClose?: () => void }) {
