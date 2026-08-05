@@ -315,7 +315,7 @@ services:
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
     volumes:
       - nominatim_data:/var/lib/postgresql/18/main
-      - ./var/nominatim:/nominatim/data:ro
+      - ./var/nominatim:/nominatim/data
     restart: "no"
     security_opt:
       - no-new-privileges:true
