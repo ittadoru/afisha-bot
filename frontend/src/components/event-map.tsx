@@ -71,7 +71,6 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     const map = new MapLibreMap({
       container: containerRef.current,
       style: appConfig.mapStyleUrl,
-      transformRequest: (url) => ({ url: proxyOpenFreeMapUrl(url) }),
       center: [city.center_longitude, city.center_latitude],
       zoom: 12,
       attributionControl: false,
@@ -204,11 +203,6 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       )}
     </section>
   );
-}
-
-function proxyOpenFreeMapUrl(url: string): string {
-  const upstream = "https://tiles.openfreemap.org/";
-  return url.startsWith(upstream) ? `/map-tiles/${url.slice(upstream.length)}` : url;
 }
 
 function categorySymbol(slug: string | null): string {
