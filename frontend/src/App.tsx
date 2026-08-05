@@ -4,8 +4,8 @@ import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const EventMap = lazy(async () => ({ default: (await import("@/components/event-map")).EventMap }));
 const PhotoCropper = lazy(async () => ({ default: (await import("@/components/photo-cropper")).PhotoCropper }));
+const MiniApp = lazy(async () => ({ default: (await import("@/components/mini-app")).MiniApp }));
 
 type View = "landing" | "map" | "photo";
 
@@ -19,7 +19,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
-    return <Suspense fallback={<LoadingScreen />}><EventMap onBack={() => window.location.assign("/")} onOpenPhoto={() => setView("photo")} /></Suspense>;
+    return <Suspense fallback={<LoadingScreen />}><MiniApp /></Suspense>;
   }
 
   if (view === "photo") {

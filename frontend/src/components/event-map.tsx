@@ -15,13 +15,14 @@ import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 
 interface EventMapProps {
-  onBack: () => void;
-  onOpenPhoto: () => void;
+  onBack?: () => void;
+  onOpenPhoto?: () => void;
+  embedded?: boolean;
 }
 
 const MAKHACHKALA: [number, number] = [47.5047, 42.9831];
 
-export function EventMap({ onBack, onOpenPhoto }: EventMapProps) {
+export function EventMap({ onBack, onOpenPhoto, embedded = false }: EventMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markerRef = useRef<Marker | null>(null);
@@ -87,12 +88,12 @@ export function EventMap({ onBack, onOpenPhoto }: EventMapProps) {
   }, []);
 
   return (
-    <main className="workspace">
-      <header className="workspace-header">
+    <section className={`workspace${embedded ? " embedded-map" : ""}`}>
+      {!embedded && <header className="workspace-header">
         <Button variant="ghost" size="icon" onClick={onBack} aria-label="Вернуться на главную"><ArrowLeft /></Button>
         <div><strong>Махачкала</strong><span>События сегодня</span></div>
         <Button variant="outline" onClick={onOpenPhoto}><Camera aria-hidden="true" /> Фото</Button>
-      </header>
+      </header>}
 
       {failed ? (
         <section className="map-fallback" role="alert">
@@ -111,6 +112,6 @@ export function EventMap({ onBack, onOpenPhoto }: EventMapProps) {
           <div className="map-legend"><span className="legend-exact" /> Точное место <span className="legend-street" /> Общая улица</div>
         </section>
       )}
-    </main>
+    </section>
   );
 }
