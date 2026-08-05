@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-EXPECTED_MIGRATION_HEAD = "0008_media_schema"
+EXPECTED_MIGRATION_HEAD = "0014_communication_foundation"
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:

@@ -32,12 +32,12 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 8
+    assert len(files) == 14
     assert parents - {None} < revisions
-    assert revisions - parents == {"0008_media_schema"}
+    assert revisions - parents == {"0014_communication_foundation"}
 
 
-def test_only_platform_extension_and_seven_schemas_exist() -> None:
+def test_platform_extension_and_seven_owner_schemas_exist() -> None:
     text = "\n".join(
         path.read_text(encoding="utf-8") for path in sorted(VERSIONS.glob("*.py"))
     )
@@ -45,4 +45,49 @@ def test_only_platform_extension_and_seven_schemas_exist() -> None:
     assert "CREATE EXTENSION IF NOT EXISTS postgis" in text
     for schema in EXPECTED_SCHEMAS:
         assert f"CREATE SCHEMA {schema}" in text
-    assert "CREATE TABLE" not in text.upper()
+
+
+def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
+    text = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(VERSIONS.glob("*.py"))
+    )
+    expected_tables = {
+        "accounts": {"users", "telegram_identities", "profiles", "sessions"},
+        "discovery": {"cities", "categories"},
+        "events": {
+            "events",
+            "event_revisions",
+            "event_photos",
+            "participation_episodes",
+        },
+        "media": {"assets"},
+        "trust_safety": {"event_reviews"},
+        "communication": {"messages", "notifications"},
+    }
+
+    for schema, tables in expected_tables.items():
+        for table in tables:
+            assert f"CREATE TABLE {schema}.{table}" in text
+
+
+def test_foundation_keeps_module_boundaries_and_key_product_constraints() -> None:
+    text = "\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(VERSIONS.glob("*.py"))
+    )
+
+    assert "telegram_user_id bigint NOT NULL UNIQUE" in text
+    assert "capacity IS NULL OR capacity >= 3" in text
+    assert "schedule_changes_used BETWEEN 0 AND 1" in text
+    assert "uq_events_one_pending_revision" in text
+    assert "uq_events_active_participation" in text
+    assert "geography(Point, 4326)" in text
+    owner_migrations = [
+        VERSIONS / "0011_events_foundation.py",
+        VERSIONS / "0012_media_foundation.py",
+        VERSIONS / "0013_event_moderation_foundation.py",
+        VERSIONS / "0014_communication_foundation.py",
+    ]
+    assert all(
+        "REFERENCES accounts." not in path.read_text(encoding="utf-8")
+        for path in owner_migrations
+    )

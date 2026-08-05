@@ -17,7 +17,7 @@ from afishabot.modules.trust_safety.infrastructure.metadata import (
 )
 
 
-def test_each_module_owns_exactly_one_empty_schema() -> None:
+def test_each_module_owns_exactly_one_schema() -> None:
     metadata = [
         accounts_metadata,
         communication_metadata,
@@ -37,4 +37,5 @@ def test_each_module_owns_exactly_one_empty_schema() -> None:
         "reputation",
         "trust_safety",
     }
-    assert all(not item.tables for item in metadata)
+    assert all(item.tables for item in metadata if item.schema != "reputation")
+    assert not reputation_metadata.tables
