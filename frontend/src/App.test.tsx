@@ -1,11 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
 vi.mock("@/components/event-map", () => ({
   EventMap: () => <section aria-label="Карта событий" />,
 }));
+
+afterEach(cleanup);
 
 describe("landing", () => {
   beforeEach(() => {
