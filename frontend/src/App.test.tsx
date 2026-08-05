@@ -40,7 +40,7 @@ describe("landing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Создать" }));
     expect(screen.getByRole("heading", { name: "Что создаём?" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Новости" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Новости/ }));
     expect(screen.getByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Моё" }));
