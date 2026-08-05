@@ -71,9 +71,24 @@ class EventResponse(BaseModel):
     role: str | None = None
 
 
+class AnonymousPublicProfileResponse(PublicProfileResponse):
+    upcoming_events: list[EventResponse]
+
+
 class EventsResponse(BaseModel):
     items: list[EventResponse]
     next_offset: int | None
+
+
+class NotificationResponse(BaseModel):
+    id: UUID
+    kind: str
+    importance: str
+    title: str
+    body: str
+    deep_link: str | None
+    created_at: datetime
+    read_at: datetime | None
 
 
 def dependencies(request: Request) -> tuple[Settings, Redis, AsyncEngine]:
@@ -118,6 +133,59 @@ def own_response(profile: ProfileView) -> OwnProfileResponse:
         organizer_status=profile.organizer_status, successful_events=profile.successful_events,
         upcoming_count=profile.upcoming_count, completed_count=profile.completed_count,
     )
+
+
+@router.get(
+    "/public/profiles/{public_id}", response_model=AnonymousPublicProfileResponse
+)
+async def anonymous_public_profile(
+    public_id: str, request: Request
+) -> AnonymousPublicProfileResponse:
+    if not (len(public_id) == 8 and public_id.isdigit()):
+        raise HTTPException(status_code=404, detail="profile_not_found")
+    _, _, engine = dependencies(request)
+    try:
+        profile = await load_profile(engine, public_id=public_id)
+    except ProfileNotFound as error:
+        raise HTTPException(status_code=404, detail="profile_not_found") from error
+    items = await profile_events(
+        engine, user_id=profile.user_id, state="upcoming", limit=20, offset=0
+    )
+    return AnonymousPublicProfileResponse(
+        public_id=profile.public_id,
+        display_name=profile.display_name,
+        bio=profile.bio,
+        avatar_url=(
+            f"/api/public/profiles/{profile.public_id}/avatar?v={profile.version}"
+            if profile.avatar_asset_id else None
+        ),
+        organizer_status=profile.organizer_status,
+        successful_events=profile.successful_events,
+        upcoming_events=[EventResponse.model_validate(item) for item in items],
+    )
+
+
+@router.get("/public/profiles/{public_id}/avatar")
+async def anonymous_profile_avatar(public_id: str, request: Request) -> Response:
+    settings, _, engine = dependencies(request)
+    async with engine.connect() as connection:
+        key = await connection.scalar(
+            text(
+                """
+                SELECT a.storage_key FROM accounts.profiles p
+                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
+                JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
+                WHERE p.public_id=:id
+                """
+            ),
+            {"id": public_id},
+        )
+    if key is None:
+        raise HTTPException(status_code=404, detail="avatar_not_found")
+    path = settings.media_root / key
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="avatar_not_found")
+    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "public, max-age=300"})
 
 
 @router.get("/account/profile", response_model=OwnProfileResponse)
@@ -177,6 +245,32 @@ async def get_account_events(request: Request, state: Literal["upcoming", "compl
     items = await account_events(engine, user_id=user_id, state=state, limit=limit + 1, offset=offset)
     has_more = len(items) > limit
     return EventsResponse(items=[EventResponse.model_validate(item) for item in items[:limit]], next_offset=offset + limit if has_more else None)
+
+
+@router.get("/account/notifications", response_model=list[NotificationResponse])
+async def get_account_notifications(
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=50)] = 30,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> list[NotificationResponse]:
+    _, _, engine = dependencies(request)
+    user_id = await current_user(request, token)
+    async with engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text(
+                    """
+                    SELECT id,kind,importance,title,body,deep_link,created_at,read_at
+                    FROM communication.notifications
+                    WHERE recipient_user_id=:user
+                      AND (expires_at IS NULL OR expires_at>now())
+                    ORDER BY created_at DESC,id DESC LIMIT :limit
+                    """
+                ),
+                {"user": user_id, "limit": limit},
+            )
+        ).mappings().all()
+    return [NotificationResponse.model_validate(row) for row in rows]
 
 
 @router.post("/profiles/{public_id}/reports", status_code=201)

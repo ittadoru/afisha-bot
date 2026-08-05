@@ -32,9 +32,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 18
+    assert len(files) == 22
     assert parents - {None} < revisions
-    assert revisions - parents == {"0018_staff_admin_foundation"}
+    assert revisions - parents == {"0022_public_event_discovery"}
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:
@@ -59,12 +59,15 @@ def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
             "sessions",
             "age_acceptances",
         },
-        "discovery": {"cities", "categories"},
+        "discovery": {"cities", "categories", "street_anchors"},
         "events": {
             "events",
             "event_revisions",
             "event_photos",
             "participation_episodes",
+            "creation_requests",
+            "staff_creation_requests",
+            "change_requests",
         },
         "media": {"assets"},
         "trust_safety": {

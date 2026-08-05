@@ -10,8 +10,14 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def execute_sql(script: str) -> None:
+    for statement in script.split(";"):
+        if statement := statement.strip():
+            op.execute(statement)
+
+
 def upgrade() -> None:
-    op.execute(
+    execute_sql(
         """
         CREATE TABLE trust_safety.staff_accounts (
             id uuid PRIMARY KEY,
@@ -79,13 +85,20 @@ def upgrade() -> None:
         );
         CREATE INDEX ix_staff_audit_log_created_at
             ON trust_safety.staff_audit_log(created_at DESC);
-
+        """
+    )
+    op.execute(
+        """
         CREATE FUNCTION trust_safety.reject_staff_audit_mutation()
         RETURNS trigger LANGUAGE plpgsql AS $$
         BEGIN
             RAISE EXCEPTION 'staff audit records are immutable';
         END;
-        $$;
+        $$
+        """
+    )
+    op.execute(
+        """
         CREATE TRIGGER staff_audit_immutable
             BEFORE UPDATE OR DELETE ON trust_safety.staff_audit_log
             FOR EACH ROW EXECUTE FUNCTION trust_safety.reject_staff_audit_mutation();

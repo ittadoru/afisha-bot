@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   ShieldCheck,
+  Sparkles,
   UserCog,
   Users,
 } from "lucide-react";
@@ -27,7 +28,8 @@ type AuditEntry = {
   result: "success" | "failure" | "blocked";
 };
 type AuditPage = { items: AuditEntry[]; next_before: string | null };
-type View = "dashboard" | "audit";
+type View = "dashboard" | "special" | "audit";
+type SpecialEvent = { id: string; title: string; starts_at: string; ends_at: string; city: string };
 
 const csrfHeader = "X-Afisha-Admin-CSRF";
 
@@ -109,6 +111,7 @@ function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: str
         <div className="admin-brand"><span><ShieldCheck /></span><div><strong>PODVVAL</strong><small>Панель управления</small></div></div>
         <nav aria-label="Разделы панели">
           <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><LayoutDashboard />Главная</button>
+          <button className={view === "special" ? "active" : ""} onClick={() => setView("special")}><Sparkles />Особые события</button>
           <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}><History />История действий</button>
         </nav>
         <div className="admin-sidebar-footer">
@@ -117,10 +120,31 @@ function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: str
         </div>
       </aside>
       <main className="admin-content">
-        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} staff={staff} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
+        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} staff={staff} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
       </main>
     </div>
   );
+}
+
+function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
+  const [items, setItems] = useState<SpecialEvent[] | null>(null);
+  const [reason, setReason] = useState("plans_changed");
+  const load = useCallback(async () => {
+    const result = await api<{ items: SpecialEvent[] }>("/events/special");
+    onCsrf(result.response.headers.get(csrfHeader) ?? "");
+    setItems(result.data.items);
+  }, [onCsrf]);
+  useEffect(() => { void load().catch(() => setItems([])); }, [load]);
+  const cancel = async (event: SpecialEvent) => {
+    if (!window.confirm(`Отменить «${event.title}»?`)) return;
+    await api(`/events/special/${event.id}/cancel`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", [csrfHeader]: csrf },
+      body: JSON.stringify({ reason }),
+    });
+    await load();
+  };
+  return <section><header className="admin-page-header"><div><p>Общественные события</p><h1>Особые события</h1></div></header><label className="admin-inline-control">Причина отмены<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="plans_changed">Планы изменились</option><option value="not_enough_participants">Не набралось участников</option><option value="venue_problem">Проблемы с местом</option><option value="unforeseen_circumstances">Непредвиденные обстоятельства</option></select></label>{items === null ? <AdminStatus text="Загружаем события…" /> : items.length ? <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.city}</td><td>{new Date(event.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-more" onClick={() => void cancel(event)}>Отменить</button></td></tr>)}</tbody></table></div> : <AdminEmpty title="Активных особых событий нет" text="Здесь появятся опубликованные общественные события." />}</section>;
 }
 
 function Dashboard({ staff, onCsrf }: { csrf: string; onCsrf: (value: string) => void; staff: Staff }) {

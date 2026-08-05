@@ -25,6 +25,9 @@ interface TelegramWebApp {
   colorScheme?: "light" | "dark";
   themeParams?: Record<string, string>;
   onEvent?: (event: "themeChanged", callback: () => void) => void;
+  enableClosingConfirmation?: () => void;
+  disableClosingConfirmation?: () => void;
+  showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void;
 }
 
 interface Window {

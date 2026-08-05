@@ -1,15 +1,15 @@
 import { CalendarDays, Map, ShieldCheck, Users } from "lucide-react";
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { MiniAppAuth } from "@/auth";
 import { AdminApp } from "@/admin-app";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { appConfig } from "@/config";
 
-const PhotoCropper = lazy(async () => ({ default: (await import("@/components/photo-cropper")).PhotoCropper }));
 const MiniApp = lazy(async () => ({ default: (await import("@/components/mini-app")).MiniApp }));
 
-type View = "landing" | "map" | "photo";
+type View = "landing" | "map";
 
 const benefits = [
   { icon: Map, title: "Смотрите, что происходит", text: "События и встречи рядом на одной понятной карте." },
@@ -19,14 +19,16 @@ const benefits = [
 
 export default function App() {
   if (window.location.hostname === "admin.podvval.xyz") return <AdminApp />;
+  const publicEventId = window.location.pathname.match(/^\/event\/([0-9a-f-]{36})$/i)?.[1];
+  if (publicEventId) return <PublicEventPage eventId={publicEventId} />;
+  return <LandingOrMiniApp />;
+}
+
+function LandingOrMiniApp() {
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
     return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
-  }
-
-  if (view === "photo") {
-    return <Suspense fallback={<LoadingScreen />}><PhotoCropper onBack={() => setView("map")} /></Suspense>;
   }
 
   return (
@@ -65,6 +67,15 @@ export default function App() {
       </section>
     </main>
   );
+}
+
+function PublicEventPage({ eventId }: { eventId: string }) {
+  const [event, setEvent] = useState<{ id: string; kind: string; title: string; description: string; category: string; starts_at: string; ends_at: string; visible_address: string; photo_url: string; organizer_name: string | null; organizer_public_id: string | null; organizer_status: string | null; lifecycle_status: string } | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { void fetch(`${appConfig.apiBaseUrl}/events/${eventId}`).then(async (response) => { if (!response.ok) throw new Error(); return await response.json(); }).then(setEvent).catch(() => setFailed(true)); }, [eventId]);
+  if (failed) return <main className="public-event-page"><section className="public-event-card"><h1>Событие недоступно</h1><p>Возможно, оно ещё не опубликовано или было скрыто.</p><Button asChild><a href="/">На главную</a></Button></section></main>;
+  if (!event) return <LoadingScreen />;
+  return <main className="public-event-page"><header className="site-header"><a className="brand" href="/">Афиша</a><Button asChild><a href={`/app/event/${event.id}`}>Открыть Mini App</a></Button></header><article className={`public-event-card${event.kind === "special" ? " special-event" : ""}`}><img src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div><span className="category-chip">{event.kind === "special" ? "Особое · Общественное событие" : event.category}</span><h1>{event.title}</h1><p><CalendarDays /> {new Date(event.starts_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })}</p><p><Map /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<p className="public-event-description">{event.description}</p>{event.kind === "regular" && <p><strong>Организатор:</strong> {event.organizer_name} · {event.organizer_status === "trusted" ? "доверенный" : "новый"}</p>}<Button asChild><a href={`/app/event/${event.id}`}>Открыть в приложении</a></Button></div></article></main>;
 }
 
 function LoadingScreen() {

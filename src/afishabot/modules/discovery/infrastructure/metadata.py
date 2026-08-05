@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, MetaData, SmallInteger, String, Table
+from sqlalchemy import Boolean, Column, DateTime, Integer, MetaData, SmallInteger, String, Table
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import UserDefinedType
 
@@ -10,6 +10,13 @@ class Geography(UserDefinedType[str]):
 
     def get_col_spec(self, **_kwargs: object) -> str:
         return "geography(MultiPolygon,4326)"
+
+
+class PointGeography(UserDefinedType[str]):
+    cache_ok = True
+
+    def get_col_spec(self, **_kwargs: object) -> str:
+        return "geography(Point,4326)"
 
 
 cities = Table(
@@ -37,4 +44,17 @@ categories = Table(
     Column("organizer_selectable", Boolean, nullable=False),
     Column("is_active", Boolean, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+)
+street_anchors = Table(
+    "street_anchors",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("city_id", UUID(as_uuid=True), nullable=False),
+    Column("street_key", String(200), nullable=False),
+    Column("display_name", String(200), nullable=False),
+    Column("provider_place_id", String(100), nullable=False),
+    Column("anchor", PointGeography(), nullable=False),
+    Column("geometry_version", Integer, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
 )

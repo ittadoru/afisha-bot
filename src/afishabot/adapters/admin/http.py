@@ -1,10 +1,14 @@
 from dataclasses import asdict
 from datetime import datetime
-from typing import Annotated, cast
+from pathlib import Path
+from typing import Annotated, Literal, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Query, Request, Response
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from afishabot.core.config import Settings
@@ -20,8 +24,22 @@ from afishabot.modules.trust_safety.application.staff_admin import (
     create_login_bootstrap,
     dashboard_counts,
     load_staff_session,
+    load_staff_mutation_session,
     record_admin_event,
     revoke_staff_session,
+)
+from afishabot.modules.trust_safety.application.event_moderation import (
+    ModerationConflict,
+    ModerationNotFound,
+    ReviewDecision,
+    decide_review,
+    review_detail,
+    review_queue,
+)
+from afishabot.modules.events.application.manage_event import (
+    CancelReason,
+    EventManagementConflict,
+    cancel_special_event,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -71,6 +89,20 @@ class AuditEntryResponse(BaseModel):
 class AuditPageResponse(BaseModel):
     items: list[AuditEntryResponse]
     next_before: datetime | None
+
+
+class ReviewDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    revision_id: UUID
+    reason: Literal[
+        "unclear_description", "prohibited_content", "paid_or_advertising",
+        "inappropriate_photo", "invalid_place_or_time", "duplicate_or_spam",
+    ] | None = None
+
+
+class CancelSpecialRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: CancelReason
 
 
 @router.post("/auth/bootstrap", response_model=BootstrapResponse)
@@ -242,6 +274,142 @@ async def audit(
         items=items,
         next_before=items[-1].created_at if len(items) == 50 else None,
     )
+
+
+@router.get("/events/reviews")
+async def event_reviews(
+    request: Request,
+    response: Response,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=50)] = 25,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    _, rotated = await _require_session(engine, session_token, _required_secret(settings))
+    response.headers[CSRF_HEADER] = rotated
+    rows = await review_queue(engine, offset=offset, limit=limit + 1)
+    return {"items": rows[:limit], "next_offset": offset + limit if len(rows) > limit else None}
+
+
+@router.get("/events/reviews/{review_id}")
+async def event_review_detail(
+    review_id: UUID, request: Request, response: Response,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    _, rotated = await _require_session(engine, session_token, _required_secret(settings))
+    try:
+        detail = await review_detail(engine, review_id)
+    except ModerationNotFound as error:
+        raise _error(404, "review_not_found") from error
+    detail["photo_url"] = f"/api/admin/events/reviews/{review_id}/photo"
+    response.headers[CSRF_HEADER] = rotated
+    return detail
+
+
+@router.get("/events/reviews/{review_id}/photo")
+async def event_review_photo(
+    review_id: UUID, request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> Response:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    try:
+        detail = await review_detail(engine, review_id)
+    except ModerationNotFound as error:
+        raise _error(404, "review_not_found") from error
+    path = Path(settings.media_root) / "event-staging" / f"{detail['media_asset_id']}.webp"
+    if not path.is_file():
+        raise _error(404, "photo_not_found")
+    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "private, no-store"})
+
+
+@router.post("/events/reviews/{review_id}/{action}", status_code=204)
+async def decide_event_review(
+    review_id: UUID, action: Literal["approve", "reject"],
+    body: ReviewDecisionRequest, request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> None:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(
+        engine, token=session_token, csrf_token=csrf_token,
+        auth_secret=_required_secret(settings),
+    )
+    if identity is None:
+        raise _error(401, "admin_session_required")
+    if (action == "reject" and body.reason is None) or (
+        action == "approve" and body.reason is not None
+    ):
+        raise _error(422, "decision_invalid")
+    try:
+        await decide_review(engine, ReviewDecision(review_id, body.revision_id, identity.id, action, body.reason))
+    except ModerationConflict as error:
+        raise _error(409, str(error)) from error
+
+
+@router.post("/events/special/{event_id}/cancel", status_code=204)
+async def cancel_special(
+    event_id: UUID,
+    body: CancelSpecialRequest,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> None:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(
+        engine, token=session_token, csrf_token=csrf_token,
+        auth_secret=_required_secret(settings),
+    )
+    if identity is None or identity.role != "admin":
+        raise _error(403, "admin_required")
+    try:
+        await cancel_special_event(
+            engine, event_id=event_id, staff_id=identity.id, reason=body.reason
+        )
+    except EventManagementConflict as error:
+        raise _error(409, str(error)) from error
+
+
+@router.get("/events/special")
+async def special_events(
+    request: Request,
+    response: Response,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    identity, rotated = await _require_session(
+        engine, session_token, _required_secret(settings)
+    )
+    if identity.role != "admin":
+        raise _error(403, "admin_required")
+    async with engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text(
+                    """
+                    SELECT e.id,r.title,r.starts_at,r.ends_at,c.name AS city
+                    FROM events.events e
+                    JOIN events.event_revisions r ON r.id=e.approved_revision_id
+                    JOIN discovery.cities c ON c.id=e.city_id
+                    WHERE e.kind='special' AND e.lifecycle_status='published'
+                    ORDER BY r.starts_at,e.id
+                    """
+                )
+            )
+        ).mappings().all()
+    response.headers[CSRF_HEADER] = rotated
+    return {"items": [dict(row) for row in rows]}
 
 
 async def _require_session(

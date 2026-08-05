@@ -1,10 +1,12 @@
 from collections.abc import Mapping
+import json
 from typing import cast
 
 import httpx
 
 from afishabot.modules.discovery.public.geo import (
     CanonicalAddress,
+    StreetAnchorCandidate,
     ReverseGeocodingMalformed,
     ReverseGeocodingNotFound,
     ReverseGeocodingUnavailable,
@@ -55,6 +57,55 @@ class NominatimReverseGeocoder:
                 except (TypeError, ValueError) as exc:
                     raise ReverseGeocodingMalformed from exc
         raise ReverseGeocodingUnavailable
+
+    async def street_anchor(
+        self, *, street: str, city: str, locale: str
+    ) -> StreetAnchorCandidate:
+        params: dict[str, str | int] = {
+            "street": street,
+            "city": city,
+            "format": "geojson",
+            "polygon_geojson": 1,
+            "limit": 1,
+        }
+        headers = {"Accept-Language": locale, "User-Agent": "AfishaBot/0.1"}
+        try:
+            async with httpx.AsyncClient(
+                timeout=self._timeout, follow_redirects=False
+            ) as client:
+                response = await client.get(
+                    f"{self._base_url}/search", params=params, headers=headers
+                )
+                response.raise_for_status()
+                payload = response.json()
+        except (httpx.TimeoutException, httpx.TransportError, httpx.HTTPStatusError) as exc:
+            raise ReverseGeocodingUnavailable from exc
+        except (TypeError, ValueError) as exc:
+            raise ReverseGeocodingMalformed from exc
+        if not isinstance(payload, Mapping):
+            raise ReverseGeocodingMalformed
+        features = payload.get("features")
+        if not isinstance(features, list) or not features:
+            raise ReverseGeocodingNotFound
+        feature = features[0]
+        if not isinstance(feature, Mapping):
+            raise ReverseGeocodingMalformed
+        geometry = feature.get("geometry")
+        properties = feature.get("properties")
+        if not isinstance(geometry, Mapping) or not isinstance(properties, Mapping):
+            raise ReverseGeocodingMalformed
+        geometry_type = geometry.get("type")
+        if geometry_type not in {
+            "LineString", "MultiLineString", "Polygon", "MultiPolygon"
+        }:
+            raise ReverseGeocodingNotFound
+        place_id = properties.get("place_id") or properties.get("osm_id")
+        if not isinstance(place_id, (str, int)):
+            raise ReverseGeocodingMalformed
+        return StreetAnchorCandidate(
+            provider_place_id=str(place_id),
+            geometry_geojson=json.dumps(geometry, separators=(",", ":")),
+        )
 
     @staticmethod
     def parse(payload: object, locale: str) -> CanonicalAddress:

@@ -1,18 +1,35 @@
 import Cropper from "cropperjs";
-import { ArrowLeft, ImagePlus } from "lucide-react";
+import { Check, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-interface PhotoCropperProps { onBack: () => void }
+const MAX_FILE_BYTES = 12 * 1024 * 1024;
+const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-export function PhotoCropper({ onBack }: PhotoCropperProps) {
+export interface EventPhotoUpload {
+  upload_id: string;
+  preview_url: string;
+  expires_at: string;
+  width: number;
+  height: number;
+}
+
+interface EventPhotoUploaderProps {
+  csrfToken: string;
+  value: EventPhotoUpload | null;
+  onChange: (photo: EventPhotoUpload | null) => void;
+}
+
+export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUploaderProps) {
   const imageRef = useRef<HTMLImageElement>(null);
   const cropperRef = useRef<Cropper | null>(null);
   const objectUrlRef = useRef<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
   const [source, setSource] = useState<string | null>(null);
-  const [cropSummary, setCropSummary] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!source || !imageRef.current) return;
@@ -23,52 +40,114 @@ export function PhotoCropper({ onBack }: PhotoCropperProps) {
       background: false,
       responsive: true,
     });
-    return () => { cropperRef.current?.destroy(); cropperRef.current = null; };
+    return () => {
+      cropperRef.current?.destroy();
+      cropperRef.current = null;
+    };
   }, [source]);
 
   useEffect(() => () => {
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
   }, []);
 
-  const chooseFile = (file?: File) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { setCropSummary("Выберите файл изображения"); return; }
+  const chooseFile = (next?: File) => {
+    if (!next) return;
+    if (!ALLOWED_TYPES.has(next.type)) {
+      setError("Подойдут только JPEG, PNG или WebP.");
+      return;
+    }
+    if (next.size > MAX_FILE_BYTES) {
+      setError("Фотография должна быть не больше 12 МБ.");
+      return;
+    }
     if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    objectUrlRef.current = URL.createObjectURL(file);
+    objectUrlRef.current = URL.createObjectURL(next);
+    setFile(next);
     setSource(objectUrlRef.current);
-    setCropSummary(null);
+    setError("");
   };
 
-  const confirmCrop = () => {
+  const upload = async () => {
     const cropper = cropperRef.current;
-    if (!cropper) return;
+    if (!cropper || !file) return;
     const image = cropper.getImageData();
-    const crop = cropper.getData(true);
+    const crop = cropper.getData();
     const normalized = {
       x: crop.x / image.naturalWidth,
       y: crop.y / image.naturalHeight,
       width: crop.width / image.naturalWidth,
       height: crop.height / image.naturalHeight,
     };
-    setCropSummary(`Область 16:9 подготовлена: ${Math.round(normalized.width * 100)}% ширины фотографии. Сервер проверит её повторно.`);
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/media/event-photo`, {
+        method: "PUT",
+        credentials: "include",
+        headers: {
+          "Content-Type": file.type,
+          "X-Afisha-CSRF": csrfToken,
+          "X-Afisha-Crop-X": String(normalized.x),
+          "X-Afisha-Crop-Y": String(normalized.y),
+          "X-Afisha-Crop-Width": String(normalized.width),
+          "X-Afisha-Crop-Height": String(normalized.height),
+        },
+        body: file,
+      });
+      if (!response.ok) throw new Error(String(response.status));
+      onChange(await response.json() as EventPhotoUpload);
+      setSource(null);
+      setFile(null);
+    } catch {
+      setError("Не удалось обработать фотографию. Выберите другую или попробуйте ещё раз.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  return (
-    <main className="photo-page">
-      <Button variant="ghost" onClick={onBack}><ArrowLeft aria-hidden="true" /> Назад</Button>
-      <Card className="photo-card">
-        <CardHeader><CardTitle>Фото события</CardTitle><p>Выберите одну фотографию и кадрируйте её в формате 16:9.</p></CardHeader>
-        <CardContent className="photo-content">
-          <label className="file-picker">
-            <ImagePlus aria-hidden="true" />
-            <span>Выбрать фотографию</span>
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseFile(event.target.files?.[0])} />
-          </label>
-          {source && <div className="crop-stage"><img ref={imageRef} src={source} alt="Фотография для обрезки" /></div>}
-          {source && <Button onClick={confirmCrop}>Применить обрезку</Button>}
-          {cropSummary && <p className="success-message" role="status">{cropSummary}</p>}
-        </CardContent>
-      </Card>
-    </main>
+  const remove = async () => {
+    if (!value) return;
+    setBusy(true);
+    const response = await fetch(`${appConfig.apiBaseUrl}/media/event-photos/${value.upload_id}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "X-Afisha-CSRF": csrfToken },
+    });
+    setBusy(false);
+    if (response.ok) onChange(null);
+    else setError("Не удалось удалить фотографию.");
+  };
+
+  if (value) return (
+    <div className="event-photo-ready">
+      <img src={value.preview_url} alt="Безопасная фотография события" />
+      <p><Check aria-hidden="true" /> Фотография загружена и очищена от скрытых данных.</p>
+      <div className="event-photo-actions">
+        <label className="file-picker compact-picker">
+          <ImagePlus aria-hidden="true" /><span>Заменить</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseFile(event.target.files?.[0])} />
+        </label>
+        <Button variant="outline" disabled={busy} onClick={() => void remove()}><Trash2 /> Удалить</Button>
+      </div>
+      {source && <CropStage imageRef={imageRef} source={source} busy={busy} onUpload={() => void upload()} />}
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>
   );
+
+  return (
+    <div className="event-photo-uploader">
+      <label className="file-picker">
+        <ImagePlus aria-hidden="true" />
+        <span>Выбрать фотографию</span>
+        <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseFile(event.target.files?.[0])} />
+      </label>
+      <small>JPEG, PNG или WebP, не больше 12 МБ. Итоговый кадр — 16:9.</small>
+      {source && <CropStage imageRef={imageRef} source={source} busy={busy} onUpload={() => void upload()} />}
+      {error && <p className="form-error" role="alert">{error}</p>}
+    </div>
+  );
+}
+
+function CropStage({ imageRef, source, busy, onUpload }: { imageRef: React.RefObject<HTMLImageElement | null>; source: string; busy: boolean; onUpload: () => void }) {
+  return <div className="photo-crop-editor"><div className="crop-stage"><img ref={imageRef} src={source} alt="Фотография для обрезки" /></div><Button disabled={busy} onClick={onUpload}>{busy ? "Обрабатываем…" : "Обрезать и загрузить"}</Button></div>;
 }

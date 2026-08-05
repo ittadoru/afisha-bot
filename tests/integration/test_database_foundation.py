@@ -11,12 +11,15 @@ pytestmark = pytest.mark.integration
 EXPECTED_TABLES = {
     "accounts": {"users", "telegram_identities", "profiles", "sessions"},
     "communication": {"messages", "notifications"},
-    "discovery": {"cities", "categories"},
+    "discovery": {"cities", "categories", "street_anchors"},
     "events": {
         "events",
         "event_photos",
         "event_revisions",
         "participation_episodes",
+        "creation_requests",
+        "staff_creation_requests",
+        "change_requests",
     },
     "media": {"assets"},
     "trust_safety": {

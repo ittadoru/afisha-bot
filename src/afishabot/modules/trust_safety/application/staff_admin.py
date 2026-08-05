@@ -334,6 +334,40 @@ async def load_staff_session(
     return StaffIdentity(row["id"], row["login"], row["role"]), csrf_token
 
 
+async def load_staff_mutation_session(
+    engine: AsyncEngine,
+    *,
+    token: str,
+    csrf_token: str,
+    auth_secret: bytes,
+) -> StaffIdentity | None:
+    now = datetime.now(UTC)
+    async with engine.begin() as connection:
+        row = (
+            await connection.execute(
+                text(
+                    """
+                    UPDATE trust_safety.staff_sessions AS s
+                    SET last_seen_at=:now
+                    FROM trust_safety.staff_accounts AS a
+                    WHERE s.staff_id=a.id
+                      AND s.token_hash=:token_hash
+                      AND s.csrf_token_hash=:csrf_hash
+                      AND s.revoked_at IS NULL AND s.expires_at>:now
+                      AND s.last_seen_at>:idle_cutoff AND a.status='active'
+                    RETURNING a.id,a.login,a.role
+                    """
+                ),
+                {"now": now, "idle_cutoff": now - IDLE_LIFETIME,
+                 "token_hash": contextual_hash(auth_secret, "admin-session", token),
+                 "csrf_hash": contextual_hash(auth_secret, "admin-csrf", csrf_token)},
+            )
+        ).mappings().one_or_none()
+    if row is None:
+        return None
+    return StaffIdentity(row["id"], row["login"], row["role"])
+
+
 async def revoke_staff_session(
     engine: AsyncEngine,
     *,
