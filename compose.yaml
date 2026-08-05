@@ -281,6 +281,7 @@ services:
     image: ${NOMINATIM_IMAGE:-mediagis/nominatim:5.3}
     profiles: ["geo"]
     environment:
+      PBF_PATH: /nominatim/data/dagestan.osm.pbf
       IMPORT_STYLE: address
       IMPORT_WIKIPEDIA: "false"
       REPLICATION_URL: ""
