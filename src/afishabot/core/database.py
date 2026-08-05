@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-EXPECTED_MIGRATION_HEAD = "0015_accounts_auth_security"
+EXPECTED_MIGRATION_HEAD = "0016_discovery_boundaries"
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:

@@ -20,6 +20,7 @@ cities = Table(
     Column("name", String(100), nullable=False),
     Column("timezone", String(64), nullable=False),
     Column("boundary", Geography()),
+    Column("boundary_source", String(), nullable=False),
     Column("is_active", Boolean, nullable=False),
     Column("low_activity_cleanup_enabled", Boolean, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),

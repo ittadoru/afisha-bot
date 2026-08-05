@@ -182,6 +182,29 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .demo-form input, .demo-form select, .demo-form textarea { width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 13px; color: var(--foreground); background: var(--card); }
 .demo-form textarea { min-height: 130px; resize: vertical; }
 .demo-form > small { color: var(--muted-foreground); text-align: center; }
+.selected-city { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; color: var(--foreground); background: var(--card); text-align: left; }
+.selected-city > svg:first-child { width: 20px; color: var(--primary); }
+.selected-city > svg:last-child { width: 18px; margin-left: auto; color: var(--muted-foreground); }
+.selected-city span { display: flex; flex-direction: column; font-weight: 800; }
+.selected-city small { color: var(--muted-foreground); font-size: .68rem; font-weight: 600; }
+.city-chooser h1 { margin: 4px 0 16px; font-size: clamp(1.7rem, 7vw, 2.5rem); line-height: 1.08; letter-spacing: -.04em; }
+.city-chooser .menu-row[aria-current="true"] { color: var(--primary); }
+.unavailable-city { cursor: default; opacity: .58; }
+.unavailable-city span { display: flex; flex-direction: column; align-items: flex-start; }
+.unavailable-city small { color: var(--muted-foreground); font-size: .68rem; font-weight: 600; }
+.form-error { padding: 10px 12px; border-radius: 12px; color: #8d2f2a; background: color-mix(in srgb, #c74c45 12%, var(--card)); font-size: .8rem; }
+.field-title { margin-bottom: 7px; color: var(--foreground); font-size: .82rem; font-weight: 800; }
+.location-picker { min-width: 0; }
+.location-picker .workspace { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; }
+.location-picker .embedded-map .map-shell { height: 380px; min-height: 380px; }
+.location-picker .map-address { bottom: 14px; width: calc(100% - 20px); padding: .75rem; }
+.location-picker .map-legend { display: none; }
+.visibility-options { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.visibility-options legend { margin-bottom: 7px; font-size: .82rem; font-weight: 800; }
+.visibility-option { display: grid !important; grid-template-columns: 20px 1fr; align-items: start; gap: 9px !important; padding: 11px 12px; border: 1px solid var(--border); border-radius: 13px; background: var(--card); cursor: pointer; }
+.visibility-option input { width: 18px !important; min-height: 18px !important; margin: 2px 0 0; padding: 0 !important; accent-color: var(--primary); }
+.visibility-option span { display: flex; flex-direction: column; gap: 2px; }
+.visibility-option small { color: var(--muted-foreground); font-size: .72rem; font-weight: 500; line-height: 1.4; }
 .group-title { margin: 22px 0 8px; color: var(--muted-foreground); font-size: .75rem; letter-spacing: .05em; text-transform: uppercase; }
 .unread-count { padding: 5px 9px; border-radius: 99px; color: #fff; background: #c74c45; font-size: .7rem; font-weight: 800; }
 .notification { display: grid; grid-template-columns: 42px 1fr 20px; align-items: center; gap: 11px; margin-bottom: 8px; padding: 13px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }

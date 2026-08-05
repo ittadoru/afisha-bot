@@ -56,7 +56,14 @@ async def test_initial_cities_and_categories_are_seeded() -> None:
     try:
         async with engine.connect() as connection:
             cities = await connection.execute(
-                text("SELECT name FROM discovery.cities ORDER BY name")
+                text(
+                    """
+                    SELECT name, boundary IS NOT NULL AS has_boundary,
+                           boundary_source
+                    FROM discovery.cities
+                    ORDER BY name
+                    """
+                )
             )
             categories = await connection.execute(
                 text(
@@ -67,13 +74,44 @@ async def test_initial_cities_and_categories_are_seeded() -> None:
                     """
                 )
             )
-        assert {row.name for row in cities} == {
+        city_rows = list(cities)
+        assert {row.name for row in city_rows} == {
             "Дербент",
             "Махачкала",
             "Хасавюрт",
         }
+        assert all(row.has_boundary for row in city_rows)
+        assert all(row.boundary_source.startswith("osm:relation:") for row in city_rows)
         category_rows = list(categories)
         assert len(category_rows) == 16
         assert tuple(category_rows[0]) == ("Особое", True, False)
+    finally:
+        await engine.dispose()
+
+
+async def test_known_city_points_are_inside_managed_boundaries() -> None:
+    engine = create_async_engine(required_database_url())
+    try:
+        async with engine.connect() as connection:
+            covered = await connection.scalar(
+                text(
+                    """
+                    WITH expected(slug, longitude, latitude) AS (
+                        VALUES
+                            ('makhachkala', 47.5047, 42.9831),
+                            ('khasavyurt', 46.5850, 43.2500),
+                            ('derbent', 48.2890, 42.0570)
+                    )
+                    SELECT count(*)
+                    FROM expected
+                    JOIN discovery.cities USING (slug)
+                    WHERE ST_Covers(
+                        boundary::geometry,
+                        ST_SetSRID(ST_Point(longitude, latitude), 4326)
+                    )
+                    """
+                )
+            )
+        assert covered == 3
     finally:
         await engine.dispose()
