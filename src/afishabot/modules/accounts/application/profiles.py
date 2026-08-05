@@ -151,9 +151,9 @@ async def update_profile(
         updated = await connection.scalar(
             text(
                 """
-                UPDATE accounts.profiles SET display_name=:name, bio=:bio,
+                UPDATE accounts.profiles SET display_name=CAST(:name AS varchar(32)), bio=:bio,
                     selected_city_id=:city, version=version+1, updated_at=now(),
-                    display_name_changed_at=CASE WHEN display_name<>:name THEN now() ELSE display_name_changed_at END
+                    display_name_changed_at=CASE WHEN display_name<>CAST(:name AS varchar(32)) THEN now() ELSE display_name_changed_at END
                 WHERE user_id=:id AND version=:version RETURNING user_id
                 """
             ),

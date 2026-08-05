@@ -11,6 +11,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Alembic creates version_num as varchar(32) by default. This revision's
+    # descriptive identifier is 33 characters, so widen the column before
+    # Alembic records the completed revision.
+    op.execute(
+        "ALTER TABLE alembic_version ALTER COLUMN version_num TYPE varchar(64)"
+    )
     op.execute("ALTER TABLE events.events DROP CONSTRAINT events_lifecycle_status_check")
     op.execute(
         "ALTER TABLE events.events ADD CONSTRAINT events_lifecycle_status_check "
