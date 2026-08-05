@@ -10,8 +10,14 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def execute_sql(script: str) -> None:
+    for statement in script.split(";"):
+        if statement := statement.strip():
+            op.execute(statement)
+
+
 def upgrade() -> None:
-    op.execute(
+    execute_sql(
         """
         CREATE TABLE communication.messages (
             id uuid PRIMARY KEY,
