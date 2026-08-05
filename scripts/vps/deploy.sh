@@ -62,7 +62,14 @@ printf 'Applying database migrations once...\n'
 docker compose run --rm migrate
 
 printf 'Starting application services...\n'
-docker compose up --detach --wait --remove-orphans api bot frontend nginx
+compose_profiles=()
+application_services=(api bot frontend nginx)
+if [[ -f var/nominatim/.import-complete ]]; then
+  compose_profiles=(--profile geo)
+  application_services+=(nominatim)
+fi
+docker compose "${compose_profiles[@]}" up --detach --wait --remove-orphans \
+  "${application_services[@]}"
 
 # These services have no tasks yet. Stopping old containers also prevents
 # restart policies from bringing them back after the next VPS reboot.

@@ -315,7 +315,7 @@ Exact-commit VPS gate.
 Не делать WebSocket chat — начать с polling/API.
 Отложить clustering, user geolocation, «Рядом со мной», QR/geofence, Kafka, AI/ML и achievements.
 Не объединять admin, notifications и chat в ранние PR: это увеличит риск и скроет прогресс.
-Не запускать monitoring/ops/geo-import одновременно на 4 GB VPS; import выполнять отдельным maintenance-этапом.
+Не запускать monitoring/ops/geo-import одновременно на 6 GB VPS; import выполнять отдельным maintenance-этапом без жёстких CPU/RAM limits.
 Тестовые критерии каждого PR
 unit + API + migration tests для изменённого поведения;
 positive/negative permission tests;

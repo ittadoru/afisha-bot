@@ -281,10 +281,11 @@ services:
     image: ${NOMINATIM_IMAGE:-mediagis/nominatim:5.3}
     profiles: ["geo"]
     environment:
-      PBF_URL: ${NOMINATIM_PBF_URL:-disabled-in-core-profile}
-      PBF_SHA256: ${NOMINATIM_PBF_SHA256:-disabled-in-core-profile}
+      IMPORT_STYLE: address
       IMPORT_WIKIPEDIA: "false"
       REPLICATION_URL: ""
+      UPDATE_MODE: none
+      FREEZE: "true"
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
     volumes:
       - nominatim_data:/var/lib/postgresql/18/main
@@ -300,32 +301,27 @@ services:
     networks:
       - app_net
       - geo_net
-    deploy:
-      resources:
-        limits:
-          memory: 1400m
 
   nominatim-import:
     image: ${NOMINATIM_IMAGE:-mediagis/nominatim:5.3}
     profiles: ["geo-import"]
     environment:
-      PBF_URL: ${NOMINATIM_PBF_URL:-disabled-in-core-profile}
-      PBF_SHA256: ${NOMINATIM_PBF_SHA256:-disabled-in-core-profile}
+      PBF_PATH: /nominatim/data/dagestan.osm.pbf
+      IMPORT_STYLE: address
       IMPORT_WIKIPEDIA: "false"
       REPLICATION_URL: ""
+      UPDATE_MODE: none
+      FREEZE: "true"
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
     volumes:
       - nominatim_data:/var/lib/postgresql/18/main
+      - ./var/nominatim:/nominatim/data:ro
     restart: "no"
     security_opt:
       - no-new-privileges:true
     logging: *default-logging
     networks:
       - geo_net
-    deploy:
-      resources:
-        limits:
-          memory: 2800m
 
   prometheus:
     image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.5.0}
