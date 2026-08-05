@@ -68,7 +68,21 @@ sessions = Table(
         nullable=False,
     ),
     Column("token_hash", LargeBinary, nullable=False, unique=True),
+    Column("csrf_token_hash", LargeBinary, nullable=False),
     Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("revoked_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
+)
+age_acceptances = Table(
+    "age_acceptances",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "user_id",
+        UUID(as_uuid=True),
+        ForeignKey("accounts.users.id"),
+        nullable=False,
+    ),
+    Column("rule_version", Text, nullable=False),
+    Column("accepted_at", DateTime(timezone=True), nullable=False),
 )

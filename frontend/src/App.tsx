@@ -1,6 +1,7 @@
 import { CalendarDays, Map, ShieldCheck, Users } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
+import { MiniAppAuth } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -19,7 +20,7 @@ export default function App() {
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
-    return <Suspense fallback={<LoadingScreen />}><MiniApp /></Suspense>;
+    return <MiniAppAuth>{({ profile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
   }
 
   if (view === "photo") {

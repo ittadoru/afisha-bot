@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useState } from "react";
 
+import type { AccountProfile } from "@/auth";
 import { Button } from "@/components/ui/button";
 
 const EventMap = lazy(async () => ({ default: (await import("@/components/event-map")).EventMap }));
@@ -38,7 +39,7 @@ const demoPeople = [
   { id: 3, name: "Амина", category: "Обучение", title: "Практика английского за кофе", text: "Хочу собрать небольшую разговорную компанию на выходных.", likes: 16, questions: 4 },
 ];
 
-export function MiniApp() {
+export function MiniApp({ profile, onLogout }: { profile: AccountProfile; onLogout: () => Promise<void> }) {
   const [section, setSection] = useState<Section>("events");
   const [eventsMode, setEventsMode] = useState<EventsMode>("map");
   const [previewState, setPreviewState] = useState<PreviewState>(null);
@@ -60,7 +61,7 @@ export function MiniApp() {
             {section === "people" && <PeopleList onCreate={() => setSection("create")} />}
             {section === "create" && <CreateScreen onDone={() => setSection("events")} />}
             {section === "notifications" && <Notifications />}
-            {section === "profile" && <Profile onPreview={setPreviewState} />}
+            {section === "profile" && <Profile profile={profile} onLogout={onLogout} onPreview={setPreviewState} />}
           </Suspense>
         )}
       </div>
@@ -107,8 +108,9 @@ function Notification({ icon, title, text, urgent = false }: { icon: React.React
   return <article className={`notification${urgent ? " urgent" : ""}`}><span>{icon}</span><div><strong>{title}</strong><p>{text}</p></div><ChevronRight /></article>;
 }
 
-function Profile({ onPreview }: { onPreview: (state: PreviewState) => void }) {
-  return <section className="feed profile-screen"><div className="profile-card"><span className="profile-avatar">А</span><div><p className="section-kicker">Демо-профиль</p><h1>Амина</h1><p>ID AF-2048 · Махачкала</p></div></div><div className="profile-stats"><div><strong>3</strong><span>будущих</span></div><div><strong>7</strong><span>посещено</span></div><div><strong>1</strong><span>создано</span></div></div><h2 className="group-title">Моё</h2>{["Ближайшие события", "История", "Мои обращения", "Настройки"].map((item) => <button className="menu-row" type="button" key={item}><span>{item}</span><ChevronRight /></button>)}<h2 className="group-title">Состояния экранов</h2><p className="state-hint">Можно заранее посмотреть, как приложение поведёт себя без данных или при сбое.</p><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
+function Profile({ profile, onLogout, onPreview }: { profile: AccountProfile; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void }) {
+  const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
+  return <section className="feed profile-screen"><div className="profile-card"><span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span><div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id}{profile.selected_city_id ? " · город выбран" : " · город не выбран"}</p></div></div><div className="profile-stats"><div><strong>0</strong><span>будущих</span></div><div><strong>0</strong><span>посещено</span></div><div><strong>0</strong><span>создано</span></div></div><h2 className="group-title">Моё</h2>{["Ближайшие события", "История", "Мои обращения", "Настройки"].map((item) => <button className="menu-row" type="button" key={item}><span>{item}</span><ChevronRight /></button>)}<Button variant="outline" onClick={() => void onLogout()}>Выйти</Button><h2 className="group-title">Состояния экранов</h2><p className="state-hint">Можно заранее посмотреть, как приложение поведёт себя без данных или при сбое.</p><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
 }
 
 function DemoState({ state, onClose }: { state: Exclude<PreviewState, null>; onClose?: () => void }) {

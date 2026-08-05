@@ -16,6 +16,7 @@ declare module "*.svg?raw" {
 }
 
 interface TelegramWebApp {
+  initData: string;
   ready: () => void;
   expand: () => void;
   isVersionAtLeast?: (version: string) => boolean;

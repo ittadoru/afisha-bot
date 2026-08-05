@@ -206,6 +206,9 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .state-close { position: absolute; top: 18px; right: 18px; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--border); border-radius: 50%; color: var(--foreground); background: var(--card); }
 .state-screen > button:not(.state-close) { margin-top: 20px; }
 .spin { animation: spin 1s linear infinite; }
+.auth-screen { min-height: 100dvh; padding: 32px 24px; }
+.auth-screen > button { margin-top: 18px; }
+.auth-actions { display: grid; gap: 10px; width: min(100%, 360px); margin-top: 18px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 :root[data-theme="dark"] .workspace { background: var(--background); }

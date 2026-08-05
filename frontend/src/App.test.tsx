@@ -9,6 +9,28 @@ vi.mock("@/components/event-map", () => ({
 
 afterEach(cleanup);
 
+const profile = {
+  public_id: "12345678",
+  display_name: "Гость 2048",
+  bio: null,
+  selected_city_id: null,
+  age_confirmed: true,
+};
+
+beforeEach(() => {
+  window.Telegram = {
+    WebApp: {
+      initData: "signed-init-data",
+      ready: vi.fn(),
+      expand: vi.fn(),
+    },
+  };
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(profile), {
+    status: 200,
+    headers: { "Content-Type": "application/json", "X-Afisha-CSRF": "csrf-token" },
+  })));
+});
+
 describe("landing", () => {
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
@@ -44,9 +66,35 @@ describe("landing", () => {
     expect(screen.getByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Моё" }));
-    expect(screen.getByRole("heading", { name: "Амина" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ошибка" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Не получилось загрузить");
+  });
+
+  it("does not create a user outside Telegram", async () => {
+    window.history.replaceState({}, "", "/app");
+    window.Telegram = undefined;
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("", { status: 401 })));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Откройте приложение через Telegram" })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires age confirmation after the first exchange", async () => {
+    window.history.replaceState({}, "", "/app");
+    const firstProfile = { ...profile, age_confirmed: false };
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(new Response("", { status: 401 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ nonce: "nonce" }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ profile: firstProfile, csrf_token: "csrf", created: true }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 })));
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Мне исполнилось 14 лет" }));
+
+    expect(await screen.findByLabelText("Карта событий")).toBeInTheDocument();
   });
 });

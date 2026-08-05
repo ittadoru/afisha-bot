@@ -32,9 +32,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 14
+    assert len(files) == 15
     assert parents - {None} < revisions
-    assert revisions - parents == {"0014_communication_foundation"}
+    assert revisions - parents == {"0015_accounts_auth_security"}
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:
@@ -52,7 +52,13 @@ def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
         path.read_text(encoding="utf-8") for path in sorted(VERSIONS.glob("*.py"))
     )
     expected_tables = {
-        "accounts": {"users", "telegram_identities", "profiles", "sessions"},
+        "accounts": {
+            "users",
+            "telegram_identities",
+            "profiles",
+            "sessions",
+            "age_acceptances",
+        },
         "discovery": {"cities", "categories"},
         "events": {
             "events",

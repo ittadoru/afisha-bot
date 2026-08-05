@@ -33,3 +33,8 @@ def test_stage_a_public_urls_are_https() -> None:
 def test_public_urls_reject_plain_http() -> None:
     with pytest.raises(ValidationError, match="must use HTTPS"):
         Settings(public_base_url="http://podvval.xyz")  # type: ignore[arg-type]
+
+
+def test_auth_secret_must_be_strong_enough() -> None:
+    with pytest.raises(ValidationError):
+        Settings(auth_hmac_secret="too-short")

@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     nominatim_timeout_seconds: float = Field(default=1.2, gt=0, le=2.5)
     public_base_url: HttpUrl = HttpUrl("https://podvval.xyz")
     admin_base_url: HttpUrl = HttpUrl("https://admin.podvval.xyz")
+    telegram_bot_token: SecretStr | None = Field(
+        default=None,
+        validation_alias="BOT_TOKEN",
+    )
+    auth_hmac_secret: SecretStr | None = Field(default=None, min_length=32)
 
     @field_validator("public_base_url", "admin_base_url")
     @classmethod
@@ -46,3 +51,13 @@ class Settings(BaseSettings):
 
     def redis_dsn(self) -> str:
         return self.redis_url.get_secret_value()
+
+    def bot_token(self) -> str | None:
+        if self.telegram_bot_token is None:
+            return None
+        return self.telegram_bot_token.get_secret_value()
+
+    def auth_secret(self) -> bytes | None:
+        if self.auth_hmac_secret is None:
+            return None
+        return self.auth_hmac_secret.get_secret_value().encode()
