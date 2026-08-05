@@ -39,7 +39,7 @@ if [[ -f "$ready_marker" ]]; then
 fi
 
 if docker compose --profile geo-import run --rm --no-deps --entrypoint sh \
-  nominatim-import -c 'test -f /var/lib/postgresql/18/main/PG_VERSION'; then
+  nominatim-import -c 'test -f /var/lib/postgresql/16/main/PG_VERSION'; then
   printf 'The Nominatim volume already contains a database. Refusing to overwrite it.\n' >&2
   exit 1
 fi

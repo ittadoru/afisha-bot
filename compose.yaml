@@ -288,7 +288,7 @@ services:
       FREEZE: "true"
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
     volumes:
-      - nominatim_data:/var/lib/postgresql/18/main
+      - nominatim_data:/var/lib/postgresql/16/main
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/status || exit 1"]
       interval: 30s
@@ -314,7 +314,7 @@ services:
       FREEZE: "true"
       NOMINATIM_PASSWORD: ${NOMINATIM_PASSWORD:-disabled-in-core-profile}
     volumes:
-      - nominatim_data:/var/lib/postgresql/18/main
+      - nominatim_data:/var/lib/postgresql/16/main
       - ./var/nominatim:/nominatim/data
     restart: "no"
     security_opt:
