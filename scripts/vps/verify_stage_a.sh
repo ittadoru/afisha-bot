@@ -16,7 +16,7 @@ bash scripts/vps/preflight.sh
 [[ "$(stat -c '%U:%G %a' .env)" == "root:root 600" ]] || \
   fail ".env must be root:root mode 600"
 
-expected_services=$'api\nbeat\nfrontend\nnginx\npostgres\nredis\nworker'
+expected_services=$'api\nbot\nfrontend\nnginx\npostgres\nredis'
 running_services="$(docker compose ps --services --filter status=running | sort)"
 [[ "$running_services" == "$expected_services" ]] || {
   printf 'Expected running services:\n%s\nActual:\n%s\n' \
@@ -24,7 +24,7 @@ running_services="$(docker compose ps --services --filter status=running | sort)
   exit 1
 }
 
-for forbidden in bot nominatim nominatim-import prometheus alertmanager node-exporter; do
+for forbidden in nominatim nominatim-import prometheus alertmanager node-exporter; do
   if docker compose ps --services --filter status=running | grep -qx "$forbidden"; then
     fail "forbidden Stage A service is running: $forbidden"
   fi

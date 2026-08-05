@@ -21,7 +21,6 @@ RUN printf 'G6 frontend check: vitest\n' \
     && printf 'G6 frontend checks passed\n'
 
 FROM ${NGINX_IMAGE} AS nginx-base
-RUN apk upgrade --no-cache
 
 FROM nginx-base AS runtime
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf

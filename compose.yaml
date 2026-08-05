@@ -57,9 +57,11 @@ services:
       - /var/run:size=4m,uid=101,gid=101,mode=0750
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
-      interval: 10s
+      interval: 30s
+      start_interval: 1s
+      start_period: 30s
       timeout: 3s
-      retries: 10
+      retries: 3
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -82,9 +84,11 @@ services:
       - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
-      interval: 10s
+      interval: 30s
+      start_interval: 1s
+      start_period: 30s
       timeout: 5s
-      retries: 10
+      retries: 3
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -101,9 +105,11 @@ services:
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 30s
+      start_interval: 1s
+      start_period: 20s
       timeout: 3s
-      retries: 10
+      retries: 3
     restart: unless-stopped
     read_only: true
     tmpfs:
@@ -120,6 +126,7 @@ services:
 
   migrate:
     <<: *app
+    profiles: ["tools"]
     command: ["/app/.venv/bin/alembic", "upgrade", "head"]
     restart: "no"
     volumes: []
@@ -132,8 +139,8 @@ services:
     volumes:
       - media_data:/var/lib/afisha/media
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -144,9 +151,11 @@ services:
           "-c",
           "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)",
         ]
-      interval: 10s
+      interval: 30s
+      start_interval: 1s
+      start_period: 30s
       timeout: 3s
-      retries: 12
+      retries: 3
     deploy:
       resources:
         limits:
@@ -154,6 +163,7 @@ services:
 
   worker:
     <<: *app
+    profiles: ["jobs"]
     command:
       [
         "/app/.venv/bin/celery",
@@ -166,8 +176,8 @@ services:
     volumes:
       - media_data:/var/lib/afisha/media
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     deploy:
@@ -177,6 +187,7 @@ services:
 
   beat:
     <<: *app
+    profiles: ["jobs"]
     command:
       [
         "/app/.venv/bin/celery",
@@ -188,8 +199,8 @@ services:
       ]
     volumes: []
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     deploy:
@@ -213,8 +224,8 @@ services:
       COVERAGE_FILE: /tmp/.coverage
     command: ["bash", "scripts/vps/run_backend_checks.sh"]
     depends_on:
-      migrate:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     read_only: true

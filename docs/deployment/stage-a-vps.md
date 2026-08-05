@@ -40,15 +40,16 @@ Gate должен выполняться на чистом checkout, чей `HEA
 
 ## Запуск Stage A
 
-Запускаются только core-сервисы:
+Для текущего MVP используется короткий сценарий развёртывания:
 
 ```bash
-docker compose up --detach --wait postgres redis
-docker compose run --rm migrate
-docker compose up --detach --wait api worker beat frontend nginx
+bash scripts/vps/deploy.sh
 ```
 
-`bot`, profiles `geo`, `geo-import` и `ops` не запускаются.
+Он собирает только прикладные образы, один раз применяет миграции и запускает
+`postgres`, `redis`, `api`, `bot`, `frontend` и `nginx`. Пустые `worker` и
+`beat` находятся в профиле `jobs`; profiles `geo`, `geo-import` и `ops`
+в обычный запуск не входят.
 
 ## Сертификат
 
@@ -81,7 +82,8 @@ certbot certonly --webroot --webroot-path /var/www/certbot \
 - снаружи открыты только `22`, `80`, `443`;
 - `.env` имеет режим `600`, отсутствует в Git;
 - после перезагрузки core-контейнеры возвращаются автоматически;
-- bot, Nominatim и monitoring отсутствуют среди запущенных контейнеров.
+- пустые worker/beat, Nominatim и monitoring отсутствуют среди запущенных
+  контейнеров.
 
 После ручной проверки перезагрузки и `certbot renew --dry-run` выполнить:
 
