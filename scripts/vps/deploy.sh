@@ -71,6 +71,13 @@ fi
 docker compose "${compose_profiles[@]}" up --detach --wait --remove-orphans \
   "${application_services[@]}"
 
+# Compose does not recreate a running container when only the contents of a
+# bind-mounted Nginx configuration file changed. Reload it explicitly.
+if grep -Eq '^deploy/nginx/' <<<"$changed_files"; then
+  printf 'Reloading changed Nginx configuration...\n'
+  docker compose restart nginx
+fi
+
 # These services have no tasks yet. Stopping old containers also prevents
 # restart policies from bringing them back after the next VPS reboot.
 docker compose stop worker beat 2>/dev/null || true

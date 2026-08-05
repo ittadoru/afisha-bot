@@ -8,7 +8,6 @@ import {
   type Map as MapInstance,
   type Marker,
 } from "maplibre-gl";
-import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import { useEffect, useRef, useState } from "react";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
@@ -41,7 +40,7 @@ export interface ResolvedLocation {
 
 const DEFAULT_CITY: MapCity = { id: "", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047 };
 
-setWorkerUrl(mapLibreWorkerUrl);
+setWorkerUrl("/assets/maplibre-gl-worker.mjs");
 
 type PublicMarker = {
   marker_type: "event" | "street";
