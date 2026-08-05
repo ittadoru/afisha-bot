@@ -36,6 +36,7 @@ events = Table(
     Column("capacity", Integer),
     Column(
         "current_revision_id",
+        UUID(as_uuid=True),
         ForeignKey(
             "events.event_revisions.id",
             name="fk_events_current_revision",
@@ -44,6 +45,7 @@ events = Table(
     ),
     Column(
         "approved_revision_id",
+        UUID(as_uuid=True),
         ForeignKey(
             "events.event_revisions.id",
             name="fk_events_approved_revision",
@@ -59,7 +61,12 @@ event_revisions = Table(
     "event_revisions",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
-    Column("event_id", ForeignKey("events.events.id"), nullable=False),
+    Column(
+        "event_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.events.id"),
+        nullable=False,
+    ),
     Column("revision_number", Integer, nullable=False),
     Column("title", String(60), nullable=False),
     Column("description", String(1000), nullable=False),
@@ -79,8 +86,18 @@ event_photos = Table(
     "event_photos",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
-    Column("event_id", ForeignKey("events.events.id"), nullable=False),
-    Column("revision_id", ForeignKey("events.event_revisions.id"), nullable=False),
+    Column(
+        "event_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.events.id"),
+        nullable=False,
+    ),
+    Column(
+        "revision_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.event_revisions.id"),
+        nullable=False,
+    ),
     Column("media_asset_id", UUID(as_uuid=True), nullable=False),
     Column("position", SmallInteger, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
@@ -89,7 +106,12 @@ participation_episodes = Table(
     "participation_episodes",
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
-    Column("event_id", ForeignKey("events.events.id"), nullable=False),
+    Column(
+        "event_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.events.id"),
+        nullable=False,
+    ),
     Column("user_id", UUID(as_uuid=True), nullable=False),
     Column("status", Text, nullable=False),
     Column("joined_at", DateTime(timezone=True), nullable=False),

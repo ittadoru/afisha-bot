@@ -74,10 +74,6 @@ async def test_initial_cities_and_categories_are_seeded() -> None:
         }
         category_rows = list(categories)
         assert len(category_rows) == 16
-        assert category_rows[0]._mapping == {
-            "name": "Особое",
-            "is_special": True,
-            "organizer_selectable": False,
-        }
+        assert tuple(category_rows[0]) == ("Особое", True, False)
     finally:
         await engine.dispose()
