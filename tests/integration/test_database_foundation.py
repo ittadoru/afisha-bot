@@ -1,3 +1,5 @@
+# ruff: noqa: RUF001 -- Russian catalog values are intentional.
+
 import os
 
 import pytest

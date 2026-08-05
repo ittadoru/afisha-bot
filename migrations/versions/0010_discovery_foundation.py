@@ -1,6 +1,6 @@
 """Create cities and the managed category catalog."""
 
-# ruff: noqa: E501 -- catalog rows stay one-per-line for safe review.
+# ruff: noqa: E501, RUF001 -- Russian catalog values are intentional.
 
 from collections.abc import Sequence
 
