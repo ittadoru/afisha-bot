@@ -482,11 +482,10 @@ async def create_special_event(
                 """
                 INSERT INTO events.events
                     (id, kind, audit_actor_id, city_id, category_id,
-                     lifecycle_status, moderation_status,
-                     current_revision_id, approved_revision_id)
+                     lifecycle_status, moderation_status)
                 VALUES
                     (:event, 'special', :staff, :city, :category,
-                     'published', 'approved', :revision, :revision)
+                     'published', 'approved')
                 """
             ),
             {
@@ -494,7 +493,6 @@ async def create_special_event(
                 "staff": staff_id,
                 "city": city_id,
                 "category": category_id,
-                "revision": revision_id,
             },
         )
         await connection.execute(
@@ -523,6 +521,17 @@ async def create_special_event(
                 "address": address,
                 "street": address,
             },
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE events.events
+                SET current_revision_id = :revision,
+                    approved_revision_id = :revision
+                WHERE id = :event
+                """
+            ),
+            {"revision": revision_id, "event": event_id},
         )
         await connection.execute(
             text(

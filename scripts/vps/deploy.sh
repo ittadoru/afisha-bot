@@ -71,12 +71,10 @@ fi
 docker compose "${compose_profiles[@]}" up --detach --wait --remove-orphans \
   "${application_services[@]}"
 
-# Compose does not recreate a running container when only the contents of a
-# bind-mounted Nginx configuration file changed. Reload it explicitly.
-if grep -Eq '^deploy/nginx/' <<<"$changed_files"; then
-  printf 'Reloading changed Nginx configuration...\n'
-  docker compose restart nginx
-fi
+# Nginx resolves upstream hostnames once at startup. A recreated API or
+# frontend container gets a new IP, so the proxy must restart to re-resolve.
+printf 'Restarting Nginx to refresh upstream resolution...\n'
+docker compose restart nginx
 
 printf '%s\n' "$current_revision" >"$revision_file"
 trap - ERR
