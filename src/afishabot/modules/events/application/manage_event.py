@@ -578,8 +578,8 @@ async def cancel_special_event(
                 INSERT INTO trust_safety.staff_audit_log
                     (id,actor_staff_id,action,result,details)
                 VALUES (:id,:staff,'special_event.cancel','success',
-                        jsonb_build_object('event_id',CAST(:event AS text),
-                                           'reason',:reason))
+                        jsonb_build_object('event_id', CAST(:event AS text),
+                                           'reason', CAST(:reason AS text)))
                 """
             ),
             {
