@@ -50,6 +50,10 @@ type PublicEvent = {
   category: string; category_slug: string; title: string; description: string;
   starts_at: string; ends_at: string; visible_address: string;
   participant_count: number; capacity: number | null; available_places: number | null;
+  interest_count: number; viewer_interested?: boolean;
+  viewer_is_organizer?: boolean;
+  viewer_membership?: "none" | "participating" | "waitlisted" | "excluded";
+  queue_position?: number | null;
   photo_url: string; organizer_public_id: string | null;
   organizer_name: string | null; organizer_status: string | null;
   cancellation_reason_code?: string | null; latitude?: number | null; longitude?: number | null;
@@ -151,7 +155,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       </div>
       <BottomNav active={section} onSelect={selectSection} />
       {streetGroup && <StreetGroupSheet group={streetGroup} onClose={() => setStreetGroup(null)} onOpen={(id) => { setStreetGroup(null); openEvent(id); }} />}
-      {selectedEventId && <EventSheet eventId={selectedEventId} onClose={closeEvent} />}
+      {selectedEventId && <EventSheet eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} />}
     </main>
   );
 
@@ -270,12 +274,15 @@ function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; 
   return <div className="event-sheet-backdrop" onClick={onClose}><section className="event-sheet street-group-sheet" onClick={(event) => event.stopPropagation()}><button className="sheet-handle" type="button" aria-label="Закрыть" onClick={onClose} /><p className="section-kicker">Общая улица</p><h2>{group.street}</h2><p className="state-hint">Метка не показывает примерное место конкретного события.</p>{items === null ? <p>Загружаем…</p> : items.map((item) => <button className="street-group-event" type="button" key={item.id} onClick={() => onOpen(item.id)}><img src={item.photo_url} alt="" /><span><strong>{item.title}</strong><small>{formatEventTime(item.starts_at)} · {item.category}</small></span><ChevronRight /></button>)}</section></div>;
 }
 
-function EventSheet({ eventId, onClose }: { eventId: string; onClose: () => void }) {
+function EventSheet({ eventId, csrfToken, onClose }: { eventId: string; csrfToken: string; onClose: () => void }) {
   const [event, setEvent] = useState<PublicEvent | null>(null);
   const [failed, setFailed] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [organizer, setOrganizer] = useState<AccountProfile | null>(null);
   const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [managing, setManaging] = useState(false);
   useEffect(() => {
     setEvent(null); setFailed(false);
     void fetch(`${appConfig.apiBaseUrl}/events/${eventId}`, { credentials: "include" })
@@ -292,8 +299,60 @@ function EventSheet({ eventId, onClose }: { eventId: string; onClose: () => void
     if (navigator.share) await navigator.share({ title: event?.title, url }).catch(() => undefined);
     else { await navigator.clipboard.writeText(url); setCopied(true); }
   };
+  const reload = async () => {
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}`, { credentials: "include" });
+    if (response.ok) setEvent(await response.json() as PublicEvent);
+  };
+  const toggleInterest = async () => {
+    if (!event || busy) return;
+    setBusy(true); setMessage("");
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/interest`, {
+      method: event.viewer_interested ? "DELETE" : "PUT", credentials: "include",
+      headers: { "X-Afisha-CSRF": csrfToken },
+    });
+    setBusy(false);
+    if (response.ok) {
+      const result = await response.json() as { interested: boolean; interest_count: number };
+      setEvent({ ...event, viewer_interested: result.interested, interest_count: result.interest_count });
+    } else setMessage("Не удалось сохранить отметку.");
+  };
+  const join = async () => {
+    if (!event || busy) return;
+    setBusy(true); setMessage("");
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/join`, {
+      method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken },
+    });
+    setBusy(false);
+    if (response.ok) {
+      const result = await response.json() as { state: "participating" | "waitlisted"; queue_position: number | null };
+      setMessage(result.state === "participating" ? "Вы стали участником." : `Вы в очереди под номером ${result.queue_position}.`);
+      await reload();
+    } else {
+      const data = await response.json().catch(() => null) as { detail?: string } | null;
+      setMessage(data?.detail === "participant_excluded" ? "Организатор ранее исключил вас из этого события." : "Не удалось вступить в событие.");
+    }
+  };
+  const leave = async () => {
+    if (!event || busy) return;
+    if (new Date(event.starts_at) <= new Date() && !await confirmEventLeave()) return;
+    setBusy(true); setMessage("");
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/leave`, {
+      method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken },
+    });
+    setBusy(false);
+    if (response.ok) { setMessage("Вы больше не участвуете в событии."); await reload(); }
+    else setMessage("Не удалось выйти из события.");
+  };
   if (organizer) return <div className="event-sheet-backdrop"><section className="event-sheet expanded"><button className="text-back" type="button" onClick={() => setOrganizer(null)}>← К событию</button><PublicOrganizer profile={organizer} /></section></div>;
-  return <div className="event-sheet-backdrop" onClick={onClose}><section className={`event-sheet${expanded ? " expanded" : ""}`} onClick={(click) => click.stopPropagation()}>{failed ? <DemoState state="error" onClose={onClose} /> : !event ? <DemoState state="loading" /> : <><button className="sheet-handle" type="button" aria-label={expanded ? "Свернуть карточку" : "Развернуть карточку"} onClick={() => setExpanded((value) => !value)} /><img className="event-sheet-photo" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div className="event-sheet-body">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<div className="event-sheet-heading"><span className="category-chip">{event.category}</span><button className="share-event" type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 /></button></div><h1>{event.title}</h1><p className="event-date"><CalendarDays /> {formatEventTime(event.starts_at)} — {formatEventTime(event.ends_at)}</p><p className="event-place"><MapPin /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<div className="event-capacity"><Users /><span><strong>{event.participant_count} участников</strong><small>{event.capacity === null ? "Без ограничения мест" : `Свободно мест: ${event.available_places}`}</small></span></div><p className="event-description">{event.description}</p>{event.kind === "regular" ? <button className="organizer-link" type="button" onClick={() => void openOrganizer()}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span><small>Организатор</small><strong>{event.organizer_name}</strong><small>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</small></span><ChevronRight /></button> : <div className="municipal-organizer"><Sparkles /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}{copied && <p className="success-message">Ссылка скопирована</p>}<Button variant="outline" onClick={() => void share()}><Share2 /> Поделиться</Button></div></>}</section></div>;
+  if (managing) return <div className="event-sheet-backdrop"><section className="event-sheet expanded"><EventManagement eventId={eventId} csrfToken={csrfToken} onBack={() => { setManaging(false); void reload(); }} /></section></div>;
+  return <div className="event-sheet-backdrop" onClick={onClose}><section className={`event-sheet${expanded ? " expanded" : ""}`} onClick={(click) => click.stopPropagation()}>{failed ? <DemoState state="error" onClose={onClose} /> : !event ? <DemoState state="loading" /> : <><button className="sheet-handle" type="button" aria-label={expanded ? "Свернуть карточку" : "Развернуть карточку"} onClick={() => setExpanded((value) => !value)} /><img className="event-sheet-photo" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div className="event-sheet-body">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<div className="event-sheet-heading"><span className="category-chip">{event.category}</span>{event.lifecycle_status === "published" ? <button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-pressed={event.viewer_interested} disabled={busy} onClick={() => void toggleInterest()}><Heart /> {event.interest_count ?? 0}</button> : <span className="interest-button"><Heart /> {event.interest_count ?? 0}</span>}<button className="share-event" type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 /></button></div><h1>{event.title}</h1><p className="event-date"><CalendarDays /> {formatEventTime(event.starts_at)} — {formatEventTime(event.ends_at)}</p><p className="event-place"><MapPin /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<div className="event-capacity"><Users /><span><strong>{event.participant_count} участников</strong><small>{event.capacity === null ? "Без ограничения мест" : `Свободно мест: ${event.available_places}`}</small></span></div>{event.viewer_membership === "waitlisted" && <p className="queue-status">Вы в очереди · №{event.queue_position}</p>}{event.viewer_membership === "participating" && <p className="success-message">Вы участвуете. Точный адрес доступен по правилам события.</p>}{event.viewer_membership === "excluded" && <p className="form-error">Организатор завершил ваше участие. Повторное вступление недоступно.</p>}<p className="event-description">{event.description}</p>{event.kind === "regular" ? <button className="organizer-link" type="button" onClick={() => void openOrganizer()}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span><small>Организатор</small><strong>{event.organizer_name}</strong><small>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</small></span><ChevronRight /></button> : <div className="municipal-organizer"><Sparkles /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}{event.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Вступить"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null)}{message && <p className="state-hint" role="status">{message}</p>}{copied && <p className="success-message">Ссылка скопирована</p>}<Button variant="outline" onClick={() => void share()}><Share2 /> Поделиться</Button></div></>}</section></div>;
+}
+
+async function confirmEventLeave(): Promise<boolean> {
+  const text = "Событие уже началось. Выйти из участников? Освободившееся место сразу получит первый человек в очереди.";
+  const webApp = window.Telegram?.WebApp;
+  if (webApp?.showConfirm) return await new Promise<boolean>((resolve) => webApp.showConfirm?.(text, resolve));
+  return window.confirm(text);
 }
 
 function PublicOrganizer({ profile }: { profile: AccountProfile }) {

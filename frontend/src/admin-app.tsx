@@ -30,6 +30,7 @@ type AuditEntry = {
 type AuditPage = { items: AuditEntry[]; next_before: string | null };
 type View = "dashboard" | "special" | "audit";
 type SpecialEvent = { id: string; title: string; starts_at: string; ends_at: string; city: string };
+type CityOption = { id: string; slug: string; name: string; center_latitude: number; center_longitude: number };
 
 const csrfHeader = "X-Afisha-Admin-CSRF";
 
@@ -129,12 +130,63 @@ function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: str
 function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
   const [items, setItems] = useState<SpecialEvent[] | null>(null);
   const [reason, setReason] = useState("plans_changed");
+  const [cities, setCities] = useState<CityOption[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [busyForm, setBusyForm] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    city_id: "",
+    starts_at: "",
+    ends_at: "",
+    place: "",
+    latitude: "",
+    longitude: "",
+  });
   const load = useCallback(async () => {
     const result = await api<{ items: SpecialEvent[] }>("/events/special");
     onCsrf(result.response.headers.get(csrfHeader) ?? "");
     setItems(result.data.items);
   }, [onCsrf]);
   useEffect(() => { void load().catch(() => setItems([])); }, [load]);
+  useEffect(() => {
+    void api<{ cities: CityOption[] }>("/geo/catalog")
+      .then(({ data, response }) => {
+        onCsrf(response.headers.get(csrfHeader) ?? "");
+        setCities(data.cities);
+        setForm((current) => ({ ...current, city_id: current.city_id || data.cities[0]?.id || "" }));
+      })
+      .catch(() => undefined);
+  }, [onCsrf]);
+  const setField = (key: keyof typeof form) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [key]: event.target.value }));
+  const create = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusyForm(true);
+    setFormError("");
+    try {
+      await api("/events/special", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [csrfHeader]: csrf },
+        body: JSON.stringify({
+          title: form.title,
+          description: form.description,
+          city_id: form.city_id,
+          starts_at: new Date(form.starts_at).toISOString(),
+          ends_at: new Date(form.ends_at).toISOString(),
+          place: form.place,
+          latitude: form.latitude ? Number(form.latitude) : null,
+          longitude: form.longitude ? Number(form.longitude) : null,
+        }),
+      });
+      setForm({ title: "", description: "", city_id: form.city_id, starts_at: "", ends_at: "", place: "", latitude: "", longitude: "" });
+      await load();
+    } catch (reason) {
+      setFormError(reason instanceof AdminApiError ? "Не удалось создать событие. Проверьте данные." : "Нет связи с сервером.");
+    } finally {
+      setBusyForm(false);
+    }
+  };
   const cancel = async (event: SpecialEvent) => {
     if (!window.confirm(`Отменить «${event.title}»?`)) return;
     await api(`/events/special/${event.id}/cancel`, {
@@ -144,7 +196,26 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
     });
     await load();
   };
-  return <section><header className="admin-page-header"><div><p>Общественные события</p><h1>Особые события</h1></div></header><label className="admin-inline-control">Причина отмены<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="plans_changed">Планы изменились</option><option value="not_enough_participants">Не набралось участников</option><option value="venue_problem">Проблемы с местом</option><option value="unforeseen_circumstances">Непредвиденные обстоятельства</option></select></label>{items === null ? <AdminStatus text="Загружаем события…" /> : items.length ? <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.city}</td><td>{new Date(event.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-more" onClick={() => void cancel(event)}>Отменить</button></td></tr>)}</tbody></table></div> : <AdminEmpty title="Активных особых событий нет" text="Здесь появятся опубликованные общественные события." />}</section>;
+  return <section><header className="admin-page-header"><div><p>Общественные события</p><h1>Особые события</h1></div></header>
+    {!creating ? <button className="admin-more" onClick={() => setCreating(true)}>Создать событие</button>
+      : <form onSubmit={create} className="admin-create-form">
+        <h2>Новое общественное событие</h2>
+        <label>Название<input value={form.title} onChange={setField("title")} maxLength={60} required /></label>
+        <label>Описание<textarea value={form.description} onChange={setField("description")} maxLength={1000} rows={4} required /></label>
+        <label>Город<select value={form.city_id} onChange={setField("city_id")}>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</select></label>
+        <div className="admin-create-row">
+          <label>Начало<input type="datetime-local" value={form.starts_at} onChange={setField("starts_at")} required /></label>
+          <label>Конец<input type="datetime-local" value={form.ends_at} onChange={setField("ends_at")} required /></label>
+        </div>
+        <label>Место (необязательно)<input value={form.place} onChange={setField("place")} maxLength={500} placeholder="Например: парк Ак-Гёль" /></label>
+        <div className="admin-create-row">
+          <label>Широта (необязательно)<input type="number" step="any" value={form.latitude} onChange={setField("latitude")} placeholder="центр города" /></label>
+          <label>Долгота (необязательно)<input type="number" step="any" value={form.longitude} onChange={setField("longitude")} placeholder="центр города" /></label>
+        </div>
+        {formError && <p className="admin-form-error" role="alert">{formError}</p>}
+        <div className="admin-create-actions"><button type="submit" disabled={busyForm}>{busyForm ? "Публикуем…" : "Опубликовать"}</button><button type="button" className="admin-ghost" onClick={() => setCreating(false)}>Отмена</button></div>
+      </form>}
+    <label className="admin-inline-control">Причина отмены<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="plans_changed">Планы изменились</option><option value="not_enough_participants">Не набралось участников</option><option value="venue_problem">Проблемы с местом</option><option value="unforeseen_circumstances">Непредвиденные обстоятельства</option></select></label>{items === null ? <AdminStatus text="Загружаем события…" /> : items.length ? <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.city}</td><td>{new Date(event.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-more" onClick={() => void cancel(event)}>Отменить</button></td></tr>)}</tbody></table></div> : <AdminEmpty title="Активных особых событий нет" text="Создайте первое общественное событие." />}</section>;
 }
 
 function Dashboard({ staff, onCsrf }: { csrf: string; onCsrf: (value: string) => void; staff: Staff }) {

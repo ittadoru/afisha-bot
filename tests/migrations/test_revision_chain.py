@@ -32,9 +32,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 22
+    assert len(files) == 23
     assert parents - {None} < revisions
-    assert revisions - parents == {"0022_public_event_discovery"}
+    assert revisions - parents == {"0023_interest_participation_waitlist"}
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:
@@ -65,6 +65,8 @@ def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
             "event_revisions",
             "event_photos",
             "participation_episodes",
+            "event_interests",
+            "waitlist_entries",
             "creation_requests",
             "staff_creation_requests",
             "change_requests",
@@ -99,6 +101,8 @@ def test_foundation_keeps_module_boundaries_and_key_product_constraints() -> Non
     assert "schedule_changes_used BETWEEN 0 AND 1" in text
     assert "uq_events_one_pending_revision" in text
     assert "uq_events_active_participation" in text
+    assert "uq_events_active_waitlist" in text
+    assert "queue_order bigint GENERATED ALWAYS AS IDENTITY" in text
     assert "geography(Point, 4326)" in text
     owner_migrations = [
         VERSIONS / "0011_events_foundation.py",

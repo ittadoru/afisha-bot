@@ -63,7 +63,7 @@ docker compose run --rm migrate
 
 printf 'Starting application services...\n'
 compose_profiles=()
-application_services=(api bot frontend nginx)
+application_services=(api bot frontend nginx worker beat)
 if [[ -f var/nominatim/.import-complete ]]; then
   compose_profiles=(--profile geo)
   application_services+=(nominatim)
@@ -77,10 +77,6 @@ if grep -Eq '^deploy/nginx/' <<<"$changed_files"; then
   printf 'Reloading changed Nginx configuration...\n'
   docker compose restart nginx
 fi
-
-# These services have no tasks yet. Stopping old containers also prevents
-# restart policies from bringing them back after the next VPS reboot.
-docker compose stop worker beat 2>/dev/null || true
 
 printf '%s\n' "$current_revision" >"$revision_file"
 trap - ERR

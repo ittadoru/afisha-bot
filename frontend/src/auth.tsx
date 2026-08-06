@@ -2,6 +2,7 @@ import { LoaderCircle, LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { appConfig } from "@/config";
 
 export interface AccountProfile {
   public_id: string;
@@ -32,7 +33,7 @@ type AuthState =
   | { status: "age"; profile: AccountProfile; csrfToken: string }
   | { status: "ready"; profile: AccountProfile; csrfToken: string };
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const API_BASE = appConfig.apiBaseUrl;
 
 export function MiniAppAuth({ children }: { children: (props: { profile: AccountProfile; csrfToken: string; updateProfile: (profile: AccountProfile) => void; logout: () => Promise<void> }) => React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });

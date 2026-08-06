@@ -54,6 +54,16 @@ from afishabot.modules.events.application.public_discovery import (
     event_feed,
     event_photo_key,
 )
+from afishabot.modules.events.application.participation import (
+    ExclusionReason,
+    ParticipationError,
+    ParticipationNotFound,
+    exclude_participant,
+    join_event,
+    leave_event,
+    organizer_roster,
+    set_interest,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -133,6 +143,12 @@ class ChangeEventRequest(BaseModel):
 class CancelEventRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reason: CancelReason
+
+
+class ExcludeParticipantRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: ExclusionReason
+    note: str | None = Field(default=None, max_length=300)
 
 
 async def optional_viewer(request: Request, token: str | None) -> UUID | None:
@@ -306,6 +322,88 @@ async def published_event_photo(event_id: UUID, request: Request) -> Response:
     )
 
 
+@router.put("/{event_id}/interest")
+async def mark_event_interesting(
+    event_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, object]:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    try:
+        return await set_interest(
+            engine,
+            event_id=event_id,
+            user_id=await mutation_user(request, token, csrf),
+            active=True,
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.delete("/{event_id}/interest")
+async def unmark_event_interesting(
+    event_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, object]:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    try:
+        return await set_interest(
+            engine,
+            event_id=event_id,
+            user_id=await mutation_user(request, token, csrf),
+            active=False,
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.post("/{event_id}/join")
+async def join_published_event(
+    event_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, object]:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    try:
+        return await join_event(
+            engine,
+            event_id=event_id,
+            user_id=await mutation_user(request, token, csrf),
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ParticipationError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
+@router.post("/{event_id}/leave")
+async def leave_published_event(
+    event_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, object]:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    try:
+        return await leave_event(
+            engine,
+            event_id=event_id,
+            user_id=await mutation_user(request, token, csrf),
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ParticipationError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+
 @router.get("/{event_id}/manage")
 async def get_event_management(
     event_id: UUID,
@@ -319,6 +417,49 @@ async def get_event_management(
         )
     except EventManagementNotFound as error:
         raise HTTPException(status_code=404, detail="event_not_found") from error
+
+
+@router.get("/{event_id}/manage/roster")
+async def get_event_roster(
+    event_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    _, _, engine = dependencies(request)
+    try:
+        return await organizer_roster(
+            engine,
+            event_id=event_id,
+            organizer_id=await current_user(request, token),
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+
+
+@router.post("/{event_id}/participants/{participation_id}/exclude", status_code=204)
+async def exclude_event_participant(
+    event_id: UUID,
+    participation_id: UUID,
+    body: ExcludeParticipantRequest,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> None:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    try:
+        await exclude_participant(
+            engine,
+            event_id=event_id,
+            organizer_id=await mutation_user(request, token, csrf),
+            participation_id=participation_id,
+            reason=body.reason,
+            note=body.note,
+        )
+    except ParticipationNotFound as error:
+        raise HTTPException(status_code=404, detail=str(error)) from error
+    except ParticipationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @router.get("/{event_id}/manage/photo")

@@ -83,6 +83,22 @@ Bot, Nominatim, geo-import и monitoring в Stage A не запускаются.
 MVP-0 = G6 + Slice 1–4 в непубличном окружении. Первый публичный выпуск требует
 все девять срезов. Post-demand/data-dependent scope запускается только по G5.
 
+## Alpha-упрощения (PD-021, принято 2026-08-06)
+
+Срезы реализуются с принятыми упрощениями:
+
+- Slice 3: outbox — одна таблица с unique business key и bounded retry без
+  inbox/dead-letter/reconciliation.
+- Slice 6: мониторинг без Alertmanager/node-exporter; алерты cron-скриптом.
+- Slice 7: слой фактов и показы не реализуются (PD-018).
+- Slice 8: attendance evidence — 30 дней; reputation не упрощается.
+- Slice 9: очистка — идемпотентный sweep; бэкапы шифрованные локально на VPS
+  7 дней (off-server — остаточный риск R-113); restore drill обязателен.
+- Гео: Nominatim extract по bbox трёх городов + ~20 км; street anchor —
+  центроид.
+- Качество: coverage ≥60% на alpha; SBOM/container scan перед публичным
+  выпуском.
+
 ## Обязательный цикл среза
 
 Перед началом: accepted sources, owner module, acceptance, risk, tests и

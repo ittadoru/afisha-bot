@@ -9,7 +9,3 @@ REDIS_AVAILABLE = Gauge(
     "afisha_redis_available",
     "Whether the non-authoritative Redis dependency is reachable.",
 )
-NOMINATIM_AVAILABLE = Gauge(
-    "afisha_nominatim_available",
-    "Whether the optional internal Nominatim adapter is reachable.",
-)

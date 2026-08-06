@@ -41,12 +41,12 @@
 ### 3. Admin, фоновые задачи и фотографии
 
 - Результат: отдельный staff auth, permissions/audit, moderation queue,
-  outbox/Celery и safe image pipeline.
+  простой outbox/Celery (PD-021) и safe image pipeline.
 - Зависимости: slices 1–2 и G6 media/worker boundary.
 - Готовность: worker/Redis failure не теряет business operation; original/EXIF
   не публикуются.
 - Риск/тесты: privilege abuse, malicious file и duplicate delivery; staff,
-  media, outbox/inbox и recovery tests.
+  media, outbox и recovery tests.
 - Отключение: deny staff mutation, stop delivery, quarantine uploads.
 
 ### 4. Создание и жизнь события
@@ -113,8 +113,9 @@
 
 ### 9. Хранение, восстановление и выпуск
 
-- Результат: cleanup/compaction, snapshots, observability, off-server backup,
-  restore drill и end-to-end release checks.
+- Результат: идемпотентный sweep, итоги в операционных таблицах,
+  observability, локальный encrypted backup 7 дней (PD-021), restore drill и
+  end-to-end release checks.
 - Зависимости: все предыдущие срезы.
 - Готовность: clean gates, restore доказан, карты/Nominatim проверены в трёх
   городах, admin/moderator готовы; закрытый LookingPost/Q&A удаляется через

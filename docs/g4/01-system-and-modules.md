@@ -34,9 +34,9 @@ Telegram-уведомления и отдельную закрытую admin-п�
 | Nominatim | закрытый reverse geocoding | только backend |
 | Local media | оригиналы в quarantine и безопасные производные | API/worker, без прямой раздачи |
 
-Внешние системы: Telegram Bot API, Telegram Mini App runtime, OpenFreeMap и off-server backup
-provider. Браузер получает tiles напрямую, но event markers и защищённые
-координаты — только через API.
+Внешние системы: Telegram Bot API, Telegram Mini App runtime и OpenFreeMap.
+Backup локальный на VPS (off-server отложен — R-113, PD-021). Браузер получает
+tiles напрямую, но event markers и защищённые координаты — только через API.
 
 ## Семь owner-модулей
 

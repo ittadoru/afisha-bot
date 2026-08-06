@@ -21,7 +21,8 @@ participant chat, LookingPost Q&A, notifications, attendance/dispute/rating,
 «Особое».
 
 В MVP нет minimum/confirmation, user geolocation/«Рядом со мной», clustering,
-QR/geofence, WebSocket chat, achievements/challenges, AI/ML и Kafka.
+QR/geofence, WebSocket chat, achievements/challenges, AI/ML, Kafka и отдельного
+слоя бизнес-аналитики с записью показов (PD-018, PD-021).
 
 ## Пользователь и профиль
 
@@ -109,10 +110,28 @@ thresholds и anti-fraud rules находятся вне Git/API/logs.
 - закрытый LookingPost и Q&A — 24 часа;
 - attendance evidence — 30 дней после dispute;
 - revision details и staff audit — 90 дней;
-- encrypted backups — 14 дней.
+- encrypted backups — 7 дней, локально на VPS (off-server — остаточный риск R-113).
 
-После terminal/dispute сохраняется компактный snapshot/outcomes; тяжёлые
-details/media удаляются идемпотентным compaction с legal-hold guard.
+После terminal/dispute итоговые факты остаются в операционных таблицах
+(строка события, последняя одобренная версия, участия); тяжёлые details/media
+удаляются идемпотентным sweep с legal-hold guard. По просроченной ссылке
+показывается компактная карточка: название, последнее описание, время, место
+по правилам доступа, счётчики участников и оценки; фотографии нет после
+7 дней.
+
+## Alpha-упрощения (PD-021)
+
+- Nominatim: extract по bbox трёх городов + запас ~20 км вместо всего Дагестана.
+- Мониторинг: без Alertmanager и node-exporter; Prometheus 3 дня (cap 128 MB);
+  алерты — cron-скриптом.
+- Бэкапы: локально на VPS, 7 дней, шифрованные; off-server отложен (R-113).
+- Outbox: одна таблица, unique business key, bounded retry с TTL, без
+  inbox/dead-letter/reconciliation.
+- Очистка: простой идемпотентный sweep вместо compaction-механизма.
+- Аналитика PD-018: слой фактов и показы вне MVP.
+- Street anchor: центроид canonical street geometry.
+- Качество: coverage ≥60% на alpha; SBOM/container scan перед публичным
+  выпуском.
 
 ## Архитектура и выпуск
 

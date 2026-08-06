@@ -71,7 +71,7 @@ reversal создаёт compensating signal.
 | Malicious media/SSRF | no arbitrary fetch URL, decode/re-encode и resource limits |
 | Privileged misuse | least privilege, re-auth и append-only audit |
 | Duplicate/race | unique keys, version, transaction и lock |
-| Lost side effect | transactional outbox, inbox и reconciliation |
+| Lost side effect | transactional outbox, unique business key и bounded retry (PD-021) |
 | Log/backup disclosure | allowlist telemetry, encryption, access и retention |
 | Supply-chain compromise | lock, pinned digest/SHA, audit, SBOM и scan |
 

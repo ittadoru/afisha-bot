@@ -377,6 +377,165 @@ async def cancel_event(
             ),
             {"event": event_id, "reason": reason},
         )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO communication.notifications
+                    (id,recipient_user_id,kind,importance,title,body,
+                     subject_type,subject_id,deep_link)
+                SELECT gen_random_uuid(), w.user_id, 'event_cancelled','critical',
+                       'Событие отменено', :body, 'event', :event,
+                       '/app/event/' || CAST(:event AS text)
+                FROM events.waitlist_entries w
+                WHERE w.event_id=:event AND w.status='waiting'
+                """
+            ),
+            {"event": event_id, "body": CANCEL_REASONS[reason]},
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE events.waitlist_entries
+                SET status='cancelled',closed_at=now()
+                WHERE event_id=:event AND status='waiting'
+                """
+            ),
+            {"event": event_id},
+        )
+
+
+async def create_special_event(
+    engine: AsyncEngine,
+    *,
+    staff_id: UUID,
+    city_id: UUID,
+    title: str,
+    description: str,
+    starts_at: datetime,
+    ends_at: datetime,
+    place: str = "",
+    latitude: float | None = None,
+    longitude: float | None = None,
+) -> UUID:
+    normalized_title = title.strip()
+    normalized_description = description.strip()
+    normalized_place = place.strip()
+    if not 1 <= len(normalized_title) <= 60:
+        raise EventManagementError("title_invalid")
+    if not 1 <= len(normalized_description) <= 1000:
+        raise EventManagementError("description_invalid")
+    if (latitude is None) != (longitude is None):
+        raise EventManagementError("coordinates_incomplete")
+    if ends_at <= starts_at:
+        raise EventManagementError("end_must_follow_start")
+    if ends_at > starts_at + timedelta(days=7):
+        raise EventManagementError("event_too_long")
+    if starts_at.tzinfo is None:
+        starts_at = starts_at.replace(tzinfo=UTC)
+    if ends_at.tzinfo is None:
+        ends_at = ends_at.replace(tzinfo=UTC)
+
+    async with engine.begin() as connection:
+        category_id = await connection.scalar(
+            text(
+                """
+                SELECT id FROM discovery.categories
+                WHERE slug = 'special' AND is_special AND is_active
+                """
+            )
+        )
+        if category_id is None:
+            raise EventManagementError("special_category_not_available")
+        city = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT is_active, name,
+                               ST_Y(ST_Centroid(boundary::geometry)) AS center_latitude,
+                               ST_X(ST_Centroid(boundary::geometry)) AS center_longitude
+                        FROM discovery.cities
+                        WHERE id = :city
+                        """
+                    ),
+                    {"city": city_id},
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        if city is None or not city["is_active"]:
+            raise EventManagementError("city_not_available")
+        if latitude is None:
+            if city["center_latitude"] is None:
+                raise EventManagementError("city_has_no_boundary")
+            latitude, longitude = (
+                float(city["center_latitude"]),
+                float(city["center_longitude"]),
+            )
+
+        address = normalized_place or city["name"]
+        event_id = uuid4()
+        revision_id = uuid4()
+        await connection.execute(
+            text(
+                """
+                INSERT INTO events.events
+                    (id, kind, audit_actor_id, city_id, category_id,
+                     lifecycle_status, moderation_status,
+                     current_revision_id, approved_revision_id)
+                VALUES
+                    (:event, 'special', :staff, :city, :category,
+                     'published', 'approved', :revision, :revision)
+                """
+            ),
+            {
+                "event": event_id,
+                "staff": staff_id,
+                "city": city_id,
+                "category": category_id,
+                "revision": revision_id,
+            },
+        )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO events.event_revisions
+                    (id, event_id, revision_number, title, description,
+                     starts_at, ends_at, location, normalized_address,
+                     street_name, address_visibility, moderation_status,
+                     decided_at)
+                VALUES
+                    (:revision, :event, 1, :title, :description, :starts, :ends,
+                     ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
+                     :address, :street, 'exact_public', 'approved', now())
+                """
+            ),
+            {
+                "revision": revision_id,
+                "event": event_id,
+                "title": normalized_title,
+                "description": normalized_description,
+                "starts": starts_at,
+                "ends": ends_at,
+                "longitude": longitude,
+                "latitude": latitude,
+                "address": address,
+                "street": address,
+            },
+        )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO trust_safety.staff_audit_log
+                    (id, actor_staff_id, action, result, details)
+                VALUES (:id, :staff, 'special_event.create', 'success',
+                        jsonb_build_object('event_id', CAST(:event AS text)))
+                """
+            ),
+            {"id": uuid4(), "staff": staff_id, "event": event_id},
+        )
+    return event_id
 
 
 async def cancel_special_event(
@@ -444,6 +603,18 @@ async def finish_due_events(engine: AsyncEngine) -> int:
                   ON approved.id=e.approved_revision_id
                 WHERE pending.event_id=e.id AND pending.moderation_status='pending'
                   AND e.lifecycle_status='published' AND approved.ends_at<=now()
+                """
+            )
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE events.waitlist_entries w
+                SET status='cancelled',closed_at=now()
+                FROM events.events e
+                JOIN events.event_revisions r ON r.id=e.approved_revision_id
+                WHERE w.event_id=e.id AND w.status='waiting'
+                  AND e.lifecycle_status='published' AND r.ends_at<=now()
                 """
             )
         )

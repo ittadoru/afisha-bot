@@ -24,14 +24,10 @@ stateDiagram-v2
 
     state "Waitlist entry" as waitlist {
         [*] --> WAITING
-        WAITING --> OFFER_ACTIVE: capacity reserved
+        WAITING --> JOINED_EVENT: place released, automatic promotion
         WAITING --> LEFT_QUEUE: user leaves
-        WAITING --> QUEUE_CLOSED: event starts/cancels
-        OFFER_ACTIVE --> JOINED_EVENT: offer accepted
-        OFFER_ACTIVE --> OFFER_EXPIRED: offer expires/declined
-        OFFER_ACTIVE --> QUEUE_CLOSED: event starts/cancels
+        WAITING --> QUEUE_CLOSED: event ends/cancels
         JOINED_EVENT --> [*]
-        OFFER_EXPIRED --> [*]
         LEFT_QUEUE --> [*]
         QUEUE_CLOSED --> [*]
     }

@@ -17,6 +17,8 @@ EXPECTED_TABLES = {
         "event_photos",
         "event_revisions",
         "participation_episodes",
+        "event_interests",
+        "waitlist_entries",
         "creation_requests",
         "staff_creation_requests",
         "change_requests",

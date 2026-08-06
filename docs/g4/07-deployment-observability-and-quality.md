@@ -18,8 +18,8 @@ Nominatim и monitoring включаются отдельными profiles.
   передаётся на loopback, а `admin.podvval.xyz` до реализации отвечает `404`.
 - Application containers работают non-root, read-only где возможно, без
   Docker socket, с limits и log rotation.
-- Media доступна только API/worker; database/media backups уходят off-server
-  начиная со Slice 9.
+- Media доступна только API/worker; database/media backups локальны на VPS
+  (retention 7 дней, PD-021; off-server отложен — R-113).
 - Geo import не запускается одновременно с worker/beat/ops на VPS 4 ГБ.
 
 Следующий сервер появляется только по измеримой причине: PostgreSQL RAM/IO и
@@ -28,9 +28,10 @@ failure domain; worker/media CPU/RAM; API connections/CPU. Kubernetes, Kafka и
 
 ## Backup и recovery
 
-Alpha: `RPO ≤24h`, `RTO ≤24h`, encrypted off-server backup, retention 14 дней.
-Backup включает PostgreSQL и media consistency manifest, commit/revision,
-timestamps и checksums без secrets.
+Alpha: `RPO ≤24h`, `RTO ≤24h`, encrypted backup, retention 7 дней. Backup
+включает PostgreSQL и media consistency manifest, commit/revision, timestamps
+и checksums без secrets. Копии хранятся локально на VPS (PD-021); требование
+off-server отложено и зафиксировано как остаточный риск `R-113`.
 
 Restore drill выполняется в изолированном окружении: проверить decrypt,
 PostgreSQL/PostGIS restore, migration head, media references, critical counts,
@@ -40,11 +41,11 @@ release gate.
 ## Monitoring
 
 - Prometheus scrape/evaluation: 60 секунд.
-- Retention: 7 дней, cap 512 MB.
+- Retention: 3 дня, cap 128 MB.
 - Application logs: structured allowlist, 7 дней.
 - Security detection logs: до 14 дней; privileged audit — PostgreSQL 90 дней.
-- Node exporter: только filesystem/textfile collectors.
-- Alertmanager не содержит production Telegram receiver в G6.
+- Alertmanager и node-exporter в MVP не запускаются; алерты по диску, возрасту
+  бэкапа и heartbeat worker — простым cron-скриптом (PD-021).
 - Distributed tracing отсутствует в MVP.
 
 | Signal | Gate/alert |
@@ -89,12 +90,13 @@ Gate:
 
 1. deterministic `uv sync --locked`;
 2. Ruff format/check и Pyright strict;
-3. pytest coverage `≥75%` и architecture tests;
+3. pytest coverage `≥60%` (alpha, PD-021) и architecture tests;
 4. empty DB migration/single head/PostGIS/seven schemas;
 5. PostgreSQL, Redis, Celery и API health/readiness;
 6. Nginx/media/port/non-root/resource boundaries;
 7. pip-audit, Bandit и secret scan;
-8. SBOM, container scan и Compose health smoke.
+8. SBOM и container scan выполняются только перед первым публичным выпуском;
+   Compose health smoke — всегда.
 
 GitHub Actions выполняет только secret-free subset, использует immutable action
 SHA, не получает VPS credentials и не разрешает deployment. Deployment
@@ -110,7 +112,8 @@ manual-only после owner approval.
 - Пользовательские срезы проверены на phone/desktop viewport: anonymous gates,
   location projection, waitlist expiry, form loss, deep links и staff scope;
   keyboard/screen-reader/contrast/touch-target checks применены.
-- Coverage не ниже 75%; critical scenarios не заменяются процентом.
+- Coverage не ниже 60% на alpha (PD-021); critical scenarios не заменяются
+  процентом.
 - Нет applicable Critical/High security findings.
 - Logs/responses не содержат secrets, PII, exact hidden location или policy
   internals.

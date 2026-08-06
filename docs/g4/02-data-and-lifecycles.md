@@ -78,14 +78,15 @@ Capacity необязателен; если лимит задан, он не м�
 | Like/unlike | не занимает место; повтор команды идемпотентен |
 | Join | event joinable; один active episode; место резервируется атомарно |
 | Waitlist join | только при заполненном capacity; стабильная FIFO position |
-| Place release | первые подходящие записи получают отдельные timed offers |
-| Offer accept | offer active, место всё ещё зарезервировано, один active episode |
+| Place release | первый ожидающий автоматически становится участником и получает notification |
 | Leave | active episode закрывается; старое место/position не восстанавливается |
 | Exclude | закрывает участие и защищённый доступ немедленно |
 
-Освобождение нескольких мест создаёт не более `N` offers первым подходящим
-пользователям. Join, capacity edit, offer и leave используют transaction +
-lock/constraint; два пользователя не получают последнее место.
+Освобождение нескольких мест автоматически переводит не более `N` первых
+подходящих пользователей в участники. Участие и очередь доступны до окончания
+события, включая время после начала. Join, capacity edit, promotion и leave
+используют transaction + lock/constraint; два пользователя не получают
+последнее место.
 
 ## Attendance и спор
 
@@ -112,13 +113,14 @@ lock/constraint; два пользователя не получают посл�
 ## Constraints и snapshots
 
 Обязательны unique/partial constraints для active participation, active offer,
-однократного redemption, outbox business key, inbox receipt, public ID и
-policy signal source. Конкретные SQL constraints добавляются owner migration.
+однократного redemption, outbox business key, public ID и policy signal source.
+Конкретные SQL constraints добавляются owner migration. Inbox-таблица не
+вводится (PD-021); её роль выполняет unique business key outbox-строки.
 
-После завершения Event сохраняется компактный snapshot: owner, category,
-финальное время, защищённое место, normalized outcomes, counts, ratings,
-reputation facts и lifecycle reason. Полные промежуточные тексты и media в
-долгосрочный snapshot не копируются.
+После завершения Event итоговые факты остаются в операционных таблицах:
+owner, category, финальное время, защищённое место, результаты участия, counts,
+ratings и lifecycle reason. Полные промежуточные тексты и media в долгосрочном
+хранении не сохраняются.
 
 `Особое` хранится как отдельный вид события с внутренним audit actor, но без
 публичного организатора и participation-модели. Оно разрешает только safe view
@@ -133,20 +135,27 @@ reputation facts и lifecycle reason. Полные промежуточные т
 | Event/profile фотографии | удалить через 7 дней после применимого terminal state |
 | Закрытый LookingPost и Q&A details | удалить через 24 часа после закрытия/conversion |
 | Attendance evidence | 30 дней после окончательного dispute |
-| Revision old/new details | 90 дней, затем compact facts |
+| Revision old/new details | 90 дней, затем компактные факты |
 | Moderation и privileged audit | 90 дней |
 | Raw provider/cache payload | не хранить либо ≤24 часов по принятому contract |
-| Encrypted backups | 14 дней |
+| Encrypted backups | 7 дней, локально на VPS (off-server отложен — R-113) |
 
 Legal/safety hold приостанавливает только применимое удаление и сам
 аудируется. Закрытые anti-fraud/reputation internals не переносятся в Git.
 
-## Compaction
+## Compaction (упрощено PD-021: идемпотентный sweep)
 
-Диаграмма: [compaction flow](diagrams/04-compaction-flow.mmd).
+Итоговые факты завершённого события живут в операционных таблицах и не
+дублируются: строка `events.events`, одна последняя одобренная revision через
+`approved_revision_id` и строки участия остаются навсегда. По просроченной
+ссылке показывается компактная карточка: название, последнее описание, время,
+место по правилам доступа, счётчики участников и оценки; фотографии нет после
+7 дней.
 
-Compaction запускается только после terminal state и окончания всех dispute/
-appeal окон. Одна транзакция фиксирует snapshot/outcomes и durable cleanup
-intent. Cleanup идемпотентно удаляет тяжёлые details/media, записывает audit и
-проверяется reconciliation. Сбой до commit не меняет данные; сбой после commit
-повторяет cleanup без повторного бизнес-результата.
+Очистка — простой идемпотентный sweep. Периодический таск выполняет повторяемые
+`DELETE` батчами по `delete_after`/срокам (чат 24 часа, media 7 дней, старые
+revisions 90 дней, audit 90 дней). Каждый запрос сам по себе идемпотентен:
+сбой до удаления исправляется следующим запуском, сбой после удаления не
+повторяет бизнес-эффекта. Защита споров, жалоб и legal hold — одно условие
+`NOT EXISTS` по открытым case. Отдельный compaction-механизм с расписками,
+агрегатами и reconciliation не вводится (PD-021).

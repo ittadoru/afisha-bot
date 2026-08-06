@@ -17,6 +17,13 @@ const profile = {
   age_confirmed: true,
 };
 
+function okJson(body: object, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json", "X-Afisha-CSRF": "csrf-token" },
+  });
+}
+
 beforeEach(() => {
   window.Telegram = {
     WebApp: {
@@ -25,10 +32,12 @@ beforeEach(() => {
       expand: vi.fn(),
     },
   };
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(profile), {
-    status: 200,
-    headers: { "Content-Type": "application/json", "X-Afisha-CSRF": "csrf-token" },
-  })));
+  vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+    if (url.endsWith("/account/notifications")) return okJson([]);
+    return okJson(profile);
+  }));
 });
 
 describe("landing", () => {
@@ -57,19 +66,19 @@ describe("landing", () => {
     render(<App />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Ищу людей" }));
-    expect(screen.getByRole("heading", { name: "Найдите компанию" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Найдите компанию" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Создать" }));
-    expect(screen.getByRole("heading", { name: "Что создаём?" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Что создаём?" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /^Новости/ }));
-    expect(screen.getByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Моё" }));
-    expect(screen.getByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ошибка" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Не получилось загрузить");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не получилось загрузить");
   });
 
   it("does not create a user outside Telegram", async () => {
@@ -90,7 +99,8 @@ describe("landing", () => {
       .mockResolvedValueOnce(new Response("", { status: 401 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ nonce: "nonce" }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ profile: firstProfile, csrf_token: "csrf", created: true }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 })));
+      .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ cities: [], categories: [] }), { status: 200 })));
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Мне исполнилось 14 лет" }));

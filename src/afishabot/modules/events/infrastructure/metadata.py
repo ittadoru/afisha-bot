@@ -1,7 +1,10 @@
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     Column,
     DateTime,
     ForeignKey,
+    Identity,
     Integer,
     MetaData,
     PrimaryKeyConstraint,
@@ -122,6 +125,45 @@ participation_episodes = Table(
     Column("joined_at", DateTime(timezone=True), nullable=False),
     Column("closed_at", DateTime(timezone=True)),
     Column("close_reason", Text),
+    Column("excluded_by_user_id", UUID(as_uuid=True)),
+    Column("close_note", String(300)),
+)
+event_interests = Table(
+    "event_interests",
+    metadata,
+    Column(
+        "event_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.events.id"),
+        nullable=False,
+    ),
+    Column("user_id", UUID(as_uuid=True), nullable=False),
+    Column("active", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+    PrimaryKeyConstraint("event_id", "user_id"),
+)
+waitlist_entries = Table(
+    "waitlist_entries",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column(
+        "event_id",
+        UUID(as_uuid=True),
+        ForeignKey("events.events.id"),
+        nullable=False,
+    ),
+    Column("user_id", UUID(as_uuid=True), nullable=False),
+    Column(
+        "queue_order",
+        BigInteger,
+        Identity(always=True),
+        nullable=False,
+        unique=True,
+    ),
+    Column("status", Text, nullable=False),
+    Column("queued_at", DateTime(timezone=True), nullable=False),
+    Column("closed_at", DateTime(timezone=True)),
 )
 creation_requests = Table(
     "creation_requests",

@@ -26,9 +26,10 @@ Raw provider response не становится доменной моделью.
 - Provider outage не изменяет point, но блокирует публикацию, пока отсутствует
   обязательная безопасная address projection.
 
-Nominatim использует только regional Dagestan extract без flatnode. Перед
-публичным выпуском вручную проверяются реальные точки Махачкалы, Хасавюрта и
-Дербента. URL/checksum extract задаются вне Git.
+Nominatim использует региональный extract по bbox трёх городов (Махачкала,
+Хасавюрт, Дербент) с запасом примерно 20 км вместо всего Дагестана (PD-021);
+без flatnode. Перед публичным выпуском вручную проверяются реальные точки
+трёх городов. URL/checksum extract задаются вне Git.
 
 ## Карта и projections
 
@@ -38,7 +39,9 @@ attribution и list fallback. Public OSM tile server не используетс
 Event marker приходит только из discovery projection:
 
 - exact marker — только если caller имеет exact projection;
-- street marker — стабильный anchor canonical street geometry;
+- street marker — стабильный anchor canonical street geometry; anchor —
+  центроид (средняя точка) geometry, должен находиться внутри city boundary
+  (PD-021);
 - скрытая event point не участвует в расчёте street anchor;
 - отсутствие валидной street geometry закрывает street-only публикацию.
 

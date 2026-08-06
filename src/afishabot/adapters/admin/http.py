@@ -39,7 +39,9 @@ from afishabot.modules.trust_safety.application.event_moderation import (
 from afishabot.modules.events.application.manage_event import (
     CancelReason,
     EventManagementConflict,
+    EventManagementError,
     cancel_special_event,
+    create_special_event,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -103,6 +105,22 @@ class ReviewDecisionRequest(BaseModel):
 class CancelSpecialRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     reason: CancelReason
+
+
+class CreateSpecialRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=1, max_length=60)
+    description: str = Field(min_length=1, max_length=1000)
+    city_id: UUID
+    starts_at: datetime
+    ends_at: datetime
+    place: str = Field(default="", max_length=500)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+
+class CreatedSpecialResponse(BaseModel):
+    id: str
 
 
 @router.post("/auth/bootstrap", response_model=BootstrapResponse)
@@ -352,6 +370,45 @@ async def decide_event_review(
         await decide_review(engine, ReviewDecision(review_id, body.revision_id, identity.id, action, body.reason))
     except ModerationConflict as error:
         raise _error(409, str(error)) from error
+
+
+@router.post("/events/special", response_model=CreatedSpecialResponse, status_code=201)
+async def create_special(
+    body: CreateSpecialRequest,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> CreatedSpecialResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(
+        engine,
+        token=session_token,
+        csrf_token=csrf_token,
+        auth_secret=_required_secret(settings),
+    )
+    if identity is None:
+        raise _error(401, "admin_session_required")
+    if identity.role != "admin":
+        raise _error(403, "admin_required")
+    try:
+        event_id = await create_special_event(
+            engine,
+            staff_id=identity.id,
+            city_id=body.city_id,
+            title=body.title,
+            description=body.description,
+            starts_at=body.starts_at,
+            ends_at=body.ends_at,
+            place=body.place,
+            latitude=body.latitude,
+            longitude=body.longitude,
+        )
+    except EventManagementError as error:
+        raise _error(422, str(error)) from error
+    return CreatedSpecialResponse(id=str(event_id))
 
 
 @router.post("/events/special/{event_id}/cancel", status_code=204)

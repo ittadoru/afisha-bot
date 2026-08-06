@@ -46,6 +46,8 @@ async def _event_list(
                            (SELECT count(*) FROM events.participation_episodes p
                             WHERE p.event_id=e.id AND p.status='active')
                              AS participant_count,
+                           (SELECT count(*) FROM events.event_interests i
+                            WHERE i.event_id=e.id AND i.active) AS interest_count,
                            profile.public_id AS organizer_public_id,
                            profile.display_name AS organizer_name,
                            organizer.status AS organizer_status
@@ -186,6 +188,48 @@ async def event_detail(
                            (SELECT count(*) FROM events.participation_episodes p
                             WHERE p.event_id=e.id AND p.status='active')
                              AS participant_count,
+                           (SELECT count(*) FROM events.event_interests i
+                            WHERE i.event_id=e.id AND i.active) AS interest_count,
+                           EXISTS (
+                             SELECT 1 FROM events.event_interests i
+                             WHERE i.event_id=e.id
+                               AND i.user_id=CAST(:viewer AS uuid) AND i.active
+                           ) AS viewer_interested,
+                           (e.creator_user_id=CAST(:viewer AS uuid)) AS viewer_is_organizer,
+                           CASE
+                             WHEN EXISTS (
+                               SELECT 1 FROM events.participation_episodes p
+                               WHERE p.event_id=e.id
+                                 AND p.user_id=CAST(:viewer AS uuid)
+                                 AND p.status='active') THEN 'participating'
+                             WHEN EXISTS (
+                               SELECT 1 FROM events.waitlist_entries w
+                               WHERE w.event_id=e.id
+                                 AND w.user_id=CAST(:viewer AS uuid)
+                                 AND w.status='waiting') THEN 'waitlisted'
+                             WHEN EXISTS (
+                               SELECT 1 FROM events.participation_episodes p
+                               WHERE p.event_id=e.id
+                                 AND p.user_id=CAST(:viewer AS uuid)
+                                 AND p.status='excluded') THEN 'excluded'
+                             ELSE 'none'
+                           END AS viewer_membership,
+                           CASE WHEN EXISTS (
+                             SELECT 1 FROM events.waitlist_entries mine
+                             WHERE mine.event_id=e.id
+                               AND mine.user_id=CAST(:viewer AS uuid)
+                               AND mine.status='waiting'
+                           ) THEN (
+                             SELECT count(*) FROM events.waitlist_entries ahead
+                             WHERE ahead.event_id=e.id AND ahead.status='waiting'
+                               AND ahead.queue_order <= (
+                                 SELECT mine.queue_order
+                                 FROM events.waitlist_entries mine
+                                 WHERE mine.event_id=e.id
+                                   AND mine.user_id=CAST(:viewer AS uuid)
+                                   AND mine.status='waiting'
+                               )
+                           ) END AS queue_position,
                            profile.public_id AS organizer_public_id,
                            profile.display_name AS organizer_name,
                            organizer.status AS organizer_status

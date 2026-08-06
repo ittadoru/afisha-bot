@@ -275,6 +275,13 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .management-time label { display: grid; gap: 5px; font-weight: 700; }
 .management-photo { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; object-fit: cover; }
 .cancel-event { display: grid; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
+.event-roster { display: grid; gap: 10px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+.event-roster h2 { margin: 12px 0 2px; }
+.roster-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.roster-row span { display: grid; gap: 2px; }
+.roster-row small { color: var(--muted-foreground); }
+.exclude-participant { display: grid; gap: 10px; padding: 14px; border: 1px solid #d79b49; border-radius: 16px; background: #fff8e9; }
+.roster-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .profile-event .button { margin-top: 9px; }
 .event-sheet-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; background: rgb(4 16 14 / .5); }
 .event-sheet { width: min(100%, 680px); max-height: 68dvh; overflow-y: auto; border-radius: 26px 26px 0 0; color: var(--foreground); background: var(--background); box-shadow: 0 -16px 50px rgb(0 0 0 / .2); transition: max-height .2s ease; }
@@ -283,6 +290,11 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .event-sheet-photo { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .event-sheet-body { display: grid; gap: 13px; padding: 18px 18px 34px; }
 .event-sheet-heading { display: flex; align-items: center; justify-content: space-between; }
+.interest-button { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); background: var(--card); font-weight: 800; }
+.interest-button svg { width: 18px; }
+.interest-button.active { color: #b53d5c; border-color: #dca0b0; background: #fff1f4; }
+.interest-button.active svg { fill: currentColor; }
+.queue-status { padding: 12px 14px; border: 1px solid #d79b49; border-radius: 14px; color: var(--foreground); background: #fff5df; font-weight: 800; }
 .event-sheet h1 { margin: 0; font-size: clamp(1.5rem, 7vw, 2.25rem); }
 .share-event { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 50%; color: var(--foreground); background: var(--card); }
 .share-event svg { width: 19px; }

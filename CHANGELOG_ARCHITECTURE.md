@@ -1,5 +1,23 @@
 # Architecture changelog
 
+## 2026-08-06 — принят PD-021 «Alpha-упрощения»
+
+- Приняты упрощения MVP-реализации: Nominatim extract по bbox трёх городов
+  + ~20 км; минимальный мониторинг без Alertmanager/node-exporter
+  (Prometheus 3 дня, cap 128 MB, алерты cron-скриптом); шифрованные бэкапы
+  локально на VPS 7 дней (off-server отложен — R-113 `Residual=Да`).
+- Outbox сведён к одной таблице с unique business key и bounded retry без
+  inbox/dead-letter/reconciliation; очистка — идемпотентный sweep вместо
+  compaction-механизма; слой фактов и показы карточек выведены из MVP
+  (PD-018).
+- По просроченной ссылке на завершённое событие показывается компактная
+  карточка: название, последнее описание, время, место по правам доступа,
+  счётчики участников и оценки; фотографии нет после 7 дней.
+- Street anchor — центроид canonical street geometry.
+- Coverage alpha — ≥60%; SBOM и container scan только перед публичным выпуском.
+- Репутация (PD-009, G4-06) этими упрощениями не изменяется.
+- Код и миграции этим изменением не менялись; правки только документация.
+
 ## 2026-08-06 — Public event discovery and privacy-safe map
 
 - Реальные опубликованные события заменяют демонстрационные данные карты и
@@ -83,21 +101,6 @@ Git history. Даты указаны в часовом поясе Europe/Moscow.
 - Отдельные Mermaid-файлы оставлены только для существенно полезных связей.
 - Продукт, API, данные, код и статус G6 не изменились.
 
-## Основные этапы
-
-| Дата | Этап | Результат |
-|---|---|---|
-| 2026-07-26 | G0 | Исходная спецификация перенесена в Markdown, заведены traceability, вопросы и риски |
-| 2026-07-26–28 | G1–G3 | Проведён аудит, закрыты product blockers, приняты `PD-001…PD-019` |
-| 2026-07-28 | ADR audit | Уточнены `ADR-000`, `ADR-001`, `ADR-010…ADR-020` |
-| 2026-07-29 | G4.1–G4.4 | Приняты C4, модули, permissions, данные и state machines |
-| 2026-07-29 | G4.5–G4.9 | Приняты API/security, facts, outbox/DLQ и Kafka triggers |
-| 2026-07-29 | G4.10–G4.14 | Приняты deployment, user/staff auth и exact-location boundary |
-| 2026-07-29 | G4.15–G4.18 | Приняты map/profile/reputation/geo contracts |
-| 2026-07-29 | G4.19–G4.21 | Приняты threat model, observability и delivery gates |
-| 2026-07-30 | G5 | Принят облегчённый backlog из девяти vertical slices |
-| 2026-07-30 | ADR-021/G6 | Начат инженерный skeleton; authority перенесён на clean-VPS exact-commit gate |
-
 ## Ключевые решения
 
 | Область | Принято |
@@ -106,15 +109,15 @@ Git history. Даты указаны в часовом поясе Europe/Moscow.
 | Доступ | public read-only web без user login; Mini App initData для действий |
 | Identity | единый internal user; staff identity отдельно от Telegram |
 | Архитектура | модульный монолит, семь owner-модулей и отдельные schemas |
-| Данные | PostgreSQL/PostGIS truth, immutable revisions, compact final snapshots |
+| Данные | PostgreSQL/PostGIS truth, immutable revisions, итоги в операционных таблицах |
 | Интерфейс | mobile map-first, desktop list/map/panel, shared UI contract без готовой design system |
-| Async | transactional outbox, Celery/Redis, Kafka только по triggers |
-| Карта | MapLibre + OpenFreeMap + закрытый regional Nominatim |
+| Async | простой transactional outbox, Celery/Redis, Kafka только по triggers |
+| Карта | MapLibre + OpenFreeMap + закрытый regional Nominatim (bbox трёх городов) |
 | Приватность | street/exact projections, fail-closed hide и минимизация telemetry |
 | Media | безопасный re-encode без EXIF, local protected storage |
 | Reputation | ledger/projections, private production policy, trust_safety блокирует |
-| Operations | Stage 1 Compose, off-server backup позднее, ручной deployment |
-| Quality | coverage ≥75%, security gates и authoritative clean-VPS verification |
+| Operations | Stage 1 Compose, локальные шифрованные бэкапы 7 дней, ручной deployment |
+| Quality | coverage ≥60% (alpha), security gates и authoritative clean-VPS verification |
 
 ## Текущий gate
 

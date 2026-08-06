@@ -24,6 +24,9 @@ type ManagedEvent = {
   can_cancel: boolean;
 };
 
+type RosterParticipant = { participation_id: string; public_id: string; display_name: string; joined_at: string };
+type RosterWaiter = { public_id: string; display_name: string; queued_at: string; position: number };
+
 const cancelReasons = [
   ["plans_changed", "Планы изменились"],
   ["not_enough_participants", "Не набралось участников"],
@@ -96,7 +99,42 @@ export function EventManagement({ eventId, csrfToken, onBack }: { eventId: strin
   };
 
   if (!event) return <section className="feed"><button className="text-back" onClick={onBack}>← Назад</button><p>{message || "Загружаем…"}</p></section>;
-  return <section className="feed event-management"><button className="text-back" type="button" onClick={onBack}>← Назад</button><p className="section-kicker">Управление событием</p><h1>{event.title}</h1>{event.pending_status === "pending" && <p className="management-notice">Изменения проверяются. Пользователи пока видят прежнюю версию.</p>}{event.pending_status === "rejected" && <p className="form-error">Изменение отклонено: {event.rejection_reason}. Исправьте данные и отправьте снова.</p>}<label>Название<input value={title} maxLength={60} disabled={!event.can_edit} onChange={(e) => setTitle(e.target.value)} /></label><label>Описание<textarea value={description} maxLength={1000} disabled={!event.can_edit} onChange={(e) => setDescription(e.target.value)} /></label><div className="locked-event-field"><LockKeyhole /><span><small>Категория</small>{event.category}</span></div><div className="locked-event-field"><MapPin /><span><small>Место · {event.city}</small>{event.normalized_address}</span></div><div className="management-time"><CalendarClock /><div><label>Начало<input type="datetime-local" value={startsAt} disabled={!event.can_edit || !event.can_change_schedule} onChange={(e) => setStartsAt(e.target.value)} /></label><label>Окончание<input type="datetime-local" value={endsAt} disabled={!event.can_edit || !event.can_change_schedule} onChange={(e) => setEndsAt(e.target.value)} /></label></div></div>{!event.can_change_schedule && <p className="state-hint">Единственная смена даты и времени уже использована.</p>}<img className="management-photo" src={event.photo_url} alt="Текущая фотография события" />{event.can_edit && <EventPhotoUploader csrfToken={csrfToken} value={photo} onChange={setPhoto} />}{event.can_edit && <Button disabled={busy || !title.trim() || !description.trim()} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить изменения на проверку"}</Button>}{message && <p className="success-message" role="status">{message}</p>}{event.can_cancel && <div className="cancel-event"><h2>Отменить событие</h2><select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>{cancelReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><Button variant="outline" disabled={busy} onClick={() => void cancel()}>Отменить событие</Button></div>}</section>;
+  return <section className="feed event-management"><button className="text-back" type="button" onClick={onBack}>← Назад</button><p className="section-kicker">Управление событием</p><h1>{event.title}</h1>{event.pending_status === "pending" && <p className="management-notice">Изменения проверяются. Пользователи пока видят прежнюю версию.</p>}{event.pending_status === "rejected" && <p className="form-error">Изменение отклонено: {event.rejection_reason}. Исправьте данные и отправьте снова.</p>}<label>Название<input value={title} maxLength={60} disabled={!event.can_edit} onChange={(e) => setTitle(e.target.value)} /></label><label>Описание<textarea value={description} maxLength={1000} disabled={!event.can_edit} onChange={(e) => setDescription(e.target.value)} /></label><div className="locked-event-field"><LockKeyhole /><span><small>Категория</small>{event.category}</span></div><div className="locked-event-field"><MapPin /><span><small>Место · {event.city}</small>{event.normalized_address}</span></div><div className="management-time"><CalendarClock /><div><label>Начало<input type="datetime-local" value={startsAt} disabled={!event.can_edit || !event.can_change_schedule} onChange={(e) => setStartsAt(e.target.value)} /></label><label>Окончание<input type="datetime-local" value={endsAt} disabled={!event.can_edit || !event.can_change_schedule} onChange={(e) => setEndsAt(e.target.value)} /></label></div></div>{!event.can_change_schedule && <p className="state-hint">Единственная смена даты и времени уже использована.</p>}<img className="management-photo" src={event.photo_url} alt="Текущая фотография события" />{event.can_edit && <EventPhotoUploader csrfToken={csrfToken} value={photo} onChange={setPhoto} />}{event.can_edit && <Button disabled={busy || !title.trim() || !description.trim()} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить изменения на проверку"}</Button>}{message && <p className="success-message" role="status">{message}</p>}<EventRoster eventId={eventId} csrfToken={csrfToken} />{event.can_cancel && <div className="cancel-event"><h2>Отменить событие</h2><select value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>{cancelReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><Button variant="outline" disabled={busy} onClick={() => void cancel()}>Отменить событие</Button></div>}</section>;
+}
+
+function EventRoster({ eventId, csrfToken }: { eventId: string; csrfToken: string }) {
+  const [participants, setParticipants] = useState<RosterParticipant[] | null>(null);
+  const [waitlist, setWaitlist] = useState<RosterWaiter[]>([]);
+  const [selected, setSelected] = useState<RosterParticipant | null>(null);
+  const [reason, setReason] = useState("rules_violation");
+  const [note, setNote] = useState("");
+  const [message, setMessage] = useState("");
+  const load = async () => {
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/manage/roster`, { credentials: "include" });
+    if (!response.ok) { setParticipants([]); return; }
+    const data = await response.json() as { participants: RosterParticipant[]; waitlist: RosterWaiter[] };
+    setParticipants(data.participants); setWaitlist(data.waitlist);
+  };
+  useEffect(() => { void load(); }, [eventId]);
+  const exclude = async () => {
+    if (!selected) return;
+    if (!await confirmExclude(selected.display_name)) return;
+    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/participants/${selected.participation_id}/exclude`, {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken },
+      body: JSON.stringify({ reason, note: note.trim() || null }),
+    });
+    if (response.ok) { setMessage("Участник удалён. Первому человеку в очереди автоматически выдано свободное место."); setSelected(null); setNote(""); await load(); }
+    else setMessage("Не удалось удалить участника.");
+  };
+  return <section className="event-roster"><h2>Участники</h2>{participants === null ? <p>Загружаем…</p> : participants.length ? participants.map((item) => <div className="roster-row" key={item.participation_id}><span><strong>{item.display_name}</strong><small>ID {item.public_id}</small></span><Button variant="outline" onClick={() => setSelected(item)}>Удалить</Button></div>) : <p className="state-hint">Участников пока нет.</p>}<h2>Очередь</h2>{waitlist.length ? waitlist.map((item) => <div className="roster-row" key={item.public_id}><span><strong>№{item.position} · {item.display_name}</strong><small>ID {item.public_id}</small></span></div>) : <p className="state-hint">Очередь пуста.</p>}{selected && <div className="exclude-participant"><h3>Удалить {selected.display_name}</h3><select value={reason} onChange={(event) => setReason(event.target.value)}><option value="rules_violation">Нарушение правил</option><option value="disruptive_behavior">Мешает проведению события</option><option value="participant_request">По просьбе участника</option><option value="other">Другое</option></select>{reason === "other" && <textarea maxLength={300} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Объясните причину" />}<div className="roster-actions"><Button variant="outline" onClick={() => setSelected(null)}>Отмена</Button><Button disabled={reason === "other" && !note.trim()} onClick={() => void exclude()}>Подтвердить удаление</Button></div></div>}{message && <p className="state-hint" role="status">{message}</p>}</section>;
+}
+
+async function confirmExclude(name: string): Promise<boolean> {
+  const text = `Удалить участника ${name}? Он потеряет доступ к закрытому адресу и не сможет вступить снова.`;
+  const webApp = window.Telegram?.WebApp;
+  if (webApp?.showConfirm) return await new Promise<boolean>((resolve) => webApp.showConfirm?.(text, resolve));
+  return window.confirm(text);
 }
 
 function toMoscowInput(value: string): string {

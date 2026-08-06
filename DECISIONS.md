@@ -97,10 +97,12 @@
 
 ## ADR-015 — transactional outbox
 
-- Статус: `ACCEPTED`
-- Business state и versioned outbox fact пишутся одной PostgreSQL-транзакцией.
-- Consumer использует inbox/dedup, idempotent transition, bounded retry,
-  dead-letter и reconciliation.
+- Статус: `ACCEPTED — MVP-контур упрощён решением PD-021`
+- Business state и outbox fact пишутся одной PostgreSQL-транзакцией.
+- MVP-контур: одна таблица `notification_outbox`; unique business key на
+  `notification_id` исключает дубли; consumer — bounded retry с TTL и удаление
+  успешной строки; восстановление после сбоя — повторный идемпотентный запуск.
+- Inbox/dedup-таблицы, dead-letter и reconciliation-задачи в MVP не вводятся.
 - Celery выполняет jobs через Redis broker; Redis и task state не являются
   business authority.
 - FastAPI BackgroundTasks допустимы только для безопасно теряемого короткого
@@ -109,14 +111,16 @@
 
 ## ADR-016 — compact history вместо полного event sourcing
 
-- Статус: `ACCEPTED`
+- Статус: `ACCEPTED — очистка упрощена решением PD-021`
 - CRUD/current state остаётся обычным; event sourcing не является общей моделью.
 - Immutable revisions, audit, outbox и reputation signals сохраняются только
   там, где нужна доказуемость/rebuild.
-- Terminal Event/LookingPost получает compact snapshot и normalized outcomes.
-- Heavy intermediate text/provider payload/media удаляются по retention после
-  dispute/legal-hold guards.
-- Compaction/cleanup идемпотентны, наблюдаемы и проверяются reconciliation.
+- Итоговые факты хранятся в операционных таблицах: строка Event, одна
+  последняя одобренная revision и строки участия не удаляются.
+- Очистка — простой идемпотентный sweep: повторяемые `DELETE` батчами по
+  `delete_after`/срокам; legal-hold и защита споров/жалоб — условие
+  `NOT EXISTS` по открытым case. Отдельный compaction-механизм с расписками,
+  агрегатами и reconciliation не вводится.
 
 ## ADR-017 — Kafka-ready без Kafka
 
@@ -143,8 +147,9 @@
 - `admin.podvval.xyz` получает HTTPS, но до реализации admin отвечает `404`.
   Telegram bot, Nominatim и monitoring на этапе A не запускаются.
 - Media — protected local filesystem через replaceable adapter, не DB binary.
-- Alpha `RPO/RTO ≤24h`; encrypted backup database/media обязан уходить
-  off-server и проходить restore drill.
+- Alpha `RPO/RTO ≤24h`; encrypted backup database/media хранятся локально на VPS
+  7 дней (PD-021) и проходят restore drill; off-server требование отложено и
+  зафиксировано как остаточный риск `R-113`.
 - Следующий server появляется по DB RAM/IO/failure domain, worker/media
   CPU/RAM либо API connections/CPU, а не по календарю.
 
@@ -154,8 +159,9 @@
 - Map UI — MapLibre; browser получает OpenFreeMap vector tiles с attribution,
   configurable URL и list fallback. Public `tile.openstreetmap.org` запрещён.
 - Event markers приходят только из API; hidden coordinates не уходят provider.
-- Reverse geocoding — закрытый Nominatim 5.3.x с regional Dagestan extract;
-  browser обращается через backend.
+- Reverse geocoding — закрытый Nominatim 5.3.x с региональным extract по bbox
+  трёх городов и запасом примерно 20 км (PD-021); browser обращается через
+  backend.
 - Перед launch вручную проверяются реальные точки трёх cities. Updates —
   проверяемые ручные после жалоб/нового city с rollback набора.
 - Через 500 мс после `moveend` выполняется reverse lookup; новое движение
@@ -192,7 +198,8 @@
   24.04 `linux/amd64` VPS.
 - Gate проверяет locked dependencies, format/lint/types/tests/coverage,
   architecture, migrations/PostGIS, Redis/Celery, Nginx boundaries, security,
-  SBOM/container/Compose smoke.
+  Compose smoke. Coverage alpha — не ниже 60%; SBOM и container scan выполняются
+  только перед первым публичным выпуском (PD-021).
 - Safe manifest связывает commit SHA, image digests, migration head, checks и
   result без env/secrets/PII/private policy.
 - Финальные lock/digests создаются на VPS, коммитятся, затем проверяется новый
