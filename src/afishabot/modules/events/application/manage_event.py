@@ -542,7 +542,7 @@ async def create_special_event(
                         jsonb_build_object('event_id', CAST(:event AS text)))
                 """
             ),
-            {"id": uuid4(), "staff": staff_id, "event": event_id},
+            {"id": uuid4(), "staff": staff_id, "event": str(event_id)},
         )
     return event_id
 
@@ -582,7 +582,7 @@ async def cancel_special_event(
                                            'reason',:reason))
                 """
             ),
-            {"id": uuid4(), "staff": staff_id, "event": event_id, "reason": reason},
+            {"id": uuid4(), "staff": staff_id, "event": str(event_id), "reason": reason},
         )
 
 
