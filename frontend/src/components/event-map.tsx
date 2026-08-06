@@ -4,7 +4,6 @@ import {
   Map as MapLibreMap,
   Marker as MapLibreMarker,
   NavigationControl,
-  setWorkerUrl,
   type Map as MapInstance,
   type Marker,
 } from "maplibre-gl";
@@ -21,7 +20,7 @@ interface EventMapProps {
   onLocationChange?: (location: ResolvedLocation | null) => void;
   onOpenEvent?: (eventId: string) => void;
   onOpenStreetGroup?: (eventIds: string[], street: string) => void;
-  onFailure?: () => void;
+  onOpenList?: () => void;
 }
 
 export interface MapCity {
@@ -40,8 +39,6 @@ export interface ResolvedLocation {
 
 const DEFAULT_CITY: MapCity = { id: "", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047 };
 
-setWorkerUrl("/assets/maplibre-gl-worker.mjs");
-
 type PublicMarker = {
   marker_type: "event" | "street";
   id: string | null;
@@ -56,12 +53,13 @@ type PublicMarker = {
   event_ids: string[] | null;
 };
 
-export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT_CITY, selecting = false, onLocationChange, onOpenEvent, onOpenStreetGroup, onFailure }: EventMapProps) {
+export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT_CITY, selecting = false, onLocationChange, onOpenEvent, onOpenStreetGroup, onOpenList }: EventMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markerRef = useRef<Marker | null>(null);
   const publicMarkersRef = useRef<Marker[]>([]);
   const [failed, setFailed] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const [empty, setEmpty] = useState(false);
   const [address, setAddress] = useState(selecting ? "Нажмите на карту или переместите метку" : "События выбранного города");
 
@@ -134,9 +132,15 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       marker?.setLngLat(event.lngLat);
       updateAddress();
     });
-    let loaded = false;
+    let ready = false;
+    const initialLoadTimer = window.setTimeout(() => {
+      if (!ready) setFailed(true);
+    }, 15_000);
+    map.once("idle", () => {
+      ready = true;
+      window.clearTimeout(initialLoadTimer);
+    });
     map.on("load", () => {
-      loaded = true;
       if (selecting || !city.id) return;
       void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include" })
         .then(async (response) => {
@@ -158,14 +162,17 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
               .setLngLat([item.longitude, item.latitude]).addTo(map);
           });
         })
-        .catch(() => { setFailed(true); onFailure?.(); });
+        .catch(() => setEmpty(false));
     });
     map.on("error", () => {
-      if (!loaded) { setFailed(true); onFailure?.(); }
+      // MapLibre can report recoverable tile errors. The initial-load timer
+      // decides whether the map is truly unavailable instead of hiding it at
+      // the first transient error.
     });
 
     return () => {
       window.clearTimeout(timer);
+      window.clearTimeout(initialLoadTimer);
       markerRef.current?.remove();
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
@@ -173,7 +180,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       map.remove();
       mapRef.current = null;
     };
-  }, [city.id, city.center_latitude, city.center_longitude, city.name, onFailure, onLocationChange, onOpenEvent, onOpenStreetGroup, selecting]);
+  }, [city.id, city.center_latitude, city.center_longitude, city.name, onLocationChange, onOpenEvent, onOpenStreetGroup, retryKey, selecting]);
 
   return (
     <section className={`workspace${embedded ? " embedded-map" : ""}`}>
@@ -186,9 +193,12 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       {failed ? (
         <section className="map-fallback" role="alert">
           <List aria-hidden="true" />
-          <h1>Карта сейчас недоступна</h1>
-          <p>События остаются доступны списком. Скрытые координаты не раскрываются.</p>
-          <Button onClick={() => window.location.reload()}><RefreshCw aria-hidden="true" /> Повторить</Button>
+          <h1>Карта временно недоступна</h1>
+          <p>Попробуйте загрузить её ещё раз или откройте события списком.</p>
+          <div className="map-fallback-actions">
+            <Button onClick={() => { setFailed(false); setRetryKey((value) => value + 1); }}><RefreshCw aria-hidden="true" /> Повторить</Button>
+            {onOpenList && <Button variant="outline" onClick={onOpenList}><List aria-hidden="true" /> Открыть список</Button>}
+          </div>
         </section>
       ) : (
         <section className="map-shell" aria-label="Карта событий">

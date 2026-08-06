@@ -12,9 +12,7 @@ ARG VITE_API_BASE_URL=/api
 ARG VITE_MAP_STYLE_URL=https://tiles.openfreemap.org/styles/liberty
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL} \
     VITE_MAP_STYLE_URL=${VITE_MAP_STYLE_URL}
-RUN npm run api:generate && npm run build \
-    && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs dist/assets/ \
-    && cp node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs dist/assets/
+RUN npm run api:generate && npm run build
 
 FROM build AS checks
 RUN printf 'G6 frontend check: vitest\n' \

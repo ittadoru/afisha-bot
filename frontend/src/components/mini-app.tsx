@@ -87,7 +87,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const openStreetGroup = useCallback((ids: string[], street: string) => {
     setStreetGroup({ ids, street });
   }, []);
-  const showListFallback = useCallback(() => setEventsMode("list"), []);
+  const openEventsList = useCallback(() => setEventsMode("list"), []);
 
   useEffect(() => {
     let active = true;
@@ -141,7 +141,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
           <Suspense fallback={<DemoState state="loading" />}>
-            {section === "events" && (eventsMode === "map" ? <EventMap embedded city={selectedCity ?? undefined} onOpenEvent={openEvent} onOpenStreetGroup={openStreetGroup} onFailure={showListFallback} /> : <EventsList city={selectedCity} onOpen={openEvent} />)}
+            {section === "events" && (eventsMode === "map" ? <EventMap embedded city={selectedCity ?? undefined} onOpenEvent={openEvent} onOpenStreetGroup={openStreetGroup} onOpenList={openEventsList} /> : <EventsList city={selectedCity} onOpen={openEvent} />)}
             {section === "people" && <PeopleList onCreate={() => setSection("create")} />}
             {section === "create" && <CreateScreen city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection("events"); }} />}
             {section === "notifications" && <Notifications />}

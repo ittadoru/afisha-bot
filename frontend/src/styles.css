@@ -114,6 +114,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .map-fallback > svg { width: 48px; height: 48px; color: #08786c; }
 .map-fallback h1 { margin: 1rem 0 .5rem; font-size: clamp(2rem, 5vw, 3.5rem); }
 .map-fallback p { max-width: 520px; margin-bottom: 1.5rem; }
+.map-fallback-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; }
 
 .photo-page { min-height: 100vh; width: min(920px, calc(100% - 2rem)); margin: 0 auto; padding: 1.5rem 0 4rem; }
 .photo-card { margin-top: 1rem; }
