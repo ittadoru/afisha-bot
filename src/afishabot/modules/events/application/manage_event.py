@@ -582,7 +582,12 @@ async def cancel_special_event(
                                            'reason',:reason))
                 """
             ),
-            {"id": uuid4(), "staff": staff_id, "event": str(event_id), "reason": reason},
+            {
+                "id": uuid4(),
+                "staff": staff_id,
+                "event": str(event_id),
+                "reason": reason,
+            },
         )
 
 
