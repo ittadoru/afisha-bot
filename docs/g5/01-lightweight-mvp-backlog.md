@@ -52,7 +52,7 @@
 ### 4. Создание и жизнь события
 
 - Результат: четырёхшаговая клиентская форма без persistent Event draft,
-  complete submit, point/Nominatim/polygon, обязательная фотография `16:9`,
+  complete submit, point/Nominatim/polygon, обязательная фотография `4:3`,
   publication/moderation, revisions, cancellation и deep link.
 - Зависимости: slices 1–3.
 - Готовность: вне города publish невозможен; защищённые поля неизменяемы;

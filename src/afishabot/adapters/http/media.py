@@ -39,7 +39,7 @@ class EventPhotoResponse(BaseModel):
     upload_id: UUID
     preview_url: str
     expires_at: datetime
-    width: int = 1600
+    width: int = 1200
     height: int = 900
 
 
@@ -114,7 +114,7 @@ async def upload_event_photo(
                          byte_size, width, height, checksum_sha256, delete_after)
                     VALUES
                         (:id, :user, 'event_photo', 'ready', :key, 'image/webp',
-                         :size, 1600, 900, :checksum, :delete_after)
+                         :size, 1200, 900, :checksum, :delete_after)
                     """
                 ),
                 {

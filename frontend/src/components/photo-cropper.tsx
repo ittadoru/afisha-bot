@@ -3,6 +3,7 @@ import { Check, ImagePlus, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { appConfig } from "@/config";
+import { cropFractions } from "@/lib/photo-crop";
 import { Button } from "@/components/ui/button";
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
@@ -18,7 +19,7 @@ const PHOTO_ERROR_MESSAGES: Record<string, string> = {
   image_decode_or_encode_failed: "Файл не удалось обработать. Выберите другой JPEG, PNG или WebP.",
   crop_out_of_bounds: "Не удалось кадрировать. Повторите выделение кадра.",
   crop_is_empty: "Выделенный кадр пуст. Повторите кадрирование.",
-  crop_must_be_16_9: "Выделите кадр в пропорции 16:9.",
+  crop_must_be_4_3: "Выделите кадр в пропорции 4:3.",
   event_photo_not_found: "Фотография недоступна. Загрузите её ещё раз.",
 };
 
@@ -61,7 +62,7 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
   useEffect(() => {
     if (!source || !imageRef.current) return;
     cropperRef.current = new Cropper(imageRef.current, {
-      aspectRatio: 16 / 9,
+      aspectRatio: 4 / 3,
       viewMode: 1,
       autoCropArea: 1,
       background: false,
@@ -97,13 +98,10 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
   const upload = async () => {
     const cropper = cropperRef.current;
     if (!cropper || !file) return;
-    const data = cropper.getImageData();
-    const normalized = {
-      x: data.left / data.naturalWidth,
-      y: data.top / data.naturalHeight,
-      width: data.width / data.naturalWidth,
-      height: data.height / data.naturalHeight,
-    };
+    const box = cropper.getData();
+    const container = cropper.getContainerData();
+    const canvas = cropper.getCanvasData();
+    const normalized = cropFractions(box, container, canvas);
     setBusy(true);
     setError("");
     try {
@@ -169,7 +167,7 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
         <span>Выбрать фотографию</span>
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => chooseFile(event.target.files?.[0])} />
       </label>
-      <small>JPEG, PNG или WebP, не больше 12 МБ. Итоговый кадр — 16:9.</small>
+      <small>JPEG, PNG или WebP, не больше 12 МБ. Итоговый кадр — 4:3.</small>
       {source && <CropStage imageRef={imageRef} source={source} busy={busy} onUpload={() => void upload()} />}
       {error && <p className="form-error" role="alert">{error}</p>}
     </div>

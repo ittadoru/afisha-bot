@@ -81,7 +81,7 @@ Pipeline:
 4. полностью decode, применить orientation/crop и re-encode;
 5. удалить EXIF/metadata и original;
 6. создать безопасный derivative: для единственной обязательной фотографии
-   Event — `16:9`, для avatar — `256×256 WebP`;
+   Event — `4:3`, для avatar — `256×256 WebP`;
 7. moderation/owner use case переводит attachment в ready/rejected;
 8. выдавать файл только через scoped application check.
 

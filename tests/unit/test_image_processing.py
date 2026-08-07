@@ -61,15 +61,15 @@ def install_fake_pyvips(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "pyvips", module)
 
 
-def test_normalized_crop_accepts_16_by_9() -> None:
-    NormalizedCrop(x=0, y=0.1, width=1, height=0.5625).validate()
+def test_normalized_crop_accepts_4_by_3() -> None:
+    NormalizedCrop(x=0, y=0.1, width=1, height=0.75).validate()
 
 
 @pytest.mark.parametrize(
     "crop",
     [
-        NormalizedCrop(x=-0.1, y=0, width=1, height=0.5625),
-        NormalizedCrop(x=0.5, y=0, width=0.6, height=0.3375),
+        NormalizedCrop(x=-0.1, y=0, width=1, height=0.75),
+        NormalizedCrop(x=0.5, y=0, width=0.6, height=0.45),
     ],
 )
 def test_normalized_crop_rejects_unsafe_values(crop: NormalizedCrop) -> None:
@@ -89,7 +89,7 @@ def test_image_processor_creates_safe_derivative(
     result = EventImageProcessor().process(
         source,
         destination,
-        NormalizedCrop(x=0, y=0, width=1, height=1),
+        NormalizedCrop(x=0, y=0, width=0.75, height=1),
     )
 
     assert result == destination
@@ -106,7 +106,7 @@ def test_image_processor_rejects_oversized_file(tmp_path: Path) -> None:
         processor.process(
             source,
             tmp_path / "event.webp",
-            NormalizedCrop(x=0, y=0, width=1, height=0.5625),
+            NormalizedCrop(x=0, y=0, width=1, height=0.75),
         )
 
 
@@ -122,7 +122,7 @@ def test_image_processor_rejects_invalid_dimensions(
             EventImageProcessor().process(
                 source,
                 tmp_path / "event.webp",
-                NormalizedCrop(x=0, y=0, width=1, height=0.5625),
+                NormalizedCrop(x=0, y=0, width=1, height=0.75),
             )
     finally:
         FakeImageFactory.width = 3200
@@ -140,50 +140,50 @@ def test_image_processor_wraps_encoder_failure_and_cleans_source(
             EventImageProcessor().process(
                 source,
                 tmp_path / "event.webp",
-                NormalizedCrop(x=0, y=0, width=1, height=1),
+                NormalizedCrop(x=0, y=0, width=0.75, height=1),
             )
         assert not source.exists()
     finally:
         FakeVipsImage.fail_save = False
 
 
-def test_image_processor_accepts_16_by_9_crop_on_4_by_3_source(
+def test_image_processor_accepts_4_by_3_crop_on_square_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A 16:9 box on a non-16:9 photo (e.g. 4:3) must not be rejected."""
+    """A 4:3 box on a non-4:3 photo (e.g. square) must not be rejected."""
 
-    class NonSixteenNineFactory(FakeImageFactory):
+    class NonFourThreeFactory(FakeImageFactory):
         @classmethod
         def new_from_file(cls, filename: str, **kwargs: object) -> FakeVipsImage:
             del filename, kwargs
             image = FakeVipsImage()
             image.width = 1200
-            image.height = 900
+            image.height = 1200
             return image
 
     module = ModuleType("pyvips")
-    module.Image = NonSixteenNineFactory  # type: ignore[attr-defined]
+    module.Image = NonFourThreeFactory  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "pyvips", module)
     FakeVipsImage.crop_calls = []
 
-    source = tmp_path / "landscape.jpg"
+    source = tmp_path / "square.jpg"
     source.write_bytes(b"image")
     EventImageProcessor().process(
         source,
         tmp_path / "event.webp",
-        NormalizedCrop(x=0.1, y=0.2, width=0.8, height=0.6),
+        NormalizedCrop(x=0, y=0.1, width=1, height=0.75),
     )
 
     left, top, width, height = FakeVipsImage.crop_calls[0]
-    assert (left, top) == (120, 180)
-    assert (width, height) == (960, 540)
+    assert (left, top) == (0, 120)
+    assert (width, height) == (1200, 900)
     FakeVipsImage.crop_calls = []
 
 
-def test_image_processor_rejects_non_16_by_9_box_on_4_by_3_source(
+def test_image_processor_rejects_non_4_by_3_box_on_4_by_3_source(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    class NonSixteenNineFactory(FakeImageFactory):
+    class NonFourThreeFactory(FakeImageFactory):
         @classmethod
         def new_from_file(cls, filename: str, **kwargs: object) -> FakeVipsImage:
             del filename, kwargs
@@ -193,16 +193,16 @@ def test_image_processor_rejects_non_16_by_9_box_on_4_by_3_source(
             return image
 
     module = ModuleType("pyvips")
-    module.Image = NonSixteenNineFactory  # type: ignore[attr-defined]
+    module.Image = NonFourThreeFactory  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "pyvips", module)
 
     source = tmp_path / "landscape.jpg"
     source.write_bytes(b"image")
-    with pytest.raises(UnsafeImageError, match="crop_must_be_16_9"):
+    with pytest.raises(UnsafeImageError, match="crop_must_be_4_3"):
         EventImageProcessor().process(
             source,
             tmp_path / "event.webp",
-            NormalizedCrop(x=0, y=0, width=1, height=1),
+            NormalizedCrop(x=0, y=0, width=0.75, height=0.5),
         )
 
 
@@ -238,7 +238,7 @@ def test_image_processor_accepts_rotated_portrait_photo(
     EventImageProcessor().process(
         source,
         tmp_path / "event.webp",
-        NormalizedCrop(x=0.25, y=0.25, width=0.5, height=0.5),
+        NormalizedCrop(x=0.21875, y=0.125, width=0.5625, height=0.75),
     )
 
     assert RotatingImage.rotated
@@ -246,5 +246,5 @@ def test_image_processor_accepts_rotated_portrait_photo(
     assert left >= 0 and top >= 0
     assert left + width <= 3200
     assert top + height <= 1800
-    assert abs((width / height) - (16 / 9)) < 0.001
+    assert abs((width / height) - (4 / 3)) < 0.001
     FakeVipsImage.crop_calls = []

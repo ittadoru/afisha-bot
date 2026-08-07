@@ -127,7 +127,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .success-message { padding: 1rem; border-radius: 14px; color: #155a46; background: #dff0e9; }
 .event-photo-uploader, .event-photo-ready, .photo-crop-editor { display: grid; gap: 10px; }
 .event-photo-uploader > small { color: var(--muted-foreground); }
-.event-photo-ready > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 16px; }
+.event-photo-ready > img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; }
 .event-photo-ready > p { display: flex; align-items: center; gap: 7px; margin: 0; color: #08786c; font-weight: 700; }
 .event-photo-ready > p svg { width: 19px; }
 .event-photo-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
@@ -151,7 +151,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .capacity-toggle small, .address-confirmation small { color: var(--muted-foreground); font-weight: 500; }
 .static-city { cursor: default; }
 .event-preview { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: var(--card); }
-.event-preview > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.event-preview > img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .event-preview > div { display: grid; gap: 8px; padding: 15px; }
 .event-preview h2, .event-preview p { margin: 0; }
 .event-preview p { display: flex; align-items: flex-start; gap: 6px; color: var(--muted-foreground); white-space: pre-wrap; }
@@ -273,7 +273,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .management-time > svg { color: var(--primary); }
 .management-time > div { display: grid; gap: 10px; }
 .management-time label { display: grid; gap: 5px; font-weight: 700; }
-.management-photo { width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; object-fit: cover; }
+.management-photo { width: 100%; aspect-ratio: 4 / 3; border-radius: 16px; object-fit: cover; }
 .cancel-event { display: grid; gap: 10px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
 .event-roster { display: grid; gap: 10px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
 .event-roster h2 { margin: 12px 0 2px; }
@@ -287,7 +287,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .event-sheet { width: min(100%, 680px); max-height: 68dvh; overflow-y: auto; border-radius: 26px 26px 0 0; color: var(--foreground); background: var(--background); box-shadow: 0 -16px 50px rgb(0 0 0 / .2); transition: max-height .2s ease; }
 .event-sheet.expanded { max-height: 96dvh; }
 .sheet-handle { display: block; width: 52px; height: 5px; margin: 10px auto; border: 0; border-radius: 99px; background: var(--border); }
-.event-sheet-photo { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.event-sheet-photo { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
 .event-sheet-body { display: grid; gap: 13px; padding: 18px 18px 34px; }
 .event-sheet-heading { display: flex; align-items: center; justify-content: space-between; }
 .interest-button { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 7px 10px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); background: var(--card); font-weight: 800; }
@@ -314,7 +314,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .public-organizer-card { display: grid; justify-items: center; gap: 10px; padding: 24px; text-align: center; }
 .public-event-page { min-height: 100dvh; background: var(--background); }
 .public-event-card { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(280px, .9fr); gap: 28px; width: min(1080px, calc(100% - 32px)); margin: 40px auto; padding: 18px; border: 1px solid var(--border); border-radius: 26px; background: var(--card); box-shadow: 0 18px 60px rgb(0 0 0 / .1); }
-.public-event-card > img { width: 100%; aspect-ratio: 16 / 9; border-radius: 19px; object-fit: cover; }
+.public-event-card > img { width: 100%; aspect-ratio: 4 / 3; border-radius: 19px; object-fit: cover; }
 .public-event-card > div { display: grid; align-content: center; gap: 14px; }
 .public-event-card h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
 .public-event-card p { display: flex; align-items: center; gap: 8px; }

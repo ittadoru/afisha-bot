@@ -30,7 +30,7 @@ class NormalizedCrop:
 class ImageLimits:
     max_file_bytes: int = 12 * 1024 * 1024
     max_pixels: int = 40_000_000
-    output_width: int = 1600
+    output_width: int = 1200
     output_height: int = 900
 
 
@@ -81,8 +81,8 @@ class EventImageProcessor:
             height = min(round(crop.height * image.height), image.height - top)
             if width <= 0 or height <= 0:
                 raise UnsafeImageError("crop_is_empty")
-            if abs((width / height) - (16 / 9)) > 0.03:
-                raise UnsafeImageError("crop_must_be_16_9")
+            if abs((width / height) - (4 / 3)) > 0.03:
+                raise UnsafeImageError("crop_must_be_4_3")
             image = image.crop(left, top, width, height)
             image = image.thumbnail_image(
                 self._limits.output_width,
