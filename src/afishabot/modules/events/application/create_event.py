@@ -281,7 +281,8 @@ async def create_event(
                 """
                 UPDATE events.events
                 SET current_revision_id=:revision,
-                    approved_revision_id=CASE WHEN :published THEN :revision ELSE NULL END
+                    approved_revision_id=CASE
+                      WHEN :published THEN :revision::uuid ELSE NULL END
                 WHERE id=:event
                 """
             ),
