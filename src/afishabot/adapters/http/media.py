@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -30,6 +31,8 @@ from afishabot.modules.media.application.staged_event_photos import (
 router = APIRouter(prefix="/media", tags=["media"])
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+
+logger = logging.getLogger(__name__)
 
 
 class EventPhotoResponse(BaseModel):
@@ -74,6 +77,7 @@ async def upload_event_photo(
         crop = NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
         await to_thread.run_sync(EventImageProcessor().process, source, destination, crop)
     except UnsafeImageError as error:
+        logger.warning("event_photo_rejected user=%s reason=%s", user_id, error)
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     checksum = await to_thread.run_sync(

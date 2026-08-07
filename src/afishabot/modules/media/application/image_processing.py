@@ -24,8 +24,6 @@ class NormalizedCrop:
             raise UnsafeImageError("crop_is_empty")
         if self.x + self.width > 1.000001 or self.y + self.height > 1.000001:
             raise UnsafeImageError("crop_out_of_bounds")
-        if abs((self.width / self.height) - (16 / 9)) > 0.03:
-            raise UnsafeImageError("crop_must_be_16_9")
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +81,8 @@ class EventImageProcessor:
             height = min(round(crop.height * image.height), image.height - top)
             if width <= 0 or height <= 0:
                 raise UnsafeImageError("crop_is_empty")
+            if abs((width / height) - (16 / 9)) > 0.03:
+                raise UnsafeImageError("crop_must_be_16_9")
             image = image.crop(left, top, width, height)
             image = image.thumbnail_image(
                 self._limits.output_width,

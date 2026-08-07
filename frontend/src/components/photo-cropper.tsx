@@ -8,6 +8,33 @@ import { Button } from "@/components/ui/button";
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
+const PHOTO_ERROR_MESSAGES: Record<string, string> = {
+  unsupported_image: "Подойдут только JPEG, PNG или WebP.",
+  image_too_large: "Фотография должна быть не больше 12 МБ.",
+  empty_image: "Файл пуст. Выберите другое фото.",
+  file_too_large: "Фотография должна быть не больше 12 МБ.",
+  too_many_pixels: "Слишком высокое разрешение (более 40 мегапикселей).",
+  invalid_dimensions: "Файл повреждён или не является изображением.",
+  image_decode_or_encode_failed: "Файл не удалось обработать. Выберите другой JPEG, PNG или WebP.",
+  crop_out_of_bounds: "Не удалось кадрировать. Повторите выделение кадра.",
+  crop_is_empty: "Выделенный кадр пуст. Повторите кадрирование.",
+  crop_must_be_16_9: "Выделите кадр в пропорции 16:9.",
+  event_photo_not_found: "Фотография недоступна. Загрузите её ещё раз.",
+};
+
+async function photoErrorMessage(response: Response): Promise<string> {
+  try {
+    const body: unknown = await response.json();
+    const detail = typeof body === "object" && body !== null && "detail" in body
+      ? (body as { detail: unknown }).detail
+      : null;
+    if (typeof detail === "string") return PHOTO_ERROR_MESSAGES[detail] ?? detail;
+  } catch {
+    // body is not JSON; fall back to generic message
+  }
+  return "Не удалось обработать фотографию. Выберите другую или попробуйте ещё раз.";
+}
+
 export interface EventPhotoUpload {
   upload_id: string;
   preview_url: string;
@@ -70,13 +97,12 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
   const upload = async () => {
     const cropper = cropperRef.current;
     if (!cropper || !file) return;
-    const image = cropper.getImageData();
-    const crop = cropper.getData();
+    const data = cropper.getImageData();
     const normalized = {
-      x: crop.x / image.naturalWidth,
-      y: crop.y / image.naturalHeight,
-      width: crop.width / image.naturalWidth,
-      height: crop.height / image.naturalHeight,
+      x: data.left / data.naturalWidth,
+      y: data.top / data.naturalHeight,
+      width: data.width / data.naturalWidth,
+      height: data.height / data.naturalHeight,
     };
     setBusy(true);
     setError("");
@@ -94,12 +120,14 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
         },
         body: file,
       });
-      if (!response.ok) throw new Error(String(response.status));
+      if (!response.ok) throw new Error(await photoErrorMessage(response));
       onChange(await response.json() as EventPhotoUpload);
       setSource(null);
       setFile(null);
-    } catch {
-      setError("Не удалось обработать фотографию. Выберите другую или попробуйте ещё раз.");
+    } catch (error) {
+      setError(error instanceof Error && error.message
+        ? error.message
+        : "Не удалось обработать фотографию. Выберите другую или попробуйте ещё раз.");
     } finally {
       setBusy(false);
     }
