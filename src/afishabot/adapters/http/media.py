@@ -77,7 +77,16 @@ async def upload_event_photo(
         crop = NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
         await to_thread.run_sync(EventImageProcessor().process, source, destination, crop)
     except UnsafeImageError as error:
-        logger.warning("event_photo_rejected user=%s reason=%s", user_id, error)
+        logger.warning(
+            "event_photo_rejected user=%s reason=%s "
+            "crop_x=%s crop_y=%s crop_width=%s crop_height=%s",
+            user_id,
+            error,
+            crop_x,
+            crop_y,
+            crop_width,
+            crop_height,
+        )
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     checksum = await to_thread.run_sync(

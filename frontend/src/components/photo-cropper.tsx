@@ -99,9 +99,17 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
     const cropper = cropperRef.current;
     if (!cropper || !file) return;
     const box = cropper.getData();
-    const container = cropper.getContainerData();
-    const canvas = cropper.getCanvasData();
-    const normalized = cropFractions(box, container, canvas);
+    const image = cropper.getImageData();
+    const normalized = cropFractions(box, image);
+    if (
+      !Number.isFinite(normalized.x)
+      || !Number.isFinite(normalized.y)
+      || normalized.width <= 0
+      || normalized.height <= 0
+    ) {
+      setError("Выделенный кадр пуст. Повторите кадрирование.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
