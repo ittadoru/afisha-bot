@@ -206,7 +206,8 @@ html[data-fullscreen="true"] { --mini-safe-top: max(var(--tg-safe-top), var(--tg
 .header-spacer { justify-self: end; width: 78px; }
 .mini-content { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; scroll-padding-block: 16px; }
 .mini-content.page-mode { overflow: hidden; }
-.mini-content.page-mode > section { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; }
+.mini-content.page-mode > section { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; padding-top: var(--mini-safe-top); }
+.mini-content.page-mode > section.chat-page { padding-top: calc(var(--mini-safe-top) + 10px); }
 .mini-content.map-mode { overflow: hidden; }
 .mini-content.people-mode { overflow: hidden; }
 .mini-content.map-mode > .embedded-map, .mini-content.map-mode .map-shell, .mini-content.map-mode .map-canvas { height: 100%; min-height: 0; }
