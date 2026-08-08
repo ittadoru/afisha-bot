@@ -21,6 +21,7 @@ interface TelegramWebApp {
   expand: () => void;
   hideKeyboard?: () => void;
   requestFullscreen?: () => void;
+  isFullscreen?: boolean;
   isVersionAtLeast?: (version: string) => boolean;
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;

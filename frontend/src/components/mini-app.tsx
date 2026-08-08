@@ -125,7 +125,9 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       })
       .catch(() => { if (active) setCatalogFailed(true); });
     return () => { active = false; };
-  }, [profile.selected_city_id]);
+  // The catalog is static while the Mini App stays open. Re-fetching it after
+  // PATCH city causes a second, needless map reload.
+  }, []);
 
   const leaveCreate = async (): Promise<boolean> => {
     if (section !== "create" || !createDirty) return true;
@@ -172,7 +174,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   return (
     <main className="mini-app">
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => void openCityChooser()} />
-      <div className="mini-content">
+      <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}`}>
         {choosingCity && <div className="city-chooser-overlay"><CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /></div>}
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />

@@ -81,6 +81,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     let requestId = 0;
     let timer: number | undefined;
     let controller: AbortController | null = null;
+    const eventsController = new AbortController();
+    const resize = () => map.resize();
+    window.addEventListener("miniappviewportchange", resize);
+    window.addEventListener("orientationchange", resize);
     const updateAddress = () => {
       if (!selecting || !city.id) return;
       window.clearTimeout(timer);
@@ -140,7 +144,9 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         return;
       }
       if (!city.id) return;
-      void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include" })
+      publicMarkersRef.current.forEach((item) => item.remove());
+      publicMarkersRef.current = [];
+      void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include", signal: eventsController.signal })
         .then(async (response) => {
           if (!response.ok) throw new Error();
           return await response.json() as { items: PublicMarker[] };
@@ -160,7 +166,9 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
               .setLngLat([item.longitude, item.latitude]).addTo(map);
           });
         })
-        .catch(() => setEmpty(false));
+        .catch((error: unknown) => {
+          if (!(error instanceof DOMException && error.name === "AbortError")) setEmpty(false);
+        });
     });
     map.on("error", () => {
       // MapLibre can report recoverable tile errors. The initial-load timer
@@ -171,6 +179,9 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     return () => {
       window.clearTimeout(timer);
       controller?.abort();
+      eventsController.abort();
+      window.removeEventListener("miniappviewportchange", resize);
+      window.removeEventListener("orientationchange", resize);
       window.clearTimeout(initialLoadTimer);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];

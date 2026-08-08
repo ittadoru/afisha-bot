@@ -23,12 +23,16 @@ function initializeTelegramMiniApp(): void {
   if (!webApp) return;
 
   webApp.ready();
+  const syncFullscreen = () => {
+    document.documentElement.dataset.fullscreen = String(Boolean(webApp.isFullscreen));
+  };
   const expand = () => webApp.expand();
   webApp.onEvent?.("fullscreenFailed", expand);
   try {
     if (webApp.isVersionAtLeast?.("8.0") && webApp.requestFullscreen) webApp.requestFullscreen();
     else expand();
   } catch { expand(); }
+  syncFullscreen();
   const setInset = (prefix: string, inset: { top: number; bottom: number; left: number; right: number } | undefined) => {
     if (!inset) return;
     const root = document.documentElement.style;
@@ -53,10 +57,11 @@ function initializeTelegramMiniApp(): void {
   webApp.onEvent?.("safeAreaChanged", applySafeArea);
   webApp.onEvent?.("contentSafeAreaChanged", applySafeArea);
   webApp.onEvent?.("viewportChanged", applyViewport);
-  webApp.onEvent?.("fullscreenChanged", () => { applySafeArea(); applyViewport(); });
+  webApp.onEvent?.("fullscreenChanged", () => { syncFullscreen(); applySafeArea(); applyViewport(); requestAnimationFrame(() => { applySafeArea(); applyViewport(); }); });
   window.visualViewport?.addEventListener("resize", applyViewport);
   window.visualViewport?.addEventListener("scroll", applyViewport);
   applyViewport();
+  requestAnimationFrame(() => { syncFullscreen(); applySafeArea(); applyViewport(); });
 }
 
 initializeTelegramMiniApp();
