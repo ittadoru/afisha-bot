@@ -438,7 +438,7 @@ async def put_avatar(
     data = bytearray()
     async for chunk in request.stream():
         data.extend(chunk)
-        if len(data) > 5 * 1024 * 1024:
+        if len(data) > 12 * 1024 * 1024:
             raise HTTPException(status_code=413, detail="image_too_large")
     asset_id = uuid4()
     source = settings.media_root / "quarantine" / f"{asset_id}.upload"

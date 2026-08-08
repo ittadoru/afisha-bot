@@ -111,7 +111,7 @@ class AvatarImageProcessor:
     """Create a metadata-free square WebP avatar from a client-selected crop."""
 
     def process(self, source: Path, destination: Path) -> Path:
-        limits = ImageLimits(max_file_bytes=5 * 1024 * 1024, max_pixels=20_000_000, output_width=256, output_height=256)
+        limits = ImageLimits(max_file_bytes=12 * 1024 * 1024, max_pixels=20_000_000, output_width=256, output_height=256)
         if not source.is_file() or source.is_symlink() or source.stat().st_size > limits.max_file_bytes:
             source.unlink(missing_ok=True)
             raise UnsafeImageError("file_too_large")

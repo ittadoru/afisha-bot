@@ -23,7 +23,6 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { AccountProfile } from "@/auth";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
-import { AvatarCropper } from "@/components/avatar-cropper";
 import type { MapCity } from "@/components/event-map";
 import { EventCreation } from "@/components/event-creation";
 import { EventManagement } from "@/components/event-management";
@@ -198,7 +197,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
             {section === "people" && <PeopleList city={selectedCity} csrfToken={csrfToken} onCreate={() => setSection("create")} onOpen={(id) => { setSelectedLookingPostId(id); window.history.pushState({}, "", `/app/looking/${id}`); }} />}
             {section === "create" && <CreateScreen city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection("people"); }} />}
             {section === "notifications" && <Notifications />}
-            {section === "profile" && <Profile profile={profile} initialPublicId={initialPublicId} csrfToken={csrfToken} onUpdate={onProfileUpdate} onChooseCity={() => void openCityChooser()} onLogout={onLogout} onPreview={setPreviewState} />}
+            {section === "profile" && <Profile profile={profile} initialPublicId={initialPublicId} csrfToken={csrfToken} onUpdate={onProfileUpdate} onLogout={onLogout} onPreview={setPreviewState} />}
           </Suspense>
         )}
       </div>
@@ -310,26 +309,70 @@ function Notification({ icon, title, text, urgent = false }: { icon: React.React
   return <article className={`notification${urgent ? " urgent" : ""}`}><span>{icon}</span><div><strong>{title}</strong><p>{text}</p></div><ChevronRight /></article>;
 }
 
-function Profile({ profile, initialPublicId, csrfToken, onUpdate, onChooseCity, onLogout, onPreview }: { profile: AccountProfile; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onChooseCity: () => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void }) {
+function Profile({
+  profile,
+  initialPublicId,
+  csrfToken,
+  onUpdate,
+  onLogout,
+  onPreview,
+}: { profile: AccountProfile; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void }) {
   const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(profile.display_name);
-  const [bio, setBio] = useState(profile.bio ?? "");
   const [lookup, setLookup] = useState(initialPublicId ?? "");
   const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
   const [message, setMessage] = useState("");
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [eventMode, setEventMode] = useState<"upcoming" | "completed" | null>(null);
-  const save = async () => { if (!profile.selected_city_id) { onChooseCity(); return; } const response = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ display_name: name, bio, selected_city_id: profile.selected_city_id, version: profile.version ?? 1 }) }); if (response.ok) { onUpdate(await response.json() as AccountProfile); setEditing(false); setMessage("Профиль сохранён"); } else setMessage(response.status === 409 ? "Псевдоним можно менять раз в 7 дней" : "Не удалось сохранить профиль"); };
-  const upload = async (file: Blob) => { const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file }); if (response.ok) { onUpdate(await response.json() as AccountProfile); setAvatarFile(null); } else setMessage("Не удалось обработать фотографию"); };
-  const removeAvatar = async () => { const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); if (response.ok) onUpdate(await response.json() as AccountProfile); };
+  const upload = async (file: Blob) => {
+    if (avatarBusy) return;
+    setMessage("");
+    setAvatarBusy(true);
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file });
+      if (response.ok) onUpdate(await response.json() as AccountProfile);
+      else setMessage(response.status === 413 ? "Фото слишком большое — максимум 12 МБ." : "Не удалось обработать фотографию");
+    } catch {
+      setMessage("Нет связи с сервером.");
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+  const removeAvatar = async () => {
+    if (avatarBusy) return;
+    const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
+    if (response.ok) onUpdate(await response.json() as AccountProfile);
+    else setMessage("Не удалось удалить фотографию");
+  };
   const openPublic = useCallback(async () => { const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${lookup}`, { credentials: "include" }); if (response.ok) { setPublicProfile(await response.json() as AccountProfile); window.history.pushState({}, "", `/app/profile/${lookup}`); } else setMessage("Профиль не найден"); }, [lookup]);
   useEffect(() => { if (initialPublicId) void openPublic(); }, [initialPublicId, openPublic]);
   if (publicProfile) return <PublicProfile profile={publicProfile} csrfToken={csrfToken} onBack={() => { setPublicProfile(null); window.history.pushState({}, "", "/app"); }} />;
-  if (avatarFile) return <AvatarCropper file={avatarFile} onCancel={() => setAvatarFile(null)} onConfirm={(blob) => void upload(blob)} />;
+  if (editing) return <ProfileEditor profile={profile} csrfToken={csrfToken} onUpdate={onUpdate} onDone={() => { setEditing(false); setMessage("Профиль сохранён"); }} onBack={() => setEditing(false)} />;
   if (eventMode) return <AccountEvents state={eventMode} csrfToken={csrfToken} onBack={() => setEventMode(null)} />;
-  return <section className="feed profile-screen"><div className="profile-card">{profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Ваш аватар" /> : <span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span>}<div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p>ID <button className="copy-id" type="button" onClick={() => void navigator.clipboard.writeText(profile.public_id)}>{profile.public_id}</button> · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><div className="profile-stats"><div><strong>{profile.upcoming_count ?? 0}</strong><span>будущих</span></div><div><strong>{profile.completed_count ?? 0}</strong><span>завершено</span></div><div><strong>{profile.successful_events ?? 0}</strong><span>успешных</span></div></div>{editing ? <div className="profile-editor"><label>Псевдоним<input value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /></label><label>О себе<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} /></label><button className="selected-city" type="button" onClick={onChooseCity}><MapPin /><span><small>Город</small>{profile.city_name ?? "Выберите"}</span><ChevronRight /></button><Button onClick={() => void save()}>Сохранить</Button></div> : <><p className="profile-bio">{profile.bio || "Описание пока не заполнено"}</p><Button onClick={() => setEditing(true)}>Редактировать профиль</Button></>}<div className="profile-photo-actions"><label className="file-picker"><span>Загрузить фотографию</span><input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0]; if (file) setAvatarFile(file); }} /></label>{profile.avatar_url && <Button variant="outline" onClick={() => void removeAvatar()}>Удалить фотографию</Button>}</div>{message && <p className="success-message" role="status">{message}</p>}<h2 className="group-title">События</h2><button className="menu-row" type="button" onClick={() => setEventMode("upcoming")}><span>Будущие события</span><ChevronRight /></button><button className="menu-row" type="button" onClick={() => setEventMode("completed")}><span>Завершённые события</span><ChevronRight /></button><h2 className="group-title">Открыть профиль</h2><div className="profile-lookup"><input inputMode="numeric" maxLength={8} placeholder="Восьмизначный номер" value={lookup} onChange={(event) => setLookup(event.target.value.replace(/\D/g, ""))} /><Button disabled={lookup.length !== 8} onClick={() => void openPublic()}>Открыть</Button></div><Button variant="outline" onClick={() => void onLogout()}>Выйти</Button><h2 className="group-title">Состояния экранов</h2><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
+  return <section className="feed profile-screen"><div className="profile-card">{profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Ваш аватар" /> : <span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span>}<div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p>ID <button className="copy-id" type="button" onClick={() => void navigator.clipboard.writeText(profile.public_id)}>{profile.public_id}</button> · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><div className="profile-stats"><div><strong>{profile.upcoming_count ?? 0}</strong><span>будущих</span></div><div><strong>{profile.completed_count ?? 0}</strong><span>завершено</span></div><div><strong>{profile.successful_events ?? 0}</strong><span>успешных</span></div></div><p className="profile-bio">{profile.bio || "Описание пока не заполнено"}</p><Button onClick={() => setEditing(true)}>Редактировать профиль</Button><div className="profile-photo-actions"><label className="file-picker">{avatarBusy ? <span>Загружаем фото…</span> : <span>Загрузить фотографию</span>}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label>{profile.avatar_url && <Button variant="outline" disabled={avatarBusy} onClick={() => void removeAvatar()}>Удалить фотографию</Button>}</div>{message && <p className="success-message" role="status">{message}</p>}<h2 className="group-title">События</h2><button className="menu-row" type="button" onClick={() => setEventMode("upcoming")}><span>Будущие события</span><ChevronRight /></button><button className="menu-row" type="button" onClick={() => setEventMode("completed")}><span>Завершённые события</span><ChevronRight /></button><h2 className="group-title">Открыть профиль</h2><div className="profile-lookup"><input inputMode="numeric" maxLength={8} placeholder="Восьмизначный номер" value={lookup} onChange={(event) => setLookup(event.target.value.replace(/\D/g, ""))} /><Button disabled={lookup.length !== 8} onClick={() => void openPublic()}>Открыть</Button></div><Button variant="outline" onClick={() => void onLogout()}>Выйти</Button><h2 className="group-title">Состояния экранов</h2><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></section>;
 }
+
+function ProfileEditor({ profile, csrfToken, onUpdate, onDone, onBack }: { profile: AccountProfile; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onDone: () => void; onBack: () => void }) {
+  const [name, setName] = useState(profile.display_name);
+  const [bio, setBio] = useState(profile.bio ?? "");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const save = async () => {
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ display_name: name, bio, selected_city_id: profile.selected_city_id, version: profile.version ?? 1 }) });
+      if (response.ok) { onUpdate(await response.json() as AccountProfile); onDone(); }
+      else setMessage(response.status === 409 ? "Псевдоним можно менять раз в 7 дней" : "Не удалось сохранить профиль");
+    } catch {
+      setMessage("Нет связи с сервером.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return <section className="feed profile-screen"><button className="text-back" type="button" onClick={onBack}>← Назад</button><p className="section-kicker">Профиль</p><h1>Редактировать профиль</h1><div className="profile-editor"><label>Псевдоним<input value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /></label><label>О себе<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} /></label></div>{message && <p className="form-error" role="alert">{message}</p>}<Button disabled={saving || !name.trim()} onClick={() => void save()}>{saving ? "Сохраняем…" : "Сохранить"}</Button></section>;
+}
+
 
 function AccountEvents({ state, csrfToken, onBack }: { state: "upcoming" | "completed"; csrfToken: string; onBack: () => void }) {
   const [items, setItems] = useState<ProfileEvent[] | null>(null);
