@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-EXPECTED_MIGRATION_HEAD = "0028_manual_event_address_parts"
+EXPECTED_MIGRATION_HEAD = "0029_event_chat_and_telegram"
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:
