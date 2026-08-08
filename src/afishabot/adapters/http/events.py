@@ -83,6 +83,7 @@ class CreateEventRequest(BaseModel):
     address_visibility: Literal[
         "street_only", "exact_participants", "exact_public"
     ]
+    location_note: str | None = Field(default=None, max_length=80)
     exact_address_confirmed: bool
     photo_upload_id: UUID
 
@@ -101,6 +102,14 @@ class CreateEventRequest(BaseModel):
         if not normalized:
             raise ValueError("text must not be blank")
         return normalized
+
+    @field_validator("location_note")
+    @classmethod
+    def location_note_must_be_compact(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = " ".join(value.split())
+        return normalized or None
 
     @field_validator("starts_at", "ends_at")
     @classmethod
@@ -275,6 +284,7 @@ async def submit_event(
                 latitude=body.latitude,
                 longitude=body.longitude,
                 address_visibility=body.address_visibility,
+                location_note=body.location_note,
                 photo_upload_id=body.photo_upload_id,
                 canonical_address=canonical_address,
                 street_anchor_id=street_anchor_id,

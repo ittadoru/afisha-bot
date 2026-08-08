@@ -34,6 +34,7 @@ class CreateEventCommand:
     latitude: float
     longitude: float
     address_visibility: AddressVisibility
+    location_note: str | None
     photo_upload_id: UUID
     canonical_address: CanonicalAddress
     street_anchor_id: UUID | None = None
@@ -245,13 +246,13 @@ async def create_event(
             text(
                 """
                 INSERT INTO events.event_revisions
-                    (id, event_id, revision_number, title, description,
+                    (id, event_id, revision_number, title, description, landmark,
                      starts_at, ends_at, location, normalized_address,
                      street_name, address_visibility, street_anchor_id,
                      moderation_status,
                      decided_at)
                 VALUES
-                    (:revision, :event, 1, :title, :description, :starts, :ends,
+                    (:revision, :event, 1, :title, :description, :location_note, :starts, :ends,
                      ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
                      :address, :street, :visibility, :street_anchor,
                      :moderation,
@@ -263,6 +264,7 @@ async def create_event(
                 "event": event_id,
                 "title": command.title,
                 "description": command.description,
+                "location_note": command.location_note,
                 "starts": command.starts_at,
                 "ends": command.ends_at,
                 "longitude": command.longitude,

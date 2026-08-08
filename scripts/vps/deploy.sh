@@ -56,9 +56,8 @@ else
 fi
 
 printf 'Starting data services...\n'
-mkdir -p var
-touch var/admin-metrics.json
-chmod 0644 var/admin-metrics.json
+mkdir -p var/admin-metrics
+bash "$repo_root/scripts/vps/install_admin_metrics_socket.sh"
 docker compose up --detach --wait postgres redis
 
 printf 'Applying database migrations once...\n'

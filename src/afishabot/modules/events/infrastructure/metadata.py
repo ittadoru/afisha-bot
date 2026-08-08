@@ -78,7 +78,7 @@ event_revisions = Table(
     Column("title", String(60), nullable=False),
     Column("description", String(1000), nullable=False),
     Column("rules", String(1000)),
-    Column("landmark", String(20)),
+    Column("landmark", String(80)),
     Column("starts_at", DateTime(timezone=True), nullable=False),
     Column("ends_at", DateTime(timezone=True), nullable=False),
     Column("location", Geography(), nullable=False),

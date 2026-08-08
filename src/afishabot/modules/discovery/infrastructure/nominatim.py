@@ -133,11 +133,15 @@ class NominatimReverseGeocoder:
         city = NominatimReverseGeocoder._locality(canonical)
         region = NominatimReverseGeocoder._first_text(canonical, "state", "county")
         place_id = NominatimReverseGeocoder._first_text(canonical, "place_id", "osm_id")
-        street = NominatimReverseGeocoder._optional_text(canonical, "street")
-        precision = "street" if street else "locality"
+        street = NominatimReverseGeocoder._street(canonical)
+        house_number = NominatimReverseGeocoder._optional_text(
+            canonical, "housenumber"
+        )
+        precision = "house" if house_number else "street" if street else "locality"
         return CanonicalAddress(
             display_name=display_name,
             street=street,
+            house_number=house_number,
             city=city,
             region=region,
             provider_place_id=place_id,
@@ -177,6 +181,25 @@ class NominatimReverseGeocoder:
         ):
             return str(name).strip()
         raise ReverseGeocodingMalformed
+
+    @staticmethod
+    def _street(data: Mapping[str, object]) -> str | None:
+        street = NominatimReverseGeocoder._optional_text(data, "street")
+        if street is not None:
+            return street
+        kind = data.get("type")
+        name = data.get("name")
+        if (
+            isinstance(kind, str)
+            and kind in {
+                "street", "road", "residential", "service", "pedestrian",
+                "living_street", "primary", "secondary", "tertiary",
+            }
+            and isinstance(name, (str, int))
+            and str(name).strip()
+        ):
+            return str(name).strip()
+        return None
 
     @staticmethod
     def _optional_text(data: Mapping[str, object], key: str) -> str | None:

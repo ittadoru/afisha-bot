@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     )
     redis_url: SecretStr = SecretStr("redis://redis:6379/0")
     media_root: Path = Path("/var/lib/afisha/media")
-    admin_metrics_file: Path = Path("/var/run/afisha/admin-metrics.json")
+    admin_metrics_file: Path = Path("/var/run/afisha/admin-metrics/snapshot.json")
+    admin_metrics_socket: Path = Path("/var/run/afisha/host/metrics.sock")
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     nominatim_url: str = "http://nominatim:8080"
     nominatim_timeout_seconds: float = Field(default=1.2, gt=0, le=2.5)

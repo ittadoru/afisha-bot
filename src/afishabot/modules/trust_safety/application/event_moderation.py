@@ -70,7 +70,7 @@ async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
                     """
                     SELECT q.id, q.event_id, q.event_revision_id, q.submitted_at,
                            r.title, r.description, r.starts_at, r.ends_at,
-                           r.normalized_address, r.street_name,
+                           r.normalized_address, r.street_name, r.landmark,
                            r.address_visibility,
                            ST_Y(r.location::geometry) AS latitude,
                            ST_X(r.location::geometry) AS longitude,
@@ -179,7 +179,7 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 UPDATE events.events
                 SET lifecycle_status=:lifecycle, moderation_status=:event_status,
                     approved_revision_id=CASE
-                      WHEN :approved THEN :revision ELSE approved_revision_id END,
+                      WHEN :approved THEN CAST(:revision AS uuid) ELSE approved_revision_id END,
                     schedule_changes_used=schedule_changes_used+
                       CASE WHEN :schedule_changed AND :approved THEN 1 ELSE 0 END,
                     version=version+1, updated_at=now()

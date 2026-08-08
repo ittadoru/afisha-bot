@@ -94,7 +94,13 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-create-actions button { min-height: 46px; padding: 0 22px; border: 0; border-radius: 9px; color: #fff; background: #176b59; font: inherit; font-weight: 800; cursor: pointer; }
 .admin-create-actions button:disabled { opacity: .6; cursor: wait; }
 .admin-create-actions .admin-ghost { color: #5a6863; background: #eef2f1; }
-.admin-section-title { margin: 30px 0 14px; font-size: 15px; }
+.admin-section-heading { display: flex; align-items: center; gap: 8px; margin-top: 30px; }
+.admin-section-title { margin: 0 0 14px; font-size: 15px; }
+.admin-icon-button { display: grid; place-items: center; width: 30px; height: 30px; margin: 0 0 14px; padding: 0; border: 1px solid #cfd9d5; border-radius: 8px; color: #176b59; background: #fff; cursor: pointer; }
+.admin-icon-button:hover { background: #eef6f3; }
+.admin-icon-button:disabled { opacity: .6; cursor: wait; }
+.admin-icon-button svg { width: 16px; height: 16px; }
+.spinning { animation: admin-spin .8s linear infinite; }
 @keyframes admin-spin { to { transform: rotate(360deg); } }
 @media (max-width: 760px) {
   .admin-layout { grid-template-columns: 1fr; }

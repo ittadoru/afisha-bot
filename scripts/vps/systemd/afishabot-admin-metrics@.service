@@ -1,0 +1,15 @@
+[Unit]
+Description=AfishaBot on-demand VPS metrics collector (%i)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/afishabot
+ExecStart=/opt/afishabot/scripts/vps/collect_admin_metrics.sh --stdout
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+TimeoutStartSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/opt/afishabot/var/admin-metrics

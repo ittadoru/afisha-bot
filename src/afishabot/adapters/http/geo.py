@@ -22,6 +22,7 @@ router = APIRouter(prefix="/geo", tags=["geo"])
 class ReverseGeocodingResponse(BaseModel):
     display_name: str
     street: str | None
+    house_number: str | None
     city: str
     region: str
     provider_place_id: str

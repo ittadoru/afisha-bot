@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import asdict
 from datetime import datetime
 import json
@@ -24,6 +25,7 @@ from afishabot.modules.trust_safety.application.staff_admin import (
     contextual_hash,
     create_login_bootstrap,
     dashboard_counts,
+    load_staff_read_session,
     load_staff_session,
     load_staff_mutation_session,
     record_admin_event,
@@ -234,7 +236,7 @@ async def me(
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
     identity, csrf_token = await _require_session(
-        engine, session_token, _required_secret(settings)
+        engine, session_token, _required_secret(settings), rotate_csrf=True
     )
     response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
@@ -271,10 +273,9 @@ async def dashboard(
 ) -> DashboardResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, csrf_token = await _require_session(
+    _, _ = await _require_session(
         engine, session_token, _required_secret(settings)
     )
-    response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     return DashboardResponse(**asdict(await dashboard_counts(engine)))
 
@@ -287,17 +288,44 @@ async def system_metrics(
 ) -> SystemMetricsResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, csrf_token = await _require_session(engine, session_token, _required_secret(settings))
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     try:
         raw = json.loads(settings.admin_metrics_file.read_text(encoding="utf-8"))
         result = SystemMetricsResponse.model_validate(raw)
     except (OSError, ValueError) as error:
         raise _error(503, "system_metrics_unavailable") from error
-    if (datetime.now().astimezone() - result.collected_at).total_seconds() > 180:
-        raise _error(503, "system_metrics_stale")
-    response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     return result
+
+
+@router.post("/system/metrics/refresh", response_model=SystemMetricsResponse)
+async def refresh_system_metrics(
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> SystemMetricsResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(
+        engine, token=session_token, csrf_token=csrf_token,
+        auth_secret=_required_secret(settings),
+    )
+    if identity is None:
+        raise _error(401, "admin_session_required")
+    try:
+        reader, writer = await asyncio.wait_for(
+            asyncio.open_unix_connection(str(settings.admin_metrics_socket)), timeout=2
+        )
+        try:
+            payload = await asyncio.wait_for(reader.read(), timeout=15)
+        finally:
+            writer.close()
+            await writer.wait_closed()
+        return SystemMetricsResponse.model_validate_json(payload)
+    except (OSError, TimeoutError, ValueError) as error:
+        raise _error(503, "system_metrics_refresh_unavailable") from error
 
 
 @router.get("/media/analysis", response_model=ImageAnalysisResponse)
@@ -308,7 +336,7 @@ async def image_analysis(
 ) -> ImageAnalysisResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, csrf_token = await _require_session(engine, session_token, _required_secret(settings))
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     formats: dict[str, int] = {}
     total_bytes = 0
     file_count = 0
@@ -324,7 +352,6 @@ async def image_analysis(
             formats[suffix] = formats.get(suffix, 0) + 1
             total_bytes += size
             file_count += 1
-    response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     return ImageAnalysisResponse(file_count=file_count, total_bytes=total_bytes, formats=formats)
 
@@ -338,7 +365,7 @@ async def audit(
 ) -> AuditPageResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, csrf_token = await _require_session(
+    _, _ = await _require_session(
         engine, session_token, _required_secret(settings)
     )
     rows = await audit_page(engine, before=before)
@@ -352,7 +379,6 @@ async def audit(
         )
         for row in rows
     ]
-    response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     return AuditPageResponse(
         items=items,
@@ -370,8 +396,7 @@ async def event_reviews(
 ) -> dict[str, object]:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, rotated = await _require_session(engine, session_token, _required_secret(settings))
-    response.headers[CSRF_HEADER] = rotated
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     rows = await review_queue(engine, offset=offset, limit=limit + 1)
     return {"items": rows[:limit], "next_offset": offset + limit if len(rows) > limit else None}
 
@@ -383,13 +408,12 @@ async def event_review_detail(
 ) -> dict[str, object]:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, rotated = await _require_session(engine, session_token, _required_secret(settings))
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     try:
         detail = await review_detail(engine, review_id)
     except ModerationNotFound as error:
         raise _error(404, "review_not_found") from error
     detail["photo_url"] = f"/api/admin/events/reviews/{review_id}/photo"
-    response.headers[CSRF_HEADER] = rotated
     return detail
 
 
@@ -511,7 +535,7 @@ async def special_events(
 ) -> dict[str, object]:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    identity, rotated = await _require_session(
+    identity, _ = await _require_session(
         engine, session_token, _required_secret(settings)
     )
     if identity.role != "admin":
@@ -531,7 +555,6 @@ async def special_events(
                 )
             )
         ).mappings().all()
-    response.headers[CSRF_HEADER] = rotated
     return {"items": [dict(row) for row in rows]}
 
 
@@ -539,13 +562,20 @@ async def _require_session(
     engine: AsyncEngine,
     token: str | None,
     secret: bytes,
-) -> tuple[StaffIdentity, str]:
+    *,
+    rotate_csrf: bool = False,
+) -> tuple[StaffIdentity, str | None]:
     if token is None:
         raise _error(401, "admin_session_required")
-    session = await load_staff_session(engine, token=token, auth_secret=secret)
-    if session is None:
+    if rotate_csrf:
+        session = await load_staff_session(engine, token=token, auth_secret=secret)
+        if session is None:
+            raise _error(401, "admin_session_required")
+        return session
+    identity = await load_staff_read_session(engine, token=token, auth_secret=secret)
+    if identity is None:
         raise _error(401, "admin_session_required")
-    return session
+    return identity, None
 
 
 def _dependencies(request: Request) -> tuple[Settings, Redis, AsyncEngine]:

@@ -1,0 +1,12 @@
+[Unit]
+Description=AfishaBot on-demand VPS metrics socket
+
+[Socket]
+ListenStream=/run/afishabot/admin-metrics.sock
+SocketMode=0666
+DirectoryMode=0755
+Accept=yes
+Service=afishabot-admin-metrics@.service
+
+[Install]
+WantedBy=sockets.target

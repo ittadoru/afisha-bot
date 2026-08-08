@@ -334,6 +334,45 @@ async def load_staff_session(
     return StaffIdentity(row["id"], row["login"], row["role"]), csrf_token
 
 
+async def load_staff_read_session(
+    engine: AsyncEngine,
+    *,
+    token: str,
+    auth_secret: bytes,
+) -> StaffIdentity | None:
+    """Validate a staff session without replacing its CSRF token.
+
+    Read endpoints must not rotate the token: browser subresources such as an
+    image cannot expose a response header to the application JavaScript.
+    """
+    now = datetime.now(UTC)
+    async with engine.begin() as connection:
+        row = (
+            await connection.execute(
+                text(
+                    """
+                    UPDATE trust_safety.staff_sessions AS s
+                    SET last_seen_at=:now
+                    FROM trust_safety.staff_accounts AS a
+                    WHERE s.staff_id=a.id
+                      AND s.token_hash=:token_hash
+                      AND s.revoked_at IS NULL AND s.expires_at>:now
+                      AND s.last_seen_at>:idle_cutoff AND a.status='active'
+                    RETURNING a.id,a.login,a.role
+                    """
+                ),
+                {
+                    "now": now,
+                    "idle_cutoff": now - IDLE_LIFETIME,
+                    "token_hash": contextual_hash(auth_secret, "admin-session", token),
+                },
+            )
+        ).mappings().one_or_none()
+    if row is None:
+        return None
+    return StaffIdentity(row["id"], row["login"], row["role"])
+
+
 async def load_staff_mutation_session(
     engine: AsyncEngine,
     *,

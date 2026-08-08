@@ -5,6 +5,7 @@ from dataclasses import dataclass
 class CanonicalAddress:
     display_name: str
     street: str | None
+    house_number: str | None
     city: str
     region: str
     provider_place_id: str

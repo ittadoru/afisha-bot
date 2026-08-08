@@ -103,6 +103,7 @@ def test_nominatim_parses_only_canonical_fields() -> None:
     )
 
     assert result.street == "улица Дахадаева"
+    assert result.house_number is None
     assert result.provider_place_id == "123"
     assert not hasattr(result, "untrusted_extra")
 
@@ -120,6 +121,35 @@ def test_nominatim_parses_a_city_feature_without_a_street() -> None:
     assert result.city == "Хасавюрт"
     assert result.street is None
     assert result.precision == "locality"
+
+
+def test_nominatim_uses_address_feature_name_for_street_and_house() -> None:
+    result = NominatimReverseGeocoder.parse(
+        {
+            "features": [{"properties": {"geocoding": {
+                "label": "улица Гагарина, Дербент, Дагестан, Россия",
+                "type": "street", "name": "улица Гагарина",
+                "city": "Дербент", "state": "Дагестан", "osm_id": 42,
+            }}}]
+        },
+        "ru",
+    )
+    assert result.street == "улица Гагарина"
+    assert result.house_number is None
+    assert result.precision == "street"
+
+    house = NominatimReverseGeocoder.parse(
+        {
+            "features": [{"properties": {"geocoding": {
+                "label": "3, улица Фурманова, Махачкала, Дагестан, Россия",
+                "street": "улица Фурманова", "housenumber": "3",
+                "city": "Махачкала", "state": "Дагестан", "osm_id": 43,
+            }}}]
+        },
+        "ru",
+    )
+    assert house.house_number == "3"
+    assert house.precision == "house"
 
 
 def test_nominatim_rejects_an_arbitrary_name_as_a_city() -> None:

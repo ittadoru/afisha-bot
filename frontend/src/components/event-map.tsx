@@ -35,6 +35,8 @@ export interface ResolvedLocation {
   longitude: number;
   display_name: string;
   street: string | null;
+  house_number: string | null;
+  precision: "house" | "street" | "locality";
 }
 
 const DEFAULT_CITY: MapCity = { id: "", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047 };
@@ -113,10 +115,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             return;
           }
           if (!response.ok) throw new Error("location resolution failed");
-          const data = (await response.json()) as { display_name: string; street: string | null };
+          const data = (await response.json()) as { display_name: string; street: string | null; house_number: string | null; precision: "house" | "street" | "locality" };
           if (currentRequest === requestId) {
             setAddress(data.display_name);
-            onLocationChange?.({ latitude: lat, longitude: lng, display_name: data.display_name, street: data.street });
+            onLocationChange?.({ latitude: lat, longitude: lng, display_name: data.display_name, street: data.street, house_number: data.house_number, precision: data.precision });
           }
         } catch {
           if (currentRequest === requestId) {

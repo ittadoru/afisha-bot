@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Runs from cron on the host. The API receives only this read-only snapshot;
-# it never receives the Docker socket or host /proc mount.
+# Runs on demand from a systemd socket. The API receives only this read-only
+# snapshot; it never receives the Docker socket or host /proc mount.
 repo_root="$(git -C /opt/afishabot rev-parse --show-toplevel)"
-output_dir="$repo_root/var"
-output_file="$output_dir/admin-metrics.json"
-temporary_file="$output_dir/.admin-metrics.json.$$"
+output_dir="$repo_root/var/admin-metrics"
+output_file="$output_dir/snapshot.json"
+temporary_file="$output_dir/.snapshot.json.$$"
 mkdir -p "$output_dir"
+exec 9>"$output_dir/.collector.lock"
+flock 9
 
 disk_line="$(df -B1 --output=size,used,avail / | tail -n 1)"
 read -r disk_size disk_used disk_available <<<"$disk_line"
@@ -56,3 +58,7 @@ PY
 rm -f "$temporary_file.containers"
 chmod 0644 "$temporary_file"
 mv -f "$temporary_file" "$output_file"
+
+if [[ "${1:-}" == "--stdout" ]]; then
+  cat "$output_file"
+fi

@@ -39,6 +39,7 @@ async def test_reverse_geo_returns_canonical_projection() -> None:
     address = CanonicalAddress(
         display_name="улица Дахадаева, Махачкала",
         street="улица Дахадаева",
+        house_number=None,
         city="Махачкала",
         region="Республика Дагестан",
         provider_place_id="123",

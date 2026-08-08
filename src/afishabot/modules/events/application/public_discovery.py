@@ -40,7 +40,8 @@ async def _event_list(
                                         WHERE p.event_id=e.id
                                           AND p.user_id=CAST(:viewer AS uuid)
                                           AND p.status='active'))
-                                THEN r.normalized_address ELSE r.street_name END
+                                THEN concat_ws(' · ', r.normalized_address, r.landmark)
+                                ELSE r.street_name END
                              AS visible_address,
                            e.capacity,
                            (SELECT count(*) FROM events.participation_episodes p
@@ -161,7 +162,8 @@ async def event_detail(
                                         WHERE p.event_id=e.id
                                           AND p.user_id=CAST(:viewer AS uuid)
                                           AND p.status='active')))
-                                THEN r.normalized_address ELSE r.street_name END
+                                THEN concat_ws(' · ', r.normalized_address, r.landmark)
+                                ELSE r.street_name END
                              AS visible_address,
                            CASE WHEN e.lifecycle_status='published'
                                 AND r.ends_at>now() AND
