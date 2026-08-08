@@ -1,11 +1,16 @@
+from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
 from fastapi import HTTPException, Request
+from httpx import ASGITransport, AsyncClient
 
 from afishabot.adapters.http.geo import reverse_geocode
+from afishabot.app import create_app
+from afishabot.core.config import Settings
 from afishabot.modules.discovery.infrastructure.nominatim import (
     NominatimReverseGeocoder,
 )
@@ -79,3 +84,58 @@ async def test_reverse_geo_maps_provider_errors(
 
     assert captured.value.status_code == status_code
     assert captured.value.detail == detail
+
+
+async def test_catalog_returns_city_service_areas(settings: Settings) -> None:
+    city_id = uuid4()
+    city_rows = [
+        {
+            "id": city_id,
+            "slug": "makhachkala",
+            "name": "Махачкала",
+            "center_latitude": 42.98,
+            "center_longitude": 47.50,
+            "west": 47.1,
+            "south": 42.7,
+            "east": 47.8,
+            "north": 43.3,
+            "allowed_area": '{"type":"Polygon","coordinates":[]}',
+        }
+    ]
+    category_rows = [
+        {
+            "id": uuid4(),
+            "slug": "sport",
+            "name": "Спорт",
+            "is_special": False,
+            "organizer_selectable": True,
+        }
+    ]
+    connection = SimpleNamespace(execute=AsyncMock(side_effect=[
+        SimpleNamespace(mappings=lambda: city_rows),
+        SimpleNamespace(mappings=lambda: category_rows),
+    ]))
+
+    @asynccontextmanager
+    async def connect() -> object:
+        yield connection
+
+    app = create_app(settings)
+    app.state.database_engine = SimpleNamespace(connect=connect)
+    transport = ASGITransport(app=app)
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/geo/catalog")
+
+    assert response.status_code == 200
+    city = response.json()["cities"][0]
+    assert city["id"] == str(city_id)
+    assert city["service_radius_m"] == 20_000
+    assert city["map_bounds"] == {
+        "west": 47.1,
+        "south": 42.7,
+        "east": 47.8,
+        "north": 43.3,
+    }
+    assert city["allowed_area"] == {"type": "Polygon", "coordinates": []}
+    assert connection.execute.await_args_list[0].args[1] == {"radius_meters": 20_000}

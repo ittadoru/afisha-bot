@@ -106,9 +106,9 @@ async def catalog(
                         ELSE 99
                     END
                     """
-                )
-            ),
-            {"radius_meters": SERVICE_AREA_RADIUS_METERS},
+                ),
+                {"radius_meters": SERVICE_AREA_RADIUS_METERS},
+            )
         ).mappings()
         category_rows = (
             await connection.execute(
