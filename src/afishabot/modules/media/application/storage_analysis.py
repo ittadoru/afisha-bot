@@ -16,6 +16,13 @@ MAX_SAMPLE_BYTES = 16 * 1024 * 1024
 MAX_SAMPLE_SECONDS = 10.0
 
 
+def _as_row_int(row: dict[str, Any]) -> dict[str, Any]:
+    for key in ("file_count", "total_bytes"):
+        if key in row:
+            row[key] = int(row[key])
+    return row
+
+
 async def inventory(engine: AsyncEngine) -> dict[str, Any]:
     async with engine.connect() as connection:
         totals = (
@@ -75,7 +82,7 @@ async def inventory(engine: AsyncEngine) -> dict[str, Any]:
             .all()
         )
     total = int(totals["total_bytes"])
-    top = [dict(row) for row in directories[:8]]
+    top = [_as_row_int(dict(row)) for row in directories[:8]]
     remainder = directories[8:]
     if remainder:
         top.append(
@@ -89,8 +96,8 @@ async def inventory(engine: AsyncEngine) -> dict[str, Any]:
         "collected_at": datetime.now(UTC).isoformat(),
         "source": "database",
         **{key: int(value) for key, value in totals.items()},
-        "formats": [dict(row) for row in formats],
-        "purposes": [dict(row) for row in purposes],
+        "formats": [_as_row_int(dict(row)) for row in formats],
+        "purposes": [_as_row_int(dict(row)) for row in purposes],
         "directories": [
             {
                 **row,
