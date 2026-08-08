@@ -37,7 +37,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 256m
 
   frontend:
     image: ${AFISHA_FRONTEND_IMAGE:-afishabot-frontend:local}
@@ -161,7 +161,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384m
+          memory: 512m
 
   worker:
     <<: *app
@@ -185,7 +185,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 384m
+          memory: 512m
 
   beat:
     <<: *app
@@ -208,7 +208,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 192m
+          memory: 256m
 
   checks:
     profiles: ["verify"]
