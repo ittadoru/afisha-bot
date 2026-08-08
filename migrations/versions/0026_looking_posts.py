@@ -24,17 +24,14 @@ def upgrade() -> None:
             title varchar(30) NOT NULL CHECK (char_length(trim(title)) BETWEEN 1 AND 30),
             body varchar(300) NOT NULL CHECK (char_length(trim(body)) BETWEEN 1 AND 300),
             status text NOT NULL DEFAULT 'active'
-                CHECK (status IN ('active','converted','expired','hidden')),
+                CHECK (status IN ('active','expired','hidden')),
             version integer NOT NULL DEFAULT 1 CHECK (version > 0),
-            pending_event_id uuid UNIQUE,
-            converted_event_id uuid UNIQUE,
             created_at timestamptz NOT NULL DEFAULT now(),
             expires_at timestamptz NOT NULL DEFAULT now() + interval '72 hours',
             closed_at timestamptz,
             delete_after timestamptz,
             CHECK ((status='active' AND closed_at IS NULL)
-                OR (status<>'active' AND closed_at IS NOT NULL)),
-            CHECK (converted_event_id IS NULL OR status='converted')
+                OR (status<>'active' AND closed_at IS NOT NULL))
         )
         """
     )
@@ -78,6 +75,19 @@ def upgrade() -> None:
         "CREATE INDEX ix_looking_post_questions_public ON discovery.looking_post_questions(looking_post_id, answered_at, id) WHERE answer IS NOT NULL"
     )
     op.execute(
+        """
+        CREATE TABLE discovery.looking_post_requests (
+            user_id uuid NOT NULL,
+            idempotency_key uuid NOT NULL,
+            action varchar(16) NOT NULL CHECK (action IN ('create','question','answer')),
+            request_fingerprint char(64) NOT NULL,
+            resource_id uuid NOT NULL,
+            created_at timestamptz NOT NULL DEFAULT now(),
+            PRIMARY KEY (user_id, idempotency_key)
+        )
+        """
+    )
+    op.execute(
         "ALTER TABLE trust_safety.profile_reports ADD COLUMN source_question_id uuid, ADD COLUMN source_looking_post_id uuid"
     )
     op.execute(
@@ -88,6 +98,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("ALTER TABLE trust_safety.profile_reports DROP CONSTRAINT ck_profile_report_source")
     op.execute("ALTER TABLE trust_safety.profile_reports DROP COLUMN source_looking_post_id, DROP COLUMN source_question_id")
+    op.execute("DROP TABLE discovery.looking_post_requests")
     op.execute("DROP TABLE discovery.looking_post_questions")
     op.execute("DROP TABLE discovery.looking_post_likes")
     op.execute("DROP TABLE discovery.looking_posts")

@@ -28,19 +28,33 @@ function initializeTelegramMiniApp(): void {
     if (webApp.isVersionAtLeast?.("8.0") && webApp.requestFullscreen) webApp.requestFullscreen();
     else expand();
   } catch { expand(); }
-  const applySafeArea = () => {
-    const inset = webApp.contentSafeAreaInset ?? webApp.safeAreaInset;
+  const setInset = (prefix: string, inset: { top: number; bottom: number; left: number; right: number } | undefined) => {
     if (!inset) return;
     const root = document.documentElement.style;
-    root.setProperty("--tg-safe-top", `${inset.top}px`);
-    root.setProperty("--tg-safe-bottom", `${inset.bottom}px`);
-    root.setProperty("--tg-safe-left", `${inset.left}px`);
-    root.setProperty("--tg-safe-right", `${inset.right}px`);
+    root.setProperty(`${prefix}-top`, `${inset.top}px`);
+    root.setProperty(`${prefix}-bottom`, `${inset.bottom}px`);
+    root.setProperty(`${prefix}-left`, `${inset.left}px`);
+    root.setProperty(`${prefix}-right`, `${inset.right}px`);
+  };
+  const applySafeArea = () => {
+    setInset("--tg-safe", webApp.safeAreaInset);
+    setInset("--tg-content-safe", webApp.contentSafeAreaInset);
+  };
+  const applyViewport = () => {
+    const viewport = window.visualViewport;
+    const height = viewport?.height ?? webApp.viewportStableHeight ?? webApp.viewportHeight ?? window.innerHeight;
+    document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
+    document.documentElement.dataset.keyboardOpen = String(Boolean(viewport && window.innerHeight - viewport.height > 120));
   };
   applySafeArea();
   webApp.onEvent?.("themeChanged", applyTheme);
   webApp.onEvent?.("safeAreaChanged", applySafeArea);
   webApp.onEvent?.("contentSafeAreaChanged", applySafeArea);
+  webApp.onEvent?.("viewportChanged", applyViewport);
+  webApp.onEvent?.("fullscreenChanged", () => { applySafeArea(); applyViewport(); });
+  window.visualViewport?.addEventListener("resize", applyViewport);
+  window.visualViewport?.addEventListener("scroll", applyViewport);
+  applyViewport();
 }
 
 initializeTelegramMiniApp();

@@ -59,7 +59,7 @@ def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
             "sessions",
             "age_acceptances",
         },
-        "discovery": {"cities", "categories", "street_anchors", "looking_posts", "looking_post_likes", "looking_post_questions"},
+        "discovery": {"cities", "categories", "street_anchors", "looking_posts", "looking_post_likes", "looking_post_questions", "looking_post_requests"},
         "events": {
             "events",
             "event_revisions",

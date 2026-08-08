@@ -1,5 +1,8 @@
 """HTTP contract for the short-lived "Looking for people" feed."""
 
+import base64
+import json
+from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -76,27 +79,25 @@ async def feed(
     city_id: Annotated[UUID, Query()],
     sort: Annotated[Literal["new", "old", "popular"], Query()] = "new",
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
-    cursor_at: Annotated[str | None, Query()] = None,
-    cursor_id: Annotated[UUID | None, Query()] = None,
+    cursor: Annotated[str | None, Query()] = None,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> dict[str, object]:
     _, _, engine = dependencies(request)
     viewer = await optional_viewer(request, token)
-    cursor = None
-    if cursor_at is not None and cursor_id is not None:
-        from datetime import datetime
-
+    parsed_cursor = None
+    if cursor is not None:
         try:
-            cursor = (datetime.fromisoformat(cursor_at), cursor_id)
-        except ValueError as error:
+            data = json.loads(base64.urlsafe_b64decode(cursor + "=="))
+            parsed_cursor = (data.get("likes"), datetime.fromisoformat(data["at"]), UUID(data["id"]))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise HTTPException(status_code=422, detail="invalid_cursor") from error
     items, next_cursor = await looking_post_feed(
-        engine, city_id=city_id, viewer_id=viewer, sort=sort, cursor=cursor, limit=limit
+        engine, city_id=city_id, viewer_id=viewer, sort=sort, cursor=parsed_cursor, limit=limit
     )
     return {
         "items": items,
         "next_cursor": (
-            {"at": next_cursor[0].isoformat(), "id": next_cursor[1]} if next_cursor else None
+            base64.urlsafe_b64encode(json.dumps({"likes": next_cursor[0], "at": next_cursor[1].isoformat(), "id": str(next_cursor[2])}).encode()).decode().rstrip("=") if next_cursor else None
         ),
     }
 
@@ -119,13 +120,16 @@ async def create(
     request: Request, body: LookingPostRequest,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
 ) -> dict[str, object]:
     settings, redis, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    if idempotency_key is None:
+        raise HTTPException(status_code=422, detail="idempotency_key_required")
     await _limit(redis, user_id=user_id, action="create", maximum=5, seconds=3600)
     try:
-        return await create_looking_post(engine, user_id=user_id, **body.model_dump())
+        return await create_looking_post(engine, user_id=user_id, idempotency_key=idempotency_key, **body.model_dump())
     except LookingPostError as error:
         raise _error(error) from error
 
@@ -135,6 +139,7 @@ async def like(
     request: Request, post_id: UUID,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
 ) -> dict[str, object]:
     settings, redis, engine = dependencies(request)
     validate_origin(request, settings)
@@ -185,9 +190,11 @@ async def question(
     settings, redis, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    if idempotency_key is None:
+        raise HTTPException(status_code=422, detail="idempotency_key_required")
     await _limit(redis, user_id=user_id, action="question", maximum=10, seconds=3600)
     try:
-        await ask_question(engine, post_id=post_id, user_id=user_id, question=body.question)
+        await ask_question(engine, post_id=post_id, user_id=user_id, question=body.question, idempotency_key=idempotency_key)
     except LookingPostError as error:
         raise _error(error) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -198,13 +205,16 @@ async def answer(
     request: Request, post_id: UUID, question_id: UUID, body: AnswerRequest,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
     settings, redis, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    if idempotency_key is None:
+        raise HTTPException(status_code=422, detail="idempotency_key_required")
     await _limit(redis, user_id=user_id, action="answer", maximum=30, seconds=3600)
     try:
-        await answer_question(engine, post_id=post_id, question_id=question_id, user_id=user_id, answer=body.answer)
+        await answer_question(engine, post_id=post_id, question_id=question_id, user_id=user_id, answer=body.answer, idempotency_key=idempotency_key)
     except LookingPostError as error:
         raise _error(error) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)

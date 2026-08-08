@@ -19,13 +19,16 @@ interface TelegramWebApp {
   initData: string;
   ready: () => void;
   expand: () => void;
+  hideKeyboard?: () => void;
   requestFullscreen?: () => void;
   isVersionAtLeast?: (version: string) => boolean;
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;
   colorScheme?: "light" | "dark";
   themeParams?: Record<string, string>;
-  onEvent?: (event: "themeChanged" | "fullscreenFailed" | "safeAreaChanged" | "contentSafeAreaChanged", callback: () => void) => void;
+  viewportHeight?: number;
+  viewportStableHeight?: number;
+  onEvent?: (event: "themeChanged" | "fullscreenFailed" | "safeAreaChanged" | "contentSafeAreaChanged" | "fullscreenChanged" | "viewportChanged", callback: () => void) => void;
   safeAreaInset?: { top: number; bottom: number; left: number; right: number };
   contentSafeAreaInset?: { top: number; bottom: number; left: number; right: number };
   enableClosingConfirmation?: () => void;

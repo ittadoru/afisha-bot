@@ -42,7 +42,6 @@ looking_posts = Table(
     Column("category_id", UUID(as_uuid=True), nullable=False),
     Column("title", String(30), nullable=False), Column("body", String(300), nullable=False),
     Column("status", Text, nullable=False), Column("version", Integer, nullable=False),
-    Column("pending_event_id", UUID(as_uuid=True)), Column("converted_event_id", UUID(as_uuid=True)),
     Column("created_at", DateTime(timezone=True), nullable=False), Column("expires_at", DateTime(timezone=True), nullable=False),
     Column("closed_at", DateTime(timezone=True)), Column("delete_after", DateTime(timezone=True)),
 )
@@ -66,6 +65,16 @@ looking_post_questions = Table(
     Column("answered_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("delete_after", DateTime(timezone=True)),
+)
+looking_post_requests = Table(
+    "looking_post_requests",
+    metadata,
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("idempotency_key", UUID(as_uuid=True), primary_key=True),
+    Column("action", String(16), nullable=False),
+    Column("request_fingerprint", String(64), nullable=False),
+    Column("resource_id", UUID(as_uuid=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )
 categories = Table(
     "categories",

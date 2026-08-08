@@ -136,6 +136,8 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
   const goNext = () => {
     const problem = validateStep(step);
     if (problem) { setError(problem); return; }
+    window.Telegram?.WebApp?.hideKeyboard?.();
+    (document.activeElement as HTMLElement | null)?.blur?.();
     setError("");
     setStep((current) => Math.min(current + 1, 4));
   };
@@ -154,6 +156,8 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
       setError("Подтвердите публикацию точного адреса.");
       return;
     }
+    window.Telegram?.WebApp?.hideKeyboard?.();
+    (document.activeElement as HTMLElement | null)?.blur?.();
     const payload = JSON.stringify({
       title: title.trim(), description: description.trim(), category_id: categoryId,
       city_id: city.id, starts_at: moscowDate(startsAt)?.toISOString(), ends_at: moscowDate(endsAt)?.toISOString(),

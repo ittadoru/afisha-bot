@@ -86,8 +86,6 @@ class CreateEventRequest(BaseModel):
     location_note: str | None = Field(default=None, max_length=80)
     exact_address_confirmed: bool
     photo_upload_id: UUID
-    source_looking_post_id: UUID | None = None
-    source_looking_post_version: int | None = Field(default=None, ge=1)
 
     @field_validator("title")
     @classmethod
@@ -290,8 +288,6 @@ async def submit_event(
                 photo_upload_id=body.photo_upload_id,
                 canonical_address=canonical_address,
                 street_anchor_id=street_anchor_id,
-                source_looking_post_id=body.source_looking_post_id,
-                source_looking_post_version=body.source_looking_post_version,
             ),
         )
     except EventCreationConflict as error:

@@ -212,48 +212,6 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 "schedule_changed": schedule_changed,
             },
         )
-        conversion = (
-            await connection.execute(
-                text(
-                    """
-                    SELECT id, status FROM discovery.looking_posts
-                    WHERE pending_event_id=:event FOR UPDATE
-                    """
-                ),
-                {"event": row["event_id"]},
-            )
-        ).mappings().one_or_none()
-        if conversion is not None:
-            if approved:
-                await connection.execute(
-                    text(
-                        """
-                        UPDATE discovery.looking_posts
-                        SET status='converted', converted_event_id=:event,
-                            pending_event_id=NULL, closed_at=now(),
-                            delete_after=now()+interval '24 hours', version=version+1
-                        WHERE id=:post
-                        """
-                    ),
-                    {"event": row["event_id"], "post": conversion["id"]},
-                )
-                await connection.execute(
-                    text(
-                        """
-                        INSERT INTO events.event_interests (event_id, user_id, active, created_at, updated_at)
-                        SELECT :event, user_id, true, now(), now()
-                        FROM discovery.looking_post_likes
-                        WHERE looking_post_id=:post AND active
-                        ON CONFLICT (event_id, user_id) DO UPDATE SET active=true, updated_at=now()
-                        """
-                    ),
-                    {"event": row["event_id"], "post": conversion["id"]},
-                )
-            else:
-                await connection.execute(
-                    text("UPDATE discovery.looking_posts SET pending_event_id=NULL, version=version+1 WHERE id=:post"),
-                    {"post": conversion["id"]},
-                )
         reason_text = REJECTION_REASONS.get(decision.reason or "", "")
         await connection.execute(
             text(

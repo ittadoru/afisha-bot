@@ -58,12 +58,11 @@ type PublicMarker = {
 export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT_CITY, selecting = false, onLocationChange, onOpenEvent, onOpenStreetGroup, onOpenList }: EventMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
-  const markerRef = useRef<Marker | null>(null);
   const publicMarkersRef = useRef<Marker[]>([]);
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [empty, setEmpty] = useState(false);
-  const [address, setAddress] = useState(selecting ? "Нажмите на карту или переместите метку" : "События выбранного города");
+  const [address, setAddress] = useState(selecting ? "Двигайте карту, чтобы выбрать точное место" : "События выбранного города");
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -79,33 +78,24 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     map.addControl(new AttributionControl({ compact: true }));
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
-    let marker: Marker | null = null;
-    if (selecting) {
-      const element = document.createElement("button");
-      element.className = "event-marker selecting-marker";
-      element.type = "button";
-      element.setAttribute("aria-label", "Точное место выбранного события");
-      element.textContent = "●";
-      marker = new MapLibreMarker({ element, draggable: true })
-        .setLngLat([city.center_longitude, city.center_latitude])
-        .addTo(map);
-      markerRef.current = marker;
-    }
-
     let requestId = 0;
     let timer: number | undefined;
+    let controller: AbortController | null = null;
     const updateAddress = () => {
       if (!selecting || !city.id) return;
       window.clearTimeout(timer);
+      controller?.abort();
       const currentRequest = ++requestId;
       timer = window.setTimeout(async () => {
-        const { lng, lat } = markerRef.current?.getLngLat() ?? { lng: 0, lat: 0 };
+        const { lng, lat } = map.getCenter();
         setAddress("Определяем адрес…");
+        controller = new AbortController();
         try {
           const query = new URLSearchParams({ city_id: city.id, lat: String(lat), lon: String(lng) });
           const path = `/geo/resolve?${query.toString()}`;
           const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
             headers: { "Accept-Language": "ru" },
+            signal: controller.signal,
           });
           if (response.status === 422) {
             if (currentRequest === requestId) {
@@ -120,7 +110,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             setAddress(data.display_name);
             onLocationChange?.({ latitude: lat, longitude: lng, display_name: data.display_name, street: data.street, house_number: data.house_number, precision: data.precision });
           }
-        } catch {
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
           if (currentRequest === requestId) {
             setAddress("Адрес временно недоступен — место пока нельзя подтвердить");
             onLocationChange?.(null);
@@ -128,12 +119,13 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         }
       }, 500);
     };
-    marker?.on("dragend", updateAddress);
-    map.on("click", (event) => {
+    map.on("movestart", () => {
       if (!selecting) return;
-      marker?.setLngLat(event.lngLat);
-      updateAddress();
+      controller?.abort();
+      setAddress("Выберите место и отпустите карту");
+      onLocationChange?.(null);
     });
+    map.on("moveend", updateAddress);
     let ready = false;
     const initialLoadTimer = window.setTimeout(() => {
       if (!ready) setFailed(true);
@@ -143,7 +135,11 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       window.clearTimeout(initialLoadTimer);
     });
     map.on("load", () => {
-      if (selecting || !city.id) return;
+      if (selecting) {
+        updateAddress();
+        return;
+      }
+      if (!city.id) return;
       void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include" })
         .then(async (response) => {
           if (!response.ok) throw new Error();
@@ -174,11 +170,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
 
     return () => {
       window.clearTimeout(timer);
+      controller?.abort();
       window.clearTimeout(initialLoadTimer);
-      markerRef.current?.remove();
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
-      markerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
@@ -205,6 +200,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       ) : (
         <section className="map-shell" aria-label="Карта событий">
           <div ref={containerRef} className="map-canvas" />
+          {selecting && <span className="fixed-location-marker" aria-label="Центр выбранного места" role="img">●</span>}
           <aside className="map-address" aria-live="polite">
             <MapPin aria-hidden="true" />
             <div><strong>{selecting ? "Выбранное место" : city.name}</strong><span>{address}</span></div>
