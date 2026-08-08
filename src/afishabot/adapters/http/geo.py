@@ -1,3 +1,4 @@
+import json
 from typing import Annotated, cast
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from afishabot.modules.discovery.public.geo import (
     ReverseGeocodingNotFound,
     ReverseGeocodingUnavailable,
 )
+from afishabot.modules.discovery.public.service_area import SERVICE_AREA_RADIUS_METERS
 
 router = APIRouter(prefix="/geo", tags=["geo"])
 
@@ -30,12 +32,22 @@ class ReverseGeocodingResponse(BaseModel):
     precision: str
 
 
+class MapBoundsResponse(BaseModel):
+    west: float
+    south: float
+    east: float
+    north: float
+
+
 class CityResponse(BaseModel):
     id: UUID
     slug: str
     name: str
     center_latitude: float
     center_longitude: float
+    service_radius_m: int
+    map_bounds: MapBoundsResponse
+    allowed_area: dict[str, object]
 
 
 class CategoryResponse(BaseModel):
@@ -68,11 +80,25 @@ async def catalog(
             await connection.execute(
                 text(
                     """
+                    WITH supported_cities AS (
+                        SELECT
+                            id, slug, name, boundary,
+                            ST_Buffer(boundary, :radius_meters)::geometry
+                                AS service_area
+                        FROM discovery.cities
+                        WHERE is_active AND boundary IS NOT NULL
+                    )
                     SELECT id, slug, name,
-                           ST_Y(ST_PointOnSurface(boundary::geometry)) AS center_latitude,
-                           ST_X(ST_PointOnSurface(boundary::geometry)) AS center_longitude
-                    FROM discovery.cities
-                    WHERE is_active AND boundary IS NOT NULL
+                           ST_Y(ST_PointOnSurface(boundary::geometry))
+                               AS center_latitude,
+                           ST_X(ST_PointOnSurface(boundary::geometry))
+                               AS center_longitude,
+                           ST_XMin(service_area) AS west,
+                           ST_YMin(service_area) AS south,
+                           ST_XMax(service_area) AS east,
+                           ST_YMax(service_area) AS north,
+                           ST_AsGeoJSON(service_area) AS allowed_area
+                    FROM supported_cities
                     ORDER BY CASE slug
                         WHEN 'makhachkala' THEN 1
                         WHEN 'khasavyurt' THEN 2
@@ -81,7 +107,8 @@ async def catalog(
                     END
                     """
                 )
-            )
+            ),
+            {"radius_meters": SERVICE_AREA_RADIUS_METERS},
         ).mappings()
         category_rows = (
             await connection.execute(
@@ -96,7 +123,24 @@ async def catalog(
             )
         ).mappings()
         return CatalogResponse(
-            cities=[CityResponse.model_validate(row) for row in city_rows],
+            cities=[
+                CityResponse(
+                    id=row["id"],
+                    slug=row["slug"],
+                    name=row["name"],
+                    center_latitude=row["center_latitude"],
+                    center_longitude=row["center_longitude"],
+                    service_radius_m=SERVICE_AREA_RADIUS_METERS,
+                    map_bounds=MapBoundsResponse(
+                        west=row["west"],
+                        south=row["south"],
+                        east=row["east"],
+                        north=row["north"],
+                    ),
+                    allowed_area=json.loads(row["allowed_area"]),
+                )
+                for row in city_rows
+            ],
             categories=[CategoryResponse.model_validate(row) for row in category_rows],
         )
 
@@ -143,15 +187,21 @@ async def resolve_event_location(
         inside = await connection.scalar(
             text(
                 """
-                SELECT ST_Covers(
-                    boundary::geometry,
-                    ST_SetSRID(ST_Point(:longitude, :latitude), 4326)
+                SELECT ST_DWithin(
+                    boundary,
+                    ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
+                    :radius_meters
                 )
                 FROM discovery.cities
                 WHERE id = :city_id AND is_active AND boundary IS NOT NULL
                 """
             ),
-            {"city_id": city_id, "latitude": latitude, "longitude": longitude},
+            {
+                "city_id": city_id,
+                "latitude": latitude,
+                "longitude": longitude,
+                "radius_meters": SERVICE_AREA_RADIUS_METERS,
+            },
         )
     if inside is None:
         raise HTTPException(
@@ -161,6 +211,6 @@ async def resolve_event_location(
     if not inside:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="point_outside_city",
+            detail="point_outside_city_area",
         )
     return await reverse_geocode(latitude, longitude, request, geocoder)

@@ -28,6 +28,9 @@ export interface MapCity {
   name: string;
   center_latitude: number;
   center_longitude: number;
+  service_radius_m?: number;
+  map_bounds?: { west: number; south: number; east: number; north: number };
+  allowed_area?: Record<string, unknown>;
 }
 
 export interface ResolvedLocation {
@@ -59,19 +62,28 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const publicMarkersRef = useRef<Marker[]>([]);
+  const callbacksRef = useRef({ onLocationChange, onOpenEvent, onOpenStreetGroup });
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [empty, setEmpty] = useState(false);
   const [address, setAddress] = useState(selecting ? "Двигайте карту, чтобы выбрать точное место" : "События выбранного города");
 
   useEffect(() => {
+    callbacksRef.current = { onLocationChange, onOpenEvent, onOpenStreetGroup };
+  }, [onLocationChange, onOpenEvent, onOpenStreetGroup]);
+
+  useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const bounds = city.map_bounds
+      ? [[city.map_bounds.west, city.map_bounds.south], [city.map_bounds.east, city.map_bounds.north]] as [[number, number], [number, number]]
+      : undefined;
     const map = new MapLibreMap({
       container: containerRef.current,
       style: appConfig.mapStyleUrl,
       center: [city.center_longitude, city.center_latitude],
       zoom: 12,
+      maxBounds: bounds,
       attributionControl: false,
     });
     mapRef.current = map;
@@ -82,7 +94,15 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     let timer: number | undefined;
     let controller: AbortController | null = null;
     const eventsController = new AbortController();
-    const resize = () => map.resize();
+    const resize = () => {
+      map.resize();
+      if (!bounds) return;
+      const camera = map.cameraForBounds(bounds, { padding: 20 });
+      if (camera?.zoom !== undefined) {
+        map.setMinZoom(camera.zoom);
+        if (map.getZoom() < camera.zoom) map.setZoom(camera.zoom);
+      }
+    };
     window.addEventListener("miniappviewportchange", resize);
     window.addEventListener("orientationchange", resize);
     const updateAddress = () => {
@@ -103,8 +123,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           });
           if (response.status === 422) {
             if (currentRequest === requestId) {
-              setAddress(`Эта точка находится за границей города ${city.name}`);
-              onLocationChange?.(null);
+              setAddress(`Выберите место не дальше ${Math.round((city.service_radius_m ?? 20_000) / 1000)} км от города ${city.name}`);
+              callbacksRef.current.onLocationChange?.(null);
             }
             return;
           }
@@ -112,13 +132,13 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           const data = (await response.json()) as { display_name: string; street: string | null; house_number: string | null; precision: "house" | "street" | "locality" };
           if (currentRequest === requestId) {
             setAddress(data.display_name);
-            onLocationChange?.({ latitude: lat, longitude: lng, display_name: data.display_name, street: data.street, house_number: data.house_number, precision: data.precision });
+            callbacksRef.current.onLocationChange?.({ latitude: lat, longitude: lng, display_name: data.display_name, street: data.street, house_number: data.house_number, precision: data.precision });
           }
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
           if (currentRequest === requestId) {
             setAddress("Адрес временно недоступен — место пока нельзя подтвердить");
-            onLocationChange?.(null);
+            callbacksRef.current.onLocationChange?.(null);
           }
         }
       }, 500);
@@ -127,7 +147,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       if (!selecting) return;
       controller?.abort();
       setAddress("Выберите место и отпустите карту");
-      onLocationChange?.(null);
+      callbacksRef.current.onLocationChange?.(null);
     });
     map.on("moveend", updateAddress);
     let ready = false;
@@ -139,6 +159,12 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       window.clearTimeout(initialLoadTimer);
     });
     map.on("load", () => {
+      resize();
+      if (city.allowed_area) {
+        map.addSource("service-area", { type: "geojson", data: city.allowed_area as never });
+        map.addLayer({ id: "service-area-fill", type: "fill", source: "service-area", paint: { "fill-color": "#08786c", "fill-opacity": 0.04 } });
+        map.addLayer({ id: "service-area-line", type: "line", source: "service-area", paint: { "line-color": "#08786c", "line-width": 1.5, "line-opacity": 0.75 } });
+      }
       if (selecting) {
         updateAddress();
         return;
@@ -161,7 +187,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
               : `public-event-marker category-${item.category_slug ?? "other"}${item.kind === "special" ? " special" : ""}`;
             element.textContent = item.marker_type === "street" ? `△ ${item.street_name} · ${item.event_count}` : item.kind === "special" ? "★" : categorySymbol(item.category_slug);
             element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${item.category}: ${item.title}`);
-            element.addEventListener("click", () => item.marker_type === "street" ? onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && onOpenEvent?.(item.id));
+            element.addEventListener("click", () => item.marker_type === "street" ? callbacksRef.current.onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && callbacksRef.current.onOpenEvent?.(item.id));
             return new MapLibreMarker({ element })
               .setLngLat([item.longitude, item.latitude]).addTo(map);
           });
@@ -188,7 +214,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       map.remove();
       mapRef.current = null;
     };
-  }, [city.id, city.center_latitude, city.center_longitude, city.name, onLocationChange, onOpenEvent, onOpenStreetGroup, retryKey, selecting]);
+  }, [city.id, city.center_latitude, city.center_longitude, city.name, city.map_bounds, city.allowed_area, retryKey, selecting]);
 
   return (
     <section className={`workspace${embedded ? " embedded-map" : ""}`}>
@@ -216,7 +242,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             <MapPin aria-hidden="true" />
             <div><strong>{selecting ? "Выбранное место" : city.name}</strong><span>{address}</span></div>
           </aside>
-          {empty && <div className="map-empty-state"><strong>В этом городе пока нет событий</strong><span>Можно создать первую встречу или посмотреть раздел «Ищу людей».</span></div>}
+          {empty && <div className="map-empty-chip">В этом городе пока нет событий</div>}
           {!selecting && <div className="map-legend"><span className="legend-exact" /> Точное место <span className="legend-street" /> Общая улица</div>}
         </section>
       )}

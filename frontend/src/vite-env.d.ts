@@ -35,6 +35,12 @@ interface TelegramWebApp {
   enableClosingConfirmation?: () => void;
   disableClosingConfirmation?: () => void;
   showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void;
+  BackButton?: {
+    show?: () => void;
+    hide?: () => void;
+    onClick?: (callback: () => void) => void;
+    offClick?: (callback: () => void) => void;
+  };
 }
 
 interface Window {

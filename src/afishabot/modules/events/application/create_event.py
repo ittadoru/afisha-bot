@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from afishabot.modules.discovery.public.geo import CanonicalAddress
+from afishabot.modules.discovery.public.service_area import SERVICE_AREA_RADIUS_METERS
 
 AddressVisibility = Literal["street_only", "exact_participants", "exact_public"]
 
@@ -55,19 +56,23 @@ async def find_created_event(
 ) -> CreatedEvent | None:
     async with engine.connect() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT r.request_fingerprint, r.event_id, e.lifecycle_status
                     FROM events.creation_requests r
                     JOIN events.events e ON e.id=r.event_id
                     WHERE r.user_id=:user AND r.idempotency_key=:key
                       AND e.creator_user_id=:user
                     """
-                ),
-                {"user": user_id, "key": idempotency_key},
+                    ),
+                    {"user": user_id, "key": idempotency_key},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
     if row is None:
         return None
     if row["request_fingerprint"] != request_fingerprint:
@@ -75,9 +80,7 @@ async def find_created_event(
     return CreatedEvent(
         event_id=row["event_id"],
         publication_status=(
-            "published"
-            if row["lifecycle_status"] == "published"
-            else "pending_review"
+            "published" if row["lifecycle_status"] == "published" else "pending_review"
         ),
     )
 
@@ -99,17 +102,21 @@ async def create_event(
             {"value": f"{command.user_id}:{command.idempotency_key}"},
         )
         previous = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT request_fingerprint, event_id
                     FROM events.creation_requests
                     WHERE user_id=:user AND idempotency_key=:key
                     """
-                ),
-                {"user": command.user_id, "key": command.idempotency_key},
+                    ),
+                    {"user": command.user_id, "key": command.idempotency_key},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if previous is not None:
             if previous["request_fingerprint"] != command.request_fingerprint:
                 raise EventCreationConflict("idempotency_key_reused")
@@ -165,9 +172,10 @@ async def create_event(
         inside_city = await connection.scalar(
             text(
                 """
-                SELECT ST_Covers(
-                    boundary::geometry,
-                    ST_SetSRID(ST_Point(:longitude, :latitude), 4326)
+                SELECT ST_DWithin(
+                    boundary,
+                    ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
+                    :radius_meters
                 )
                 FROM discovery.cities
                 WHERE id=:city AND is_active AND boundary IS NOT NULL
@@ -177,12 +185,13 @@ async def create_event(
                 "city": command.city_id,
                 "latitude": command.latitude,
                 "longitude": command.longitude,
+                "radius_meters": SERVICE_AREA_RADIUS_METERS,
             },
         )
         if inside_city is None:
             raise EventCreationError("city_not_available")
         if not inside_city:
-            raise EventCreationError("point_outside_city")
+            raise EventCreationError("point_outside_city_area")
         if (
             command.canonical_address.street is None
             and command.address_visibility != "exact_public"
@@ -252,7 +261,8 @@ async def create_event(
                      moderation_status,
                      decided_at)
                 VALUES
-                    (:revision, :event, 1, :title, :description, :location_note, :starts, :ends,
+                    (:revision, :event, 1, :title, :description, :location_note,
+                     :starts, :ends,
                      ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
                      :address, :street, :visibility, :street_anchor,
                      :moderation,

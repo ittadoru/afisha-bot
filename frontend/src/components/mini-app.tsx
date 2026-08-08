@@ -1,6 +1,7 @@
 import {
   Bell,
   CalendarDays,
+  Check,
   ChevronRight,
   CircleUserRound,
   Heart,
@@ -73,6 +74,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [selectedCity, setSelectedCity] = useState<MapCity | null>(null);
   const [choosingCity, setChoosingCity] = useState(false);
   const [citySaving, setCitySaving] = useState(false);
+  const [savingCityId, setSavingCityId] = useState<string | null>(null);
   const [cityError, setCityError] = useState("");
   const [createDirty, setCreateDirty] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
@@ -99,7 +101,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       if (!(active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement || active instanceof HTMLSelectElement)) return;
       const fieldElement = active;
       window.setTimeout(() => {
-        const content = document.querySelector<HTMLElement>(".mini-content");
+        const content = fieldElement.closest<HTMLElement>(".scroll-focus-container") ?? document.querySelector<HTMLElement>(".mini-content");
         if (!content) return;
         const field = fieldElement.getBoundingClientRect();
         const area = content.getBoundingClientRect();
@@ -150,7 +152,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
 
   const saveCity = async (city: MapCity) => {
     if (citySaving || city.id === selectedCity?.id) { setChoosingCity(false); return; }
-    setCitySaving(true); setCityError("");
+    setCitySaving(true); setSavingCityId(city.id); setCityError("");
     const request = async (version: number) => await fetch(`${appConfig.apiBaseUrl}/account/profile/city`, {
       method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken },
       body: JSON.stringify({ selected_city_id: city.id, version }),
@@ -168,14 +170,26 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       setChoosingCity(false);
     } catch (error) {
       setCityError(error instanceof Error && error.message === "422" ? "Этот город сейчас недоступен." : "Не удалось сменить город. Повторите попытку.");
-    } finally { setCitySaving(false); }
+    } finally { setCitySaving(false); setSavingCityId(null); }
   };
 
+  useEffect(() => {
+    const backButton = window.Telegram?.WebApp?.BackButton;
+    if (!backButton || !choosingCity) return;
+    const close = () => { if (!citySaving) setChoosingCity(false); };
+    backButton.onClick?.(close);
+    backButton.show?.();
+    return () => {
+      backButton.offClick?.(close);
+      backButton.hide?.();
+    };
+  }, [choosingCity, citySaving]);
+
   return (
-    <main className="mini-app">
+    <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}`}>
+      {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /> : <>
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => void openCityChooser()} />
-      <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}`}>
-        {choosingCity && <div className="city-chooser-overlay"><CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /></div>}
+      <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}${section === "people" ? " people-mode" : ""}`}>
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
@@ -189,6 +203,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
         )}
       </div>
       <BottomNav active={section} onSelect={selectSection} />
+      </>}
       {streetGroup && <StreetGroupSheet group={streetGroup} onClose={() => setStreetGroup(null)} onOpen={(id) => { setStreetGroup(null); openEvent(id); }} />}
       {selectedEventId && <EventSheet eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} />}
       {selectedLookingPostId && <LookingPostSheet postId={selectedLookingPostId} csrfToken={csrfToken} onClose={() => { setSelectedLookingPostId(null); window.history.pushState({}, "", "/app"); }} />}
@@ -219,8 +234,8 @@ function MiniHeader({ city, section, eventsMode, onModeChange, onChooseCity }: {
   );
 }
 
-function CityChooser({ cities, selected, failed, saving, error, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; failed: boolean; saving: boolean; error: string; onSelect: (city: MapCity) => void; onClose: () => void }) {
-  return <section className="feed city-chooser"><button className="text-back" type="button" disabled={saving} onClick={onClose}>← Назад</button><p className="section-kicker">Город событий</p><h1>Выберите город</h1>{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{error && <p className="form-error" role="alert">{error}</p>}{cities.map((city) => <button className="menu-row" type="button" disabled={saving} key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span>{saving ? <LoaderCircle className="spin" /> : <ChevronRight />}</button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></section>;
+function CityChooser({ cities, selected, failed, saving, savingCityId, error, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; failed: boolean; saving: boolean; savingCityId: string | null; error: string; onSelect: (city: MapCity) => void; onClose: () => void }) {
+  return <section className="city-chooser-screen"><header className="city-chooser-header"><button type="button" disabled={saving} onClick={onClose}>← Назад</button><strong>Выберите город</strong><span /></header><div className="city-chooser-list scroll-focus-container">{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{error && <p className="form-error" role="alert">{error}</p>}{cities.map((city) => <button className="menu-row city-choice" type="button" disabled={saving} key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span>{savingCityId === city.id ? <LoaderCircle className="spin" aria-label="Сохраняем" /> : selected?.id === city.id ? <Check aria-label="Выбран" /> : <ChevronRight />}</button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></div></section>;
 }
 
 function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: string) => void }) {
@@ -235,7 +250,7 @@ function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: strin
   }, [city]);
   if (failed) return <DemoState state="error" />;
   if (items === null) return <DemoState state="loading" />;
-  return <section className="feed" aria-label="Список событий"><p className="section-kicker">Все будущие события · {city?.name}</p>{items.length ? items.map((event) => <button type="button" className={`event-card real-event-card category-${event.category_slug}${event.kind === "special" ? " special-event" : ""}`} key={event.id} onClick={() => onOpen(event.id)}><EventPhoto className="event-list-photo" src={event.photo_url} /><div className="event-copy">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<span className="category-chip">{event.category}</span><h2>{event.title}</h2><p>{formatEventTime(event.starts_at)} · {event.visible_address}</p><span><Users aria-hidden="true" /> {event.participant_count} собираются</span></div></button>) : <DemoState state="empty" />}</section>;
+  return <section className="feed" aria-label="Список событий"><p className="section-kicker">Все будущие события · {city?.name}</p>{items.length ? items.map((event) => <button type="button" className={`event-card real-event-card category-${event.category_slug}${event.kind === "special" ? " special-event" : ""}`} key={event.id} onClick={() => onOpen(event.id)}><EventPhoto className="event-list-photo" src={event.photo_url} /><div className="event-copy">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<span className="category-chip">{event.category}</span><h2>{event.title}</h2><p>{formatEventTime(event.starts_at)} · {event.visible_address}</p><span><Users aria-hidden="true" /> {event.participant_count} собираются</span></div></button>) : <p className="compact-empty-copy">В этом городе пока нет событий. Создайте первое через раздел «Создать».</p>}</section>;
 }
 
 function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | null; csrfToken: string; onCreate: () => void; onOpen: (id: string) => void }) {
@@ -244,7 +259,11 @@ function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | nul
   useEffect(() => { void load(); }, [city, sort]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
   const statusText = (post: LookingPost) => post.status === "active" ? `Активна · осталось ${Math.max(1, Math.ceil(post.remaining_seconds / 3600))} ч` : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
-  return <section className="feed" aria-label="Ищу людей"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div><Button onClick={onCreate}><Plus /> Идея</Button></div><div className="view-switch" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}>Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}>Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}>Популярные</button></div>{failed ? <DemoState state="error" /> : items === null ? <DemoState state="loading" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} onClick={() => onOpen(post.id)}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status">● {statusText(post)}</small><footer><button type="button" disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart /> {post.like_count}</button><span><MessageCircleQuestion /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <DemoState state="empty" />}</section>;
+  return <section className="people-screen" aria-label="Ищу людей"><div className="people-toolbar"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div><Button onClick={onCreate}><Plus /> Идея</Button></div><div className="view-switch" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}>Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}>Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}>Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <p className="state-hint" role="status">Загружаем идеи…</p> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} onClick={() => onOpen(post.id)}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status">● {statusText(post)}</small><footer><button type="button" disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart /> {post.like_count}</button><span><MessageCircleQuestion /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
+}
+
+function CompactListState({ title, action, onAction }: { title: string; action: string; onAction: () => void }) {
+  return <div className="compact-list-state"><p>{title}</p><Button variant="outline" onClick={onAction}>{action}</Button></div>;
 }
 
 function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrfToken: string; onClose: () => void }) {

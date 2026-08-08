@@ -5,7 +5,16 @@ from pathlib import Path
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Header, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Cookie,
+    Header,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
@@ -19,18 +28,19 @@ from afishabot.adapters.http.profiles import (
     validate_origin,
 )
 from afishabot.modules.accounts.application.profiles import session_user_id
-from afishabot.modules.discovery.infrastructure.nominatim import (
-    NominatimReverseGeocoder,
-)
 from afishabot.modules.discovery.application.street_anchors import (
     StreetAnchorError,
     save_street_anchor,
+)
+from afishabot.modules.discovery.infrastructure.nominatim import (
+    NominatimReverseGeocoder,
 )
 from afishabot.modules.discovery.public.geo import (
     ReverseGeocodingMalformed,
     ReverseGeocodingNotFound,
     ReverseGeocodingUnavailable,
 )
+from afishabot.modules.discovery.public.service_area import SERVICE_AREA_RADIUS_METERS
 from afishabot.modules.events.application.create_event import (
     CreateEventCommand,
     EventCreationConflict,
@@ -48,12 +58,6 @@ from afishabot.modules.events.application.manage_event import (
     management_view,
     submit_change,
 )
-from afishabot.modules.events.application.public_discovery import (
-    PublicEventNotFound,
-    event_detail,
-    event_feed,
-    event_photo_key,
-)
 from afishabot.modules.events.application.participation import (
     ExclusionReason,
     ParticipationError,
@@ -63,6 +67,12 @@ from afishabot.modules.events.application.participation import (
     leave_event,
     organizer_roster,
     set_interest,
+)
+from afishabot.modules.events.application.public_discovery import (
+    PublicEventNotFound,
+    event_detail,
+    event_feed,
+    event_photo_key,
 )
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -80,9 +90,7 @@ class CreateEventRequest(BaseModel):
     capacity: int | None = Field(default=None, ge=3, le=2_147_483_647)
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    address_visibility: Literal[
-        "street_only", "exact_participants", "exact_public"
-    ]
+    address_visibility: Literal["street_only", "exact_participants", "exact_public"]
     location_note: str | None = Field(default=None, max_length=80)
     exact_address_confirmed: bool
     photo_upload_id: UUID
@@ -224,6 +232,31 @@ async def submit_event(
             event_id=previous.event_id,
             status=previous.publication_status,
         )
+
+    async with engine.connect() as connection:
+        inside_service_area = await connection.scalar(
+            text(
+                """
+                SELECT ST_DWithin(
+                    boundary,
+                    ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
+                    :radius_meters
+                )
+                FROM discovery.cities
+                WHERE id=:city_id AND is_active AND boundary IS NOT NULL
+                """
+            ),
+            {
+                "city_id": body.city_id,
+                "latitude": body.latitude,
+                "longitude": body.longitude,
+                "radius_meters": SERVICE_AREA_RADIUS_METERS,
+            },
+        )
+    if inside_service_area is None:
+        raise HTTPException(status_code=422, detail="city_not_available")
+    if not inside_service_area:
+        raise HTTPException(status_code=422, detail="point_outside_city_area")
 
     geocoder = cast(NominatimReverseGeocoder, request.app.state.reverse_geocoder)
     try:
@@ -494,7 +527,9 @@ async def get_managed_event_photo(
     path = Path(settings.media_root) / storage_key
     if not path.is_file():
         raise HTTPException(status_code=404, detail="photo_not_found")
-    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "private, no-store"})
+    return FileResponse(
+        path, media_type="image/webp", headers={"Cache-Control": "private, no-store"}
+    )
 
 
 @router.post("/{event_id}/revisions", status_code=202)
@@ -509,7 +544,9 @@ async def revise_published_event(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
-    serialized = json.dumps(body.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+    serialized = json.dumps(
+        body.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+    )
     try:
         revision_id = await submit_change(
             engine,

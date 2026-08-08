@@ -1,9 +1,12 @@
+# ruff: noqa: RUF001 -- the Russian letter "ё" is intentionally normalized.
+
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from afishabot.modules.discovery.public.geo import StreetAnchorCandidate
+from afishabot.modules.discovery.public.service_area import SERVICE_AREA_RADIUS_METERS
 
 
 class StreetAnchorError(Exception):
@@ -54,7 +57,11 @@ async def save_street_anchor_in_transaction(
               SELECT point FROM candidate
               JOIN discovery.cities c ON c.id=:city
               WHERE NOT ST_IsEmpty(point)
-                AND ST_Covers(c.boundary::geometry,point)
+                AND ST_DWithin(
+                    c.boundary,
+                    point::geography,
+                    :radius_meters
+                )
             )
             INSERT INTO discovery.street_anchors
                 (id,city_id,street_key,display_name,provider_place_id,anchor)
@@ -75,6 +82,7 @@ async def save_street_anchor_in_transaction(
             "key": street_key(street),
             "display": street.strip(),
             "provider": candidate.provider_place_id,
+            "radius_meters": SERVICE_AREA_RADIUS_METERS,
         },
     )
     if row is None:

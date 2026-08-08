@@ -6,6 +6,8 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from afishabot.modules.discovery.public.service_area import SERVICE_AREA_RADIUS_METERS
+
 pytestmark = pytest.mark.integration
 
 EXPECTED_TABLES = {
@@ -128,5 +130,33 @@ async def test_known_city_points_are_inside_managed_boundaries() -> None:
                 )
             )
         assert covered == 3
+    finally:
+        await engine.dispose()
+
+
+async def test_supported_cities_allow_points_within_the_service_radius() -> None:
+    engine = create_async_engine(required_database_url())
+    try:
+        async with engine.connect() as connection:
+            allowed = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM discovery.cities
+                    WHERE is_active
+                      AND ST_DWithin(
+                        boundary,
+                        ST_Project(
+                            ST_PointOnSurface(boundary::geometry)::geography,
+                            15_000,
+                            0
+                        ),
+                        :radius_meters
+                      )
+                    """
+                ),
+                {"radius_meters": SERVICE_AREA_RADIUS_METERS},
+            )
+        assert allowed == 3
     finally:
         await engine.dispose()
