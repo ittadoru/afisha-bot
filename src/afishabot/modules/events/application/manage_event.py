@@ -371,7 +371,7 @@ async def cancel_event(
                 WHERE p.event_id=:event AND p.status='active'
                 """
             ),
-            {"event": event_id, "body": CANCEL_REASONS[reason]},
+            {"event": str(event_id), "body": CANCEL_REASONS[reason]},
         )
         await connection.execute(
             text(
@@ -396,7 +396,7 @@ async def cancel_event(
                 WHERE w.event_id=:event AND w.status='waiting'
                 """
             ),
-            {"event": event_id, "body": CANCEL_REASONS[reason]},
+            {"event": str(event_id), "body": CANCEL_REASONS[reason]},
         )
         await connection.execute(
             text(

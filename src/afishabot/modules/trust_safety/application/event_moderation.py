@@ -275,7 +275,7 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                     """
                 ),
                 {
-                    "event": row["event_id"],
+                    "event": str(row["event_id"]),
                     "schedule_changed": schedule_changed,
                     "body": " · ".join(changes),
                 },
@@ -295,8 +295,8 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 "id": uuid4(),
                 "staff": decision.staff_id,
                 "action": f"event.{decision.action}",
-                "event": row["event_id"],
-                "review": decision.review_id,
+                "event": str(row["event_id"]),
+                "review": str(decision.review_id),
                 "reason": decision.reason,
             },
         )

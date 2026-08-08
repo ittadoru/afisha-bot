@@ -257,7 +257,7 @@ async def exclude_participant(
             {
                 "id": uuid4(),
                 "user": participant["user_id"],
-                "event": event_id,
+                "event": str(event_id),
                 "body": EXCLUSION_REASONS[reason],
             },
         )

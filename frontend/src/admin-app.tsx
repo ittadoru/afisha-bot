@@ -45,6 +45,7 @@ export function AdminApp() {
   const [staff, setStaff] = useState<Staff | null>(null);
   const [csrf, setCsrf] = useState("");
   const [checking, setChecking] = useState(true);
+  const [expiredNotice, setExpiredNotice] = useState("");
   const adoptCsrf = useCallback((token: string) => { if (token) setCsrf(token); }, []);
   const renewCsrf = useCallback(async () => {
     const result = await api<Staff>("/account/me");
@@ -54,22 +55,33 @@ export function AdminApp() {
     setCsrf(token);
     return token;
   }, []);
+  const expire = useCallback(() => {
+    setExpiredNotice("Сессия истекла. Войдите заново.");
+    setStaff(null);
+  }, []);
+  const signIn = useCallback((account: Staff, token: string) => {
+    setExpiredNotice("");
+    setStaff(account);
+    setCsrf(token);
+  }, []);
 
   useEffect(() => {
     void api<Staff>("/account/me").then(({ data, response }) => {
       setStaff(data);
       adoptCsrf(response.headers.get(csrfHeader) ?? "");
-    }).catch(() => undefined).finally(() => setChecking(false));
+    }).catch((error) => {
+      if (error instanceof AdminApiError && error.status === 401) setExpiredNotice("Сессия истекла. Войдите заново.");
+    }).finally(() => setChecking(false));
   }, []);
 
   if (checking) return <AdminStatus text="Проверяем доступ…" />;
   if (!staff) {
-    return <AdminLogin onLogin={(account, token) => { setStaff(account); setCsrf(token); }} />;
+    return <AdminLogin notice={expiredNotice} onLogin={signIn} />;
   }
-  return <AdminShell staff={staff} csrf={csrf} onCsrf={adoptCsrf} renewCsrf={renewCsrf} onLogout={() => setStaff(null)} />;
+  return <AdminShell staff={staff} csrf={csrf} onCsrf={adoptCsrf} renewCsrf={renewCsrf} onExpire={expire} onLogout={() => setStaff(null)} />;
 }
 
-function AdminLogin({ onLogin }: { onLogin: (staff: Staff, csrf: string) => void }) {
+function AdminLogin({ notice, onLogin }: { notice: string; onLogin: (staff: Staff, csrf: string) => void }) {
   const [login, setLogin] = useState("Atari");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,6 +119,7 @@ function AdminLogin({ onLogin }: { onLogin: (staff: Staff, csrf: string) => void
           <label>Логин<input value={login} onChange={(event) => setLogin(event.target.value)} autoComplete="username" maxLength={64} required /></label>
           <label>Пароль<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={256} required autoFocus /></label>
           {error && <p className="admin-form-error" role="alert">{error}</p>}
+          {notice && !error && <p className="admin-form-error" role="alert">{notice}</p>}
           <button type="submit" disabled={busy}>{busy ? "Входим…" : "Войти"}</button>
         </form>
       </section>
@@ -114,7 +127,7 @@ function AdminLogin({ onLogin }: { onLogin: (staff: Staff, csrf: string) => void
   );
 }
 
-function AdminShell({ staff, csrf, onCsrf, renewCsrf, onLogout }: { staff: Staff; csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onLogout: () => void }) {
+function AdminShell({ staff, csrf, onCsrf, renewCsrf, onExpire, onLogout }: { staff: Staff; csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; onLogout: () => void }) {
   const [view, setView] = useState<View>("dashboard");
 
   const logout = async () => {
@@ -138,13 +151,13 @@ function AdminShell({ staff, csrf, onCsrf, renewCsrf, onLogout }: { staff: Staff
         </div>
       </aside>
       <main className="admin-content">
-        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} staff={staff} /> : view === "moderation" ? <Moderation csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
+        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} staff={staff} /> : view === "moderation" ? <Moderation csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} /> : <Audit csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} />}
       </main>
     </div>
   );
 }
 
-function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
+function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; onExpire: () => void }) {
   const [items, setItems] = useState<SpecialEvent[] | null>(null);
   const [reason, setReason] = useState("plans_changed");
   const [cities, setCities] = useState<CityOption[]>([]);
@@ -199,6 +212,7 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
       setForm({ title: "", description: "", city_id: form.city_id, starts_at: "", ends_at: "", place: "", latitude: "", longitude: "" });
       await load();
     } catch (reason) {
+      if (reason instanceof AdminApiError && reason.status === 401) { onExpire(); return; }
       setFormError(reason instanceof AdminApiError ? "Не удалось создать событие. Проверьте данные." : "Нет связи с сервером.");
     } finally {
       setBusyForm(false);
@@ -206,12 +220,17 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
   };
   const cancel = async (event: SpecialEvent) => {
     if (!window.confirm(`Отменить «${event.title}»?`)) return;
-    await api(`/events/special/${event.id}/cancel`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", [csrfHeader]: csrf },
-      body: JSON.stringify({ reason }),
-    });
-    await load();
+    try {
+      await api(`/events/special/${event.id}/cancel`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", [csrfHeader]: csrf },
+        body: JSON.stringify({ reason }),
+      });
+      await load();
+    } catch (error) {
+      if (error instanceof AdminApiError && error.status === 401) onExpire();
+      else setFormError("Не удалось отменить событие. Попробуйте ещё раз.");
+    }
   };
   return <section><header className="admin-page-header"><div><p>Общественные события</p><h1>Особые события</h1></div></header>
     {!creating ? <button className="admin-more" onClick={() => setCreating(true)}>Создать событие</button>
@@ -235,7 +254,7 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
     <label className="admin-inline-control">Причина отмены<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="plans_changed">Планы изменились</option><option value="not_enough_participants">Не набралось участников</option><option value="venue_problem">Проблемы с местом</option><option value="unforeseen_circumstances">Непредвиденные обстоятельства</option></select></label>{items === null ? <AdminStatus text="Загружаем события…" /> : items.length ? <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.city}</td><td>{new Date(event.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-more" onClick={() => void cancel(event)}>Отменить</button></td></tr>)}</tbody></table></div> : <AdminEmpty title="Активных особых событий нет" text="Создайте первое общественное событие." />}</section>;
 }
 
-function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; staff: Staff }) {
+function Dashboard({ staff, csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; staff: Staff }) {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [failed, setFailed] = useState(false);
   const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
@@ -249,12 +268,12 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
   useEffect(() => {
     void api<Counts>("/dashboard").then(({ data, response }) => {
       setCounts(data); onCsrf(response.headers.get(csrfHeader) ?? "");
-    }).catch(() => setFailed(true));
-  }, [onCsrf]);
+    }).catch((error) => { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setFailed(true); });
+  }, [onCsrf, onExpire]);
   const loadMetrics = useCallback(async () => {
     try { const result = await api<SystemMetrics>("/system/metrics"); setMetrics(result.data); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setMetricsFailed(false); }
-    catch { setMetricsFailed(true); }
-  }, [onCsrf]);
+    catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setMetricsFailed(true); }
+  }, [onCsrf, onExpire]);
   const refreshMetrics = async () => {
     setMetricsRefreshing(true); setMetricsFailed(false);
     const request = async (token: string) => await api<SystemMetrics>("/system/metrics/refresh", { method: "POST", headers: { [csrfHeader]: token } });
@@ -263,7 +282,7 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
       try { result = await request(csrf); }
       catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
       setMetrics(result.data); onCsrf(result.response.headers.get(csrfHeader) ?? "");
-    } catch { setMetricsFailed(true); } finally { setMetricsRefreshing(false); }
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setMetricsFailed(true); } finally { setMetricsRefreshing(false); }
   };
   useEffect(() => {
     void loadMetrics();
@@ -276,7 +295,7 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
       let result: { data: ImageAnalysis; response: Response };
       try { result = await request(csrf); } catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
       setImages(result.data); onCsrf(result.response.headers.get(csrfHeader) ?? "");
-    } catch { setImagesError("Не удалось собрать отчёт. Повторите попытку."); } finally { setImagesRefreshing(false); }
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setImagesError("Не удалось собрать отчёт. Повторите попытку."); } finally { setImagesRefreshing(false); }
   };
   const estimateImages = async () => {
     setEstimateSubmitting(true); setImagesError("");
@@ -284,7 +303,7 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
     try {
       try { await request(csrf); } catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; await request(await renewCsrf()); }
       setImages((current) => current ? { ...current, estimate_status: "queued", estimate: null } : current);
-    } catch (error) { setImagesError(error instanceof AdminApiError && error.status === 409 ? "Оценка уже выполняется." : "Не удалось запустить оценку."); } finally { setEstimateSubmitting(false); }
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setImagesError(error instanceof AdminApiError && error.status === 409 ? "Оценка уже выполняется." : "Не удалось запустить оценку."); } finally { setEstimateSubmitting(false); }
   };
   useEffect(() => {
     if (images?.estimate_status !== "queued" && images?.estimate_status !== "running") return;
@@ -324,7 +343,7 @@ const rejectionReasons = [
   ["invalid_place_or_time", "Неверное место или время"], ["duplicate_or_spam", "Дубликат или спам"],
 ] as const;
 
-function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string> }) {
+function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void }) {
   const [items, setItems] = useState<Review[] | null>(null);
   const [selected, setSelected] = useState<ReviewDetail | null>(null);
   const [failed, setFailed] = useState(false);
@@ -336,12 +355,13 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
     try {
       const result = await api<{ items: Review[] }>("/events/reviews");
       onCsrf(result.response.headers.get(csrfHeader) ?? ""); setItems(result.data.items); setFailed(false);
-    } catch { setFailed(true); setItems([]); }
-  }, [onCsrf]);
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else { setFailed(true); setItems([]); } }
+  }, [onCsrf, onExpire]);
   useEffect(() => { void load(); }, [load]);
   const open = async (review: Review) => {
     setBusy("open");
     try { const result = await api<ReviewDetail>(`/events/reviews/${review.id}`); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(result.data); }
+    catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); }
     finally { setBusy(null); }
   };
   const decide = async (action: "approve" | "reject") => {
@@ -354,7 +374,7 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
       catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
       onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await load();
       setDecisionMessage(action === "approve" ? "Событие одобрено и опубликовано." : "Событие отклонено, автор получит причину.");
-    } catch (error) { setDecisionError(moderationErrorMessage(error)); }
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setDecisionError(moderationErrorMessage(error)); }
     finally { setBusy(null); }
   };
   return <section><header className="admin-page-header"><div><p>Проверка пользовательских событий</p><h1>Модерация</h1></div>{items && <span className="admin-live">{items.length} ожидают</span>}</header>{decisionMessage && <p className="success-message" role="status">{decisionMessage}</p>}
@@ -363,7 +383,7 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
   </section>;
 }
 
-function Audit({ onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
+function Audit({ onCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; onExpire: () => void }) {
   const [items, setItems] = useState<AuditEntry[]>([]);
   const [next, setNext] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
@@ -375,8 +395,8 @@ function Audit({ onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
       onCsrf(result.response.headers.get(csrfHeader) ?? "");
       setItems((current) => before ? [...current, ...result.data.items] : result.data.items);
       setNext(result.data.next_before);
-    } catch { setFailed(true); } finally { setBusy(false); }
-  }, [onCsrf]);
+    } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setFailed(true); } finally { setBusy(false); }
+  }, [onCsrf, onExpire]);
   useEffect(() => { void load(); }, [load]);
   return (
     <section>
