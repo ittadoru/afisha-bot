@@ -111,7 +111,7 @@ async def _active_episode(
     """),
         {"event": event_id, "user": user_id},
     )
-    return UUID(episode) if episode else None
+    return episode
 
 
 async def _message_payload(
