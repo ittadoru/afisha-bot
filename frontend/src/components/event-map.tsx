@@ -238,10 +238,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         <section className="map-shell" aria-label="Карта событий">
           <div ref={containerRef} className="map-canvas" />
           {selecting && <span className="fixed-location-marker" aria-label="Центр выбранного места" role="img">●</span>}
-          <aside className="map-address" aria-live="polite">
+          {!selecting && <aside className="map-address" aria-live="polite">
             <MapPin aria-hidden="true" />
-            <div><strong>{selecting ? "Выбранное место" : city.name}</strong><span>{address}</span></div>
-          </aside>
+            <div><strong>{city.name}</strong><span>{address}</span></div>
+          </aside>}
           {empty && <div className="map-empty-chip">В этом городе пока нет событий</div>}
           {!selecting && <div className="map-legend"><span className="legend-exact" /> Точное место <span className="legend-street" /> Общая улица</div>}
         </section>

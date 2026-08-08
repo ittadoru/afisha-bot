@@ -43,8 +43,8 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
   const [limited, setLimited] = useState(false);
   const [capacity, setCapacity] = useState("3");
   const [location, setLocation] = useState<ResolvedLocation | null>(null);
-  const [addressText, setAddressText] = useState("");
-  const [locationNote, setLocationNote] = useState("");
+  const [addressStreet, setAddressStreet] = useState("");
+  const [addressPlace, setAddressPlace] = useState("");
   const [visibility, setVisibility] = useState<AddressVisibility>("exact_public");
   const [photo, setPhoto] = useState<EventPhotoUpload | null>(null);
   const [addressConfirmed, setAddressConfirmed] = useState(false);
@@ -56,8 +56,8 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
     submissionRef.current = null;
     setError("");
     setLocation(value);
-    setAddressText(value?.display_name ?? "");
-    setLocationNote("");
+    setAddressStreet("");
+    setAddressPlace("");
     setAddressConfirmed(false);
   }, []);
 
@@ -65,7 +65,7 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
     () => categories.filter((category) => category.organizer_selectable && !category.is_special),
     [categories],
   );
-  const dirty = Boolean(title || description || categoryId || startsAt || endsAt || location || addressText || locationNote || photo || limited);
+  const dirty = Boolean(title || description || categoryId || startsAt || endsAt || location || addressStreet || addressPlace || photo || limited);
 
   const discard = useCallback(async () => {
     if (photo) {
@@ -102,14 +102,14 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
 
   useEffect(() => {
     setLocation(null);
-    setAddressText("");
-    setLocationNote("");
+    setAddressStreet("");
+    setAddressPlace("");
     setStep((current) => Math.min(current, 3));
   }, [city.id]);
 
   useEffect(() => {
     setAddressConfirmed(false);
-  }, [location, visibility, addressText]);
+  }, [location, visibility, addressStreet, addressPlace]);
 
   const change = <T,>(setter: (value: T) => void, value: T) => {
     submissionRef.current = null;
@@ -139,9 +139,9 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
       if (!location) return "Выберите и подтвердите место внутри города.";
     }
     if (current === 4) {
-      if (!location || (!location.street && visibility !== "exact_public")) return "Без определённой улицы доступен только публичный точный адрес.";
-      if (!addressText.trim()) return "Проверьте и укажите адрес для карточки.";
-      if (location.precision === "locality" && visibility === "exact_public" && addressText.trim() === location.display_name) return "Добавьте улицу, дом или ориентир к адресу.";
+      if (!location) return "Сначала выберите место на карте.";
+      if (!addressStreet.trim()) return "Укажите улицу.";
+      if (!addressPlace.trim()) return "Укажите дом, место или ориентир.";
       if (!addressConfirmed) return "Подтвердите, что вы проверили адрес.";
     }
     if (current === 5 && !photo) return "Добавьте фотографию события.";
@@ -173,8 +173,7 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
       title: title.trim(), description: description.trim(), category_id: categoryId,
       city_id: city.id, starts_at: moscowDate(startsAt)?.toISOString(), ends_at: moscowDate(endsAt)?.toISOString(),
       capacity: limited ? Number(capacity) : null, latitude: location.latitude, longitude: location.longitude,
-      address_visibility: visibility, address_text: addressText.trim(), address_confirmed: addressConfirmed,
-      location_note: locationNote.trim() || null,
+      address_visibility: visibility, address_street: addressStreet.trim(), address_place: addressPlace.trim(), address_confirmed: addressConfirmed,
       photo_upload_id: photo.upload_id,
     });
     const requestIdentity = submissionRef.current?.payload === payload
@@ -204,7 +203,7 @@ export function EventCreation({ city, categories, csrfToken, organizerStatus, on
   if (submitted) return <section className="event-submit-success"><CheckCircle2 /><p className="section-kicker">Событие создано</p><h1>{submitted.status === "published" ? "Опубликовано" : "Отправлено на проверку"}</h1><p>{submitted.status === "published" ? "Событие уже доступно пользователям." : "До решения проверки событие не будет видно другим пользователям."}</p><Button onClick={onFinished}>Вернуться к событиям</Button></section>;
 
   const category = selectableCategories.find((item) => item.id === categoryId);
-  return <section className="event-wizard"><header className="event-wizard-header"><button className="text-back" type="button" onClick={() => void requestCancel()}>← Закрыть</button><span>Шаг {step} из 5</span></header><div className="wizard-progress" aria-label={`Шаг ${step} из 5`}>{[1, 2, 3, 4, 5].map((number) => <button type="button" key={number} className={number <= step ? "active" : ""} disabled={number >= step} onClick={() => setStep(number)}>{number}</button>)}</div><div className="wizard-body scroll-focus-container">{step === 1 && <section className="wizard-step"><p className="section-kicker">Основное</p><h1>Расскажите о событии</h1><label>Название<input value={title} maxLength={60} onChange={(event) => change(setTitle, event.target.value)} placeholder="Например, прогулка у моря" /><small>{title.length}/60</small></label><label>Категория<select value={categoryId} onChange={(event) => change(setCategoryId, event.target.value)}><option value="" disabled>Выберите категорию</option>{selectableCategories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Описание<textarea value={description} maxLength={1000} onChange={(event) => change(setDescription, event.target.value)} placeholder="Что будет происходить и что важно знать участникам" /><small>{description.length}/1000</small></label></section>}{step === 2 && <section className="wizard-step"><p className="section-kicker">Время и участие</p><h1>Когда встречаемся?</h1><label>Начало<input type="datetime-local" value={startsAt} min={minimumLocalDate(organizerStatus === "trusted" ? 1 : 6)} onChange={(event) => change(setStartsAt, event.target.value)} /></label><label>Окончание<input type="datetime-local" value={endsAt} min={startsAt} onChange={(event) => change(setEndsAt, event.target.value)} /></label><label className="capacity-toggle"><input type="checkbox" checked={limited} onChange={(event) => change(setLimited, event.target.checked)} /><span><strong>Ограничить количество мест</strong><small>Организатор не входит в лимит.</small></span></label>{limited && <label>Количество участников<input type="number" min="3" inputMode="numeric" value={capacity} onChange={(event) => change(setCapacity, event.target.value)} /></label>}</section>}{step === 3 && <section className="wizard-step wizard-map-step"><div className="wizard-map-heading"><div><p className="section-kicker">Место</p><h1>Выберите место</h1></div><button className="selected-city compact" type="button" onClick={onChooseCity}><MapPin /><span>{city.name}</span></button></div><EventMap embedded selecting city={city} onLocationChange={handleLocationChange} /></section>}{step === 4 && <section className="wizard-step"><p className="section-kicker">Адрес</p><h1>Проверьте адрес</h1><label>Адрес для карточки<input value={addressText} maxLength={300} onChange={(event) => change(setAddressText, event.target.value)} placeholder="Улица, дом, ориентир" /><small>{addressText.length}/300</small></label>{location?.precision === "locality" && <p className="state-hint">Карта нашла только город. Добавьте улицу, дом или ориентир.</p>}<fieldset className="visibility-options"><legend>Видимость</legend><VisibilityOption value="exact_public" selected={visibility} onSelect={(value) => change(setVisibility, value)} title="Видно всем" text="Точное место сразу видно в карточке." /><VisibilityOption value="exact_participants" selected={visibility} onSelect={(value) => change(setVisibility, value)} disabled={Boolean(location && !location.street)} title="Только участникам" text="Остальные увидят только улицу." /><VisibilityOption value="street_only" selected={visibility} onSelect={(value) => change(setVisibility, value)} disabled={Boolean(location && !location.street)} title="Только улица" text="Точное место видно только вам." /></fieldset><label>Дом, вход или ориентир <small>необязательно</small><input value={locationNote} maxLength={80} onChange={(event) => change(setLocationNote, event.target.value)} placeholder="Например: дом 12, у главного входа" /><small>{locationNote.length}/80</small></label><label className="address-confirmation"><input type="checkbox" checked={addressConfirmed} onChange={(event) => setAddressConfirmed(event.target.checked)} /><span><strong>Я проверил адрес — он верный</strong><small>Метка на карте и текст адреса совпадают.</small></span></label></section>}{step === 5 && <section className="wizard-step"><p className="section-kicker">Фотография</p><h1>Фото места</h1><EventPhotoUploader csrfToken={csrfToken} value={photo} onChange={(value) => change(setPhoto, value)} />{photo && <article className="event-preview"><img src={photo.preview_url} alt="Фотография места события" /><div><span className="category-chip">{category?.name}</span><h2>{title}</h2><p>{formatMoscow(startsAt)} — {formatMoscow(endsAt)}</p><p><MapPin /> {addressText}{locationNote ? ` · ${locationNote}` : ""}</p><p><Users /> {limited ? `До ${capacity} участников` : "Без ограничения мест"}</p><p>{description}</p></div></article>}</section>}{error && <p className="form-error wizard-error" role="alert">{error}</p>}</div><footer className="wizard-actions">{step > 1 && <Button variant="outline" disabled={busy} onClick={() => { setError(""); setStep((current) => current - 1); }}>Назад</Button>}{step < 5 ? <Button onClick={goNext}>Продолжить</Button> : <Button disabled={busy || !photo} onClick={() => void submit()}>{busy ? "Отправляем…" : organizerStatus === "trusted" ? "Опубликовать" : "Отправить на проверку"}</Button>}</footer></section>;
+  return <section className="event-wizard"><header className="event-wizard-header"><button className="text-back" type="button" onClick={() => void requestCancel()}>← Закрыть</button><span>Шаг {step} из 5</span></header><div className="wizard-progress" aria-label={`Шаг ${step} из 5`}>{[1, 2, 3, 4, 5].map((number) => <button type="button" key={number} className={number <= step ? "active" : ""} disabled={number >= step} onClick={() => setStep(number)}>{number}</button>)}</div><div className="wizard-body scroll-focus-container">{step === 1 && <section className="wizard-step"><p className="section-kicker">Основное</p><h1>Расскажите о событии</h1><label>Название<input value={title} maxLength={60} onChange={(event) => change(setTitle, event.target.value)} placeholder="Например, прогулка у моря" /><small>{title.length}/60</small></label><label>Категория<select value={categoryId} onChange={(event) => change(setCategoryId, event.target.value)}><option value="" disabled>Выберите категорию</option>{selectableCategories.map((item) => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label><label>Описание<textarea value={description} maxLength={1000} onChange={(event) => change(setDescription, event.target.value)} placeholder="Что будет происходить и что важно знать участникам" /><small>{description.length}/1000</small></label></section>}{step === 2 && <section className="wizard-step"><p className="section-kicker">Время и участие</p><h1>Когда встречаемся?</h1><label>Начало<input type="datetime-local" value={startsAt} min={minimumLocalDate(organizerStatus === "trusted" ? 1 : 6)} onChange={(event) => change(setStartsAt, event.target.value)} /></label><label>Окончание<input type="datetime-local" value={endsAt} min={startsAt} onChange={(event) => change(setEndsAt, event.target.value)} /></label><label className="capacity-toggle"><input type="checkbox" checked={limited} onChange={(event) => change(setLimited, event.target.checked)} /><span><strong>Ограничить количество мест</strong><small>Организатор не входит в лимит.</small></span></label>{limited && <label>Количество участников<input type="number" min="3" inputMode="numeric" value={capacity} onChange={(event) => change(setCapacity, event.target.value)} /></label>}</section>}{step === 3 && <section className="wizard-step wizard-map-step"><div className="wizard-map-heading"><div><p className="section-kicker">Место</p><h1>Выберите место</h1></div><button className="selected-city compact" type="button" onClick={onChooseCity}><MapPin /><span>{city.name}</span></button></div><EventMap embedded selecting city={city} onLocationChange={handleLocationChange} /></section>}{step === 4 && <section className="wizard-step"><p className="section-kicker">Адрес</p><h1>Укажите адрес</h1><label>Улица <small>обязательно</small><input value={addressStreet} maxLength={160} onChange={(event) => change(setAddressStreet, event.target.value)} placeholder="Например: улица Ленина" /><small>{addressStreet.length}/160</small></label><label>Дом, место или ориентир <small>обязательно</small><input value={addressPlace} maxLength={140} onChange={(event) => change(setAddressPlace, event.target.value)} placeholder="Например: дом 12 или вход в городской парк" /><small>{addressPlace.length}/140</small></label><fieldset className="visibility-options"><legend>Видимость</legend><VisibilityOption value="exact_public" selected={visibility} onSelect={(value) => change(setVisibility, value)} title="Видно всем" text="Точное место сразу видно в карточке." /><VisibilityOption value="exact_participants" selected={visibility} onSelect={(value) => change(setVisibility, value)} title="Только участникам" text="Остальные увидят только улицу." /><VisibilityOption value="street_only" selected={visibility} onSelect={(value) => change(setVisibility, value)} title="Только улица" text="Точное место видно только вам." /></fieldset><label className="address-confirmation"><input type="checkbox" checked={addressConfirmed} onChange={(event) => setAddressConfirmed(event.target.checked)} /><span><strong>Я подтверждаю, что ввёл верный адрес</strong><small>Неверный адрес может стать причиной отклонения события, ограничения функций или снижения репутации.</small></span></label></section>}{step === 5 && <section className="wizard-step"><p className="section-kicker">Фотография</p><h1>Фото места</h1><EventPhotoUploader csrfToken={csrfToken} value={photo} onChange={(value) => change(setPhoto, value)} />{photo && <article className="event-preview"><img src={photo.preview_url} alt="Фотография места события" /><div><span className="category-chip">{category?.name}</span><h2>{title}</h2><p>{formatMoscow(startsAt)} — {formatMoscow(endsAt)}</p><p><MapPin /> {addressPlace}, {addressStreet}</p><p><Users /> {limited ? `До ${capacity} участников` : "Без ограничения мест"}</p><p>{description}</p></div></article>}</section>}{error && <p className="form-error wizard-error" role="alert">{error}</p>}</div><footer className="wizard-actions">{step > 1 && <Button variant="outline" disabled={busy} onClick={() => { setError(""); setStep((current) => current - 1); }}>Назад</Button>}{step < 5 ? <Button onClick={goNext}>Продолжить</Button> : <Button disabled={busy || !photo} onClick={() => void submit()}>{busy ? "Отправляем…" : organizerStatus === "trusted" ? "Опубликовать" : "Отправить на проверку"}</Button>}</footer></section>;
 }
 
 function VisibilityOption({ value, selected, onSelect, title, text, disabled = false }: { value: AddressVisibility; selected: AddressVisibility; onSelect: (value: AddressVisibility) => void; title: string; text: string; disabled?: boolean }) {

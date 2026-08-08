@@ -76,6 +76,7 @@ async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
                     SELECT q.id, q.event_id, q.event_revision_id, q.submitted_at,
                            r.title, r.description, r.starts_at, r.ends_at,
                            r.normalized_address, r.organizer_address,
+                           r.organizer_street, r.organizer_place,
                            r.street_name, r.landmark,
                            r.address_visibility,
                            ST_Y(r.location::geometry) AS latitude,

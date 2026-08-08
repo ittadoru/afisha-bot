@@ -35,11 +35,11 @@ class CreateEventCommand:
     latitude: float
     longitude: float
     address_visibility: AddressVisibility
-    organizer_address: str | None
-    location_note: str | None
+    organizer_address: str
+    organizer_street: str
+    organizer_place: str
     photo_upload_id: UUID
     canonical_address: CanonicalAddress
-    street_anchor_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,17 +193,6 @@ async def create_event(
             raise EventCreationError("city_not_available")
         if not inside_city:
             raise EventCreationError("point_outside_city_area")
-        if (
-            command.canonical_address.street is None
-            and command.address_visibility != "exact_public"
-        ):
-            raise EventCreationError("street_required_for_hidden_address")
-        if (
-            command.address_visibility != "exact_public"
-            and command.street_anchor_id is None
-        ):
-            raise EventCreationError("street_anchor_required")
-
         photo = (
             await connection.execute(
                 text(
@@ -256,17 +245,18 @@ async def create_event(
             text(
                 """
                 INSERT INTO events.event_revisions
-                    (id, event_id, revision_number, title, description, landmark,
+                    (id, event_id, revision_number, title, description,
                      starts_at, ends_at, location, normalized_address,
-                     organizer_address,
+                     organizer_address, organizer_street, organizer_place,
                      street_name, address_visibility, street_anchor_id,
                      moderation_status,
                      decided_at)
                 VALUES
-                    (:revision, :event, 1, :title, :description, :location_note,
+                    (:revision, :event, 1, :title, :description,
                      :starts, :ends,
                      ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
-                    :address, :organizer_address, :street, :visibility, :street_anchor,
+                    :address, :organizer_address, :organizer_street, :organizer_place,
+                    :street, :visibility, NULL,
                      :moderation,
                      CASE WHEN :published THEN now() ELSE NULL END)
                 """
@@ -276,17 +266,17 @@ async def create_event(
                 "event": event_id,
                 "title": command.title,
                 "description": command.description,
-                "location_note": command.location_note,
                 "starts": command.starts_at,
                 "ends": command.ends_at,
                 "longitude": command.longitude,
                 "latitude": command.latitude,
                 "address": command.canonical_address.display_name,
                 "organizer_address": command.organizer_address,
+                "organizer_street": command.organizer_street,
+                "organizer_place": command.organizer_place,
                 "street": command.canonical_address.street
                 or command.canonical_address.city,
                 "visibility": command.address_visibility,
-                "street_anchor": command.street_anchor_id,
                 "moderation": moderation_status,
                 "published": published,
             },

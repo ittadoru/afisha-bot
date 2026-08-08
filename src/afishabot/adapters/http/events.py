@@ -28,10 +28,6 @@ from afishabot.adapters.http.profiles import (
     validate_origin,
 )
 from afishabot.modules.accounts.application.profiles import session_user_id
-from afishabot.modules.discovery.application.street_anchors import (
-    StreetAnchorError,
-    save_street_anchor,
-)
 from afishabot.modules.discovery.infrastructure.nominatim import (
     NominatimReverseGeocoder,
 )
@@ -91,9 +87,9 @@ class CreateEventRequest(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     address_visibility: Literal["street_only", "exact_participants", "exact_public"]
-    address_text: str = Field(min_length=1, max_length=300)
+    address_street: str = Field(min_length=1, max_length=160)
+    address_place: str = Field(min_length=1, max_length=140)
     address_confirmed: bool
-    location_note: str | None = Field(default=None, max_length=80)
     photo_upload_id: UUID
 
     @field_validator("title")
@@ -112,17 +108,9 @@ class CreateEventRequest(BaseModel):
             raise ValueError("text must not be blank")
         return normalized
 
-    @field_validator("location_note")
+    @field_validator("address_street", "address_place")
     @classmethod
-    def location_note_must_be_compact(cls, value: str | None) -> str | None:
-        if value is None:
-            return None
-        normalized = " ".join(value.split())
-        return normalized or None
-
-    @field_validator("address_text")
-    @classmethod
-    def address_text_must_be_compact(cls, value: str) -> str:
+    def address_part_must_be_compact(cls, value: str) -> str:
         if any(character in value for character in ("\n", "\r", "\t", "\x00")):
             raise ValueError("address must not contain control characters")
         normalized = " ".join(value.split())
@@ -287,45 +275,7 @@ async def submit_event(
             detail="address_unavailable",
         ) from error
 
-    organizer_address = (
-        None
-        if body.address_text == canonical_address.display_name
-        else body.address_text
-    )
-    if (
-        body.address_visibility == "exact_public"
-        and canonical_address.precision == "locality"
-        and organizer_address is None
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="exact_address_detail_required",
-        )
-
-    street_anchor_id: UUID | None = None
-    if body.address_visibility != "exact_public":
-        if canonical_address.street is None:
-            raise HTTPException(status_code=422, detail="street_required")
-        try:
-            candidate = await geocoder.street_anchor(
-                street=canonical_address.street,
-                city=canonical_address.city,
-                locale="ru",
-            )
-            street_anchor_id = await save_street_anchor(
-                engine,
-                city_id=body.city_id,
-                street=canonical_address.street,
-                candidate=candidate,
-            )
-        except (ReverseGeocodingNotFound, StreetAnchorError) as error:
-            raise HTTPException(
-                status_code=422, detail="street_anchor_unavailable"
-            ) from error
-        except (ReverseGeocodingUnavailable, ReverseGeocodingMalformed) as error:
-            raise HTTPException(
-                status_code=503, detail="street_anchor_unavailable"
-            ) from error
+    organizer_address = f"{body.address_place}, {body.address_street}"
     try:
         created = await create_event(
             engine,
@@ -344,10 +294,10 @@ async def submit_event(
                 longitude=body.longitude,
                 address_visibility=body.address_visibility,
                 organizer_address=organizer_address,
-                location_note=body.location_note,
+                organizer_street=body.address_street,
+                organizer_place=body.address_place,
                 photo_upload_id=body.photo_upload_id,
                 canonical_address=canonical_address,
-                street_anchor_id=street_anchor_id,
             ),
         )
     except EventCreationConflict as error:

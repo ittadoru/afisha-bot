@@ -32,9 +32,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 27
+    assert len(files) == 28
     assert parents - {None} < revisions
-    assert revisions - parents == {"0027_event_organizer_address"}
+    assert revisions - parents == {"0028_manual_event_address_parts"}
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:

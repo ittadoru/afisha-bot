@@ -1,5 +1,3 @@
-# ruff: noqa: RUF001 -- Russian event examples are intentional.
-
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -20,7 +18,8 @@ def event_payload(**overrides: object) -> dict[str, object]:
         "latitude": 42.98,
         "longitude": 47.50,
         "address_visibility": "exact_public",
-        "address_text": "  улица  Гагарина,  дом  12 ",
+        "address_street": "  улица  Гагарина  ",
+        "address_place": "  дом  12 ",
         "address_confirmed": True,
         "photo_upload_id": uuid4(),
     }
@@ -28,14 +27,25 @@ def event_payload(**overrides: object) -> dict[str, object]:
     return payload
 
 
-def test_create_event_address_text_is_normalized() -> None:
+def test_create_event_address_parts_are_normalized() -> None:
     request = CreateEventRequest.model_validate(event_payload())
 
-    assert request.address_text == "улица Гагарина, дом 12"
+    assert request.address_street == "улица Гагарина"
+    assert request.address_place == "дом 12"
     assert request.address_confirmed is True
 
 
 @pytest.mark.parametrize("address", ["", " \t ", "улица\nГагарина"])
-def test_create_event_rejects_blank_or_control_address_text(address: str) -> None:
+def test_create_event_rejects_blank_or_control_address_part(address: str) -> None:
     with pytest.raises(ValidationError):
-        CreateEventRequest.model_validate(event_payload(address_text=address))
+        CreateEventRequest.model_validate(event_payload(address_street=address))
+
+
+def test_create_event_requires_both_manual_address_parts() -> None:
+    with pytest.raises(ValidationError):
+        CreateEventRequest.model_validate(event_payload(address_place=""))
+
+
+def test_create_event_rejects_legacy_combined_address_field() -> None:
+    with pytest.raises(ValidationError):
+        CreateEventRequest.model_validate(event_payload(address_text="улица Гагарина, дом 12"))

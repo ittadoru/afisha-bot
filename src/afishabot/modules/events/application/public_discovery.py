@@ -31,7 +31,8 @@ async def _event_list(
                     """
                     SELECT e.id,e.kind,cat.slug AS category_slug,
                            cat.name AS category,r.title,r.description,
-                           r.starts_at,r.ends_at,r.street_name,
+                           r.starts_at,r.ends_at,
+                           COALESCE(r.organizer_street,r.street_name) AS street_name,
                            CASE WHEN r.address_visibility='exact_public'
                                   OR e.creator_user_id=CAST(:viewer AS uuid)
                                   OR (r.address_visibility='exact_participants'
@@ -48,7 +49,7 @@ async def _event_list(
                                   ),
                                   r.landmark
                                 )
-                                ELSE r.street_name END
+                                ELSE COALESCE(r.organizer_street,r.street_name) END
                              AS visible_address,
                            e.capacity,
                            (SELECT count(*) FROM events.participation_episodes p
@@ -158,7 +159,8 @@ async def event_detail(
                            e.cancellation_reason_code,e.capacity,
                            cat.slug AS category_slug,cat.name AS category,
                            city.name AS city,r.title,r.description,
-                           r.starts_at,r.ends_at,r.street_name,
+                           r.starts_at,r.ends_at,
+                           COALESCE(r.organizer_street,r.street_name) AS street_name,
                            CASE WHEN e.lifecycle_status='published'
                                 AND r.ends_at>now() AND
                                 (r.address_visibility='exact_public'
@@ -177,7 +179,7 @@ async def event_detail(
                                   ),
                                   r.landmark
                                 )
-                                ELSE r.street_name END
+                                ELSE COALESCE(r.organizer_street,r.street_name) END
                              AS visible_address,
                            CASE WHEN e.lifecycle_status='published'
                                 AND r.ends_at>now() AND
