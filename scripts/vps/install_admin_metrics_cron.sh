@@ -13,5 +13,5 @@ printf '%s\n' \
   'PATH=/usr/sbin:/usr/bin:/sbin:/bin' \
   "* * * * * root $collector" > "$cron_file"
 chmod 0644 "$cron_file"
-systemctl reload cron
+systemctl reload cron || systemctl restart cron
 printf 'Admin metrics collector installed: %s\n' "$cron_file"
