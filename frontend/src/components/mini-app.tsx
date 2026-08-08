@@ -25,6 +25,7 @@ import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 import type { MapCity } from "@/components/event-map";
 import { EventCreation } from "@/components/event-creation";
+import { EventChat } from "@/components/event-chat";
 import { EventManagement } from "@/components/event-management";
 
 const EventMap = lazy(async () => ({ default: (await import("@/components/event-map")).EventMap }));
@@ -57,6 +58,7 @@ type PublicEvent = {
   photo_url: string; organizer_public_id: string | null;
   organizer_name: string | null; organizer_status: string | null;
   cancellation_reason_code?: string | null; latitude?: number | null; longitude?: number | null;
+  chat_enabled?: boolean;
 };
 
 type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: "active" | "expired" | "hidden"; remaining_seconds: number; author: { display_name: string; avatar_url: string | null } };
@@ -64,6 +66,7 @@ type LookingPost = { id: string; title: string; body: string; category: string; 
 export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { profile: AccountProfile; csrfToken: string; onProfileUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void> }) {
   const initialPublicId = window.location.pathname.match(/^\/app\/profile\/(\d{8})$/)?.[1] ?? null;
   const initialEventId = window.location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})$/i)?.[1] ?? null;
+  const initialChatEventId = window.location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})\/chat$/i)?.[1] ?? null;
   const initialLookingPostId = window.location.pathname.match(/^\/app\/looking\/([0-9a-f-]{36})$/i)?.[1] ?? null;
   const [section, setSection] = useState<Section>(initialPublicId ? "profile" : "events");
   const [eventsMode, setEventsMode] = useState<EventsMode>("map");
@@ -76,17 +79,28 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [savingCityId, setSavingCityId] = useState<string | null>(null);
   const [cityError, setCityError] = useState("");
   const [createDirty, setCreateDirty] = useState(false);
-  const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId ?? initialChatEventId);
   const [selectedLookingPostId, setSelectedLookingPostId] = useState<string | null>(initialLookingPostId);
+  const [chatOpen, setChatOpen] = useState(Boolean(initialChatEventId));
   const [streetGroup, setStreetGroup] = useState<{ ids: string[]; street: string } | null>(null);
   const createDiscardRef = useRef<(() => Promise<void>) | null>(null);
   const registerCreateDiscard = useCallback((discard: (() => Promise<void>) | null) => { createDiscardRef.current = discard; }, []);
   const openEvent = useCallback((id: string) => {
     setSelectedEventId(id);
+    setChatOpen(false);
     window.history.pushState({}, "", `/app/event/${id}`);
   }, []);
   const closeEvent = useCallback(() => {
     setSelectedEventId(null);
+    setChatOpen(false);
+    window.history.pushState({}, "", "/app");
+  }, []);
+  const openChat = useCallback((id: string) => {
+    setChatOpen(true);
+    window.history.pushState({}, "", `/app/event/${id}/chat`);
+  }, []);
+  const closeLookingPost = useCallback(() => {
+    setSelectedLookingPostId(null);
     window.history.pushState({}, "", "/app");
   }, []);
   const openStreetGroup = useCallback((ids: string[], street: string) => {
@@ -186,7 +200,15 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
 
   return (
     <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}`}>
-      {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /> : <>
+      {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /> : selectedEventId || selectedLookingPostId ? (
+        <div className="mini-content page-mode">
+          {selectedEventId
+            ? (chatOpen
+              ? <EventChat eventId={selectedEventId} csrfToken={csrfToken} onClose={() => { setChatOpen(false); window.history.pushState({}, "", `/app/event/${selectedEventId}`); }} />
+              : <EventPage eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} onOpenChat={() => openChat(selectedEventId)} />)
+            : <LookingPostSheet postId={selectedLookingPostId ?? ""} csrfToken={csrfToken} onClose={closeLookingPost} />}
+        </div>
+      ) : <>
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => void openCityChooser()} />
       <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}${section === "people" ? " people-mode" : ""}`}>
         {previewState ? (
@@ -204,8 +226,6 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       <BottomNav active={section} onSelect={selectSection} />
       </>}
       {streetGroup && <StreetGroupSheet group={streetGroup} onClose={() => setStreetGroup(null)} onOpen={(id) => { setStreetGroup(null); openEvent(id); }} />}
-      {selectedEventId && <EventSheet eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} />}
-      {selectedLookingPostId && <LookingPostSheet postId={selectedLookingPostId} csrfToken={csrfToken} onClose={() => { setSelectedLookingPostId(null); window.history.pushState({}, "", "/app"); }} />}
     </main>
   );
 
@@ -403,10 +423,9 @@ function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; 
   return <div className="event-sheet-backdrop" onClick={onClose}><section className="event-sheet street-group-sheet" onClick={(event) => event.stopPropagation()}><button className="sheet-handle" type="button" aria-label="Закрыть" onClick={onClose} /><p className="section-kicker">Общая улица</p><h2>{group.street}</h2><p className="state-hint">Метка не показывает примерное место конкретного события.</p>{items === null ? <p>Загружаем…</p> : items.map((item) => <button className="street-group-event" type="button" key={item.id} onClick={() => onOpen(item.id)}><EventPhoto src={item.photo_url} /><span><strong>{item.title}</strong><small>{formatEventTime(item.starts_at)} · {item.category}</small></span><ChevronRight /></button>)}</section></div>;
 }
 
-function EventSheet({ eventId, csrfToken, onClose }: { eventId: string; csrfToken: string; onClose: () => void }) {
+function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: string; csrfToken: string; onClose: () => void; onOpenChat: () => void }) {
   const [event, setEvent] = useState<PublicEvent | null>(null);
   const [failed, setFailed] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [organizer, setOrganizer] = useState<AccountProfile | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -472,9 +491,9 @@ function EventSheet({ eventId, csrfToken, onClose }: { eventId: string; csrfToke
     if (response.ok) { setMessage("Вы больше не участвуете в событии."); await reload(); }
     else setMessage("Не удалось выйти из события.");
   };
-  if (organizer) return <div className="event-sheet-backdrop"><section className="event-sheet expanded"><button className="text-back" type="button" onClick={() => setOrganizer(null)}>← К событию</button><PublicOrganizer profile={organizer} /></section></div>;
-  if (managing) return <div className="event-sheet-backdrop"><section className="event-sheet expanded"><EventManagement eventId={eventId} csrfToken={csrfToken} onBack={() => { setManaging(false); void reload(); }} /></section></div>;
-  return <div className="event-sheet-backdrop" onClick={onClose}><section className={`event-sheet${expanded ? " expanded" : ""}`} onClick={(click) => click.stopPropagation()}>{failed ? <DemoState state="error" onClose={onClose} /> : !event ? <DemoState state="loading" /> : <><button className="sheet-handle" type="button" aria-label={expanded ? "Свернуть карточку" : "Развернуть карточку"} onClick={() => setExpanded((value) => !value)} /><EventPhoto className="event-sheet-photo" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div className="event-sheet-body">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<div className="event-sheet-heading"><span className="category-chip">{event.category}</span>{event.lifecycle_status === "published" ? <button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-pressed={event.viewer_interested} disabled={busy} onClick={() => void toggleInterest()}><Heart /> {event.interest_count ?? 0}</button> : <span className="interest-button"><Heart /> {event.interest_count ?? 0}</span>}<button className="share-event" type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 /></button></div><h1>{event.title}</h1><p className="event-date"><CalendarDays /> {formatEventTime(event.starts_at)} — {formatEventTime(event.ends_at)}</p><p className="event-place"><MapPin /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<div className="event-capacity"><Users /><span><strong>{event.participant_count} участников</strong><small>{event.capacity === null ? "Без ограничения мест" : `Свободно мест: ${event.available_places}`}</small></span></div>{event.viewer_membership === "waitlisted" && <p className="queue-status">Вы в очереди · №{event.queue_position}</p>}{event.viewer_membership === "participating" && <p className="success-message">Вы участвуете. Точный адрес доступен по правилам события.</p>}{event.viewer_membership === "excluded" && <p className="form-error">Организатор завершил ваше участие. Повторное вступление недоступно.</p>}<p className="event-description">{event.description}</p>{event.kind === "regular" ? <button className="organizer-link" type="button" onClick={() => void openOrganizer()}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span><small>Организатор</small><strong>{event.organizer_name}</strong><small>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</small></span><ChevronRight /></button> : <div className="municipal-organizer"><Sparkles /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}{event.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Вступить"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null)}{message && <p className="state-hint" role="status">{message}</p>}{copied && <p className="success-message">Ссылка скопирована</p>}<Button variant="outline" onClick={() => void share()}><Share2 /> Поделиться</Button></div></>}</section></div>;
+  if (organizer) return <section className="feed page-screen event-page"><button className="text-back" type="button" onClick={() => setOrganizer(null)}>← К событию</button><PublicOrganizer profile={organizer} /></section>;
+  if (managing) return <section className="feed page-screen event-page"><EventManagement eventId={eventId} csrfToken={csrfToken} onBack={() => { setManaging(false); void reload(); }} /></section>;
+  return <section className="feed page-screen event-page"><button className="text-back" type="button" onClick={onClose}>← Назад</button>{failed ? <DemoState state="error" onClose={onClose} /> : !event ? <DemoState state="loading" /> : <><EventPhoto className="event-sheet-photo" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div className="event-sheet-body">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<div className="event-sheet-heading"><span className="category-chip">{event.category}</span>{event.lifecycle_status === "published" ? <button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-pressed={event.viewer_interested} disabled={busy} onClick={() => void toggleInterest()}><Heart /> {event.interest_count ?? 0}</button> : <span className="interest-button"><Heart /> {event.interest_count ?? 0}</span>}<button className="share-event" type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 /></button></div><h1>{event.title}</h1><p className="event-date"><CalendarDays /> {formatEventTime(event.starts_at)} — {formatEventTime(event.ends_at)}</p><p className="event-place"><MapPin /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<div className="event-capacity"><Users /><span><strong>{event.participant_count} участников</strong><small>{event.capacity === null ? "Без ограничения мест" : `Свободно мест: ${event.available_places}`}</small></span></div>{event.viewer_membership === "waitlisted" && <p className="queue-status">Вы в очереди · №{event.queue_position}</p>}{event.viewer_membership === "participating" && <p className="success-message">Вы участвуете. Точный адрес доступен по правилам события.</p>}{event.viewer_membership === "excluded" && <p className="form-error">Организатор завершил ваше участие. Повторное вступление недоступно.</p>}<p className="event-description">{event.description}</p>{event.kind === "regular" ? <button className="organizer-link" type="button" onClick={() => void openOrganizer()}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span><small>Организатор</small><strong>{event.organizer_name}</strong><small>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</small></span><ChevronRight /></button> : <div className="municipal-organizer"><Sparkles /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}{event.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Вступить"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null)}{message && <p className="state-hint" role="status">{message}</p>}{copied && <p className="success-message">Ссылка скопирована</p>}<Button variant="outline" onClick={() => void share()}><Share2 /> Поделиться</Button></div><div className="event-page-actions">{event.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer || event.viewer_membership === "participating") && (event.chat_enabled ? <Button variant="outline" onClick={onOpenChat}><MessageCircleQuestion /> Чат события</Button> : <p className="state-hint">Чат события закрыт организатором.</p>)}</div></>}</section>;
 }
 
 async function confirmEventLeave(): Promise<boolean> {

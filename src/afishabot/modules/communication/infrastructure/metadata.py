@@ -29,4 +29,15 @@ notifications = Table(
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("read_at", DateTime(timezone=True)),
     Column("expires_at", DateTime(timezone=True)),
+    Column("tg_pushed_at", DateTime(timezone=True)),
+)
+
+chat_message_requests = Table(
+    "chat_message_requests",
+    metadata,
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("idempotency_key", UUID(as_uuid=True), primary_key=True),
+    Column("request_fingerprint", String(64), nullable=False),
+    Column("message_id", UUID(as_uuid=True), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )

@@ -214,6 +214,7 @@ async def event_detail(
                                AND i.user_id=CAST(:viewer AS uuid) AND i.active
                            ) AS viewer_interested,
                            (e.creator_user_id=CAST(:viewer AS uuid)) AS viewer_is_organizer,
+                           e.chat_enabled,
                            CASE
                              WHEN EXISTS (
                                SELECT 1 FROM events.participation_episodes p

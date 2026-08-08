@@ -4,8 +4,11 @@ from celery import Celery
 
 from afishabot.core.config import Settings
 from afishabot.core.database import create_database_engine
-from afishabot.modules.events.application.manage_event import finish_due_events
+from afishabot.modules.communication.application.telegram_dispatch import (
+    dispatch_telegram_notifications,
+)
 from afishabot.modules.discovery.application.looking_posts import expire_looking_posts
+from afishabot.modules.events.application.manage_event import finish_due_events
 from afishabot.modules.media.application.storage_analysis import estimate_savings
 
 
@@ -21,6 +24,10 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
             "expire-looking-posts": {
                 "task": "afishabot.discovery.expire_looking_posts",
                 "schedule": 60.0,
+            },
+            "dispatch-telegram-notifications": {
+                "task": "afishabot.communication.dispatch_tg",
+                "schedule": 30.0,
             },
         },
         broker_connection_retry_on_startup=True,
@@ -55,6 +62,18 @@ def expire_looking_posts_task() -> int:
         engine = create_database_engine(Settings().database_dsn())
         try:
             return await expire_looking_posts(engine)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+@celery_app.task(name="afishabot.communication.dispatch_tg")
+def dispatch_tg_notifications_task() -> int:
+    async def run() -> int:
+        engine = create_database_engine(Settings().database_dsn())
+        try:
+            return await dispatch_telegram_notifications(engine)
         finally:
             await engine.dispose()
 

@@ -17,10 +17,14 @@ def test_celery_has_no_results_and_only_approved_schedule(settings: Settings) ->
         "finish-due-events": {
             "task": "afishabot.events.finish_due",
             "schedule": 60.0,
-        }
-        ,"expire-looking-posts": {
+        },
+        "expire-looking-posts": {
             "task": "afishabot.discovery.expire_looking_posts",
             "schedule": 60.0,
-        }
+        },
+        "dispatch-telegram-notifications": {
+            "task": "afishabot.communication.dispatch_tg",
+            "schedule": 30.0,
+        },
     }
     assert configuration["task_ignore_result"] is True
