@@ -25,7 +25,20 @@ function initializeTelegramMiniApp(): void {
   // immediately makes the app use the maximum available WebView height.
   webApp.ready();
   webApp.expand();
+  if (webApp.isVersionAtLeast?.("8.0") && webApp.requestFullscreen) {
+    webApp.requestFullscreen();
+  }
+  const applySafeArea = () => {
+    const inset = webApp.contentSafeAreaInset ?? webApp.safeAreaInset;
+    if (!inset) return;
+    const root = document.documentElement.style;
+    root.setProperty("--tg-safe-top", `${inset.top}px`);
+    root.setProperty("--tg-safe-bottom", `${inset.bottom}px`);
+  };
+  applySafeArea();
   webApp.onEvent?.("themeChanged", applyTheme);
+  webApp.onEvent?.("safeAreaChanged", applySafeArea);
+  webApp.onEvent?.("contentSafeAreaChanged", applySafeArea);
 }
 
 initializeTelegramMiniApp();

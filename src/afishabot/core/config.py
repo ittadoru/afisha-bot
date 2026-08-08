@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     )
     redis_url: SecretStr = SecretStr("redis://redis:6379/0")
     media_root: Path = Path("/var/lib/afisha/media")
+    admin_metrics_file: Path = Path("/var/run/afisha/admin-metrics.json")
     readiness_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     nominatim_url: str = "http://nominatim:8080"
     nominatim_timeout_seconds: float = Field(default=1.2, gt=0, le=2.5)
@@ -47,6 +48,7 @@ class Settings(BaseSettings):
         default=None,
         max_length=256,
         validation_alias="ADMIN_PASSWORD",
+        repr=False,
     )
 
     @field_validator("public_base_url", "admin_base_url")

@@ -56,6 +56,9 @@ else
 fi
 
 printf 'Starting data services...\n'
+mkdir -p var
+touch var/admin-metrics.json
+chmod 0644 var/admin-metrics.json
 docker compose up --detach --wait postgres redis
 
 printf 'Applying database migrations once...\n'

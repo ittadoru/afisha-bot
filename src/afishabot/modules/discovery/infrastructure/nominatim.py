@@ -130,9 +130,7 @@ class NominatimReverseGeocoder:
         canonical = cast(Mapping[str, object], geocoding)
 
         display_name = NominatimReverseGeocoder._text(canonical, "label")
-        city = NominatimReverseGeocoder._first_text(
-            canonical, "city", "town", "village"
-        )
+        city = NominatimReverseGeocoder._locality(canonical)
         region = NominatimReverseGeocoder._first_text(canonical, "state", "county")
         place_id = NominatimReverseGeocoder._first_text(canonical, "place_id", "osm_id")
         street = NominatimReverseGeocoder._optional_text(canonical, "street")
@@ -160,6 +158,24 @@ class NominatimReverseGeocoder:
             value = data.get(key)
             if isinstance(value, (str, int)) and str(value).strip():
                 return str(value).strip()
+        raise ReverseGeocodingMalformed
+
+    @staticmethod
+    def _locality(data: Mapping[str, object]) -> str:
+        """Return a provider locality without accepting arbitrary display names."""
+        for key in ("city", "town", "village"):
+            value = data.get(key)
+            if isinstance(value, (str, int)) and str(value).strip():
+                return str(value).strip()
+        kind = data.get("type")
+        name = data.get("name")
+        if (
+            isinstance(kind, str)
+            and kind in {"city", "town", "village", "locality"}
+            and isinstance(name, (str, int))
+            and str(name).strip()
+        ):
+            return str(name).strip()
         raise ReverseGeocodingMalformed
 
     @staticmethod

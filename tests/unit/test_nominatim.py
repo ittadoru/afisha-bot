@@ -107,6 +107,32 @@ def test_nominatim_parses_only_canonical_fields() -> None:
     assert not hasattr(result, "untrusted_extra")
 
 
+def test_nominatim_parses_a_city_feature_without_a_street() -> None:
+    result = NominatimReverseGeocoder.parse(
+        {
+            "features": [{"properties": {"geocoding": {
+                "label": "Хасавюрт, Дагестан, Россия",
+                "name": "Хасавюрт", "type": "city", "state": "Дагестан", "osm_id": 1,
+            }}}]
+        },
+        "ru",
+    )
+    assert result.city == "Хасавюрт"
+    assert result.street is None
+    assert result.precision == "locality"
+
+
+def test_nominatim_rejects_an_arbitrary_name_as_a_city() -> None:
+    with pytest.raises(ReverseGeocodingMalformed):
+        NominatimReverseGeocoder.parse(
+            {"features": [{"properties": {"geocoding": {
+                "label": "Неизвестное место", "name": "Неизвестное место",
+                "type": "house", "state": "Дагестан", "osm_id": 1,
+            }}}]},
+            "ru",
+        )
+
+
 def test_nominatim_rejects_malformed_payload() -> None:
     payload = cast(object, {"features": [{}]})
     with pytest.raises(ReverseGeocodingMalformed):

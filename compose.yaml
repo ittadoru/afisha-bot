@@ -138,6 +138,7 @@ services:
     <<: *app
     volumes:
       - media_data:/var/lib/afisha/media
+      - ./var/admin-metrics.json:/var/run/afisha/admin-metrics.json:ro
     depends_on:
       postgres:
         condition: service_healthy

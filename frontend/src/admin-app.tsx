@@ -28,9 +28,13 @@ type AuditEntry = {
   result: "success" | "failure" | "blocked";
 };
 type AuditPage = { items: AuditEntry[]; next_before: string | null };
-type View = "dashboard" | "special" | "audit";
+type View = "dashboard" | "moderation" | "special" | "audit";
 type SpecialEvent = { id: string; title: string; starts_at: string; ends_at: string; city: string };
 type CityOption = { id: string; slug: string; name: string; center_latitude: number; center_longitude: number };
+type Review = { id: string; event_id: string; event_revision_id: string; submitted_at: string; title: string; starts_at: string; city: string; public_id: string; display_name: string };
+type ReviewDetail = Review & { description: string; ends_at: string; normalized_address: string; street_name: string | null; address_visibility: string; latitude: number; longitude: number; capacity: number | null; category: string; organizer_status: string; successful_events: number; photo_url: string };
+type SystemMetrics = { collected_at: string; disk: { size_bytes: number; used_bytes: number; available_bytes: number }; memory: { total_bytes: number; used_bytes: number; available_bytes: number }; cpu: { load_1: number; load_5: number; load_15: number }; uptime_seconds: number; containers: Array<{ name: string; cpu_percent: number; memory_usage: string; memory_limit: string }> };
+type ImageAnalysis = { file_count: number; total_bytes: number; formats: Record<string, number> };
 
 const csrfHeader = "X-Afisha-Admin-CSRF";
 
@@ -112,6 +116,7 @@ function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: str
         <div className="admin-brand"><span><ShieldCheck /></span><div><strong>PODVVAL</strong><small>Панель управления</small></div></div>
         <nav aria-label="Разделы панели">
           <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><LayoutDashboard />Главная</button>
+          <button className={view === "moderation" ? "active" : ""} onClick={() => setView("moderation")}><ClipboardCheck />Модерация</button>
           <button className={view === "special" ? "active" : ""} onClick={() => setView("special")}><Sparkles />Особые события</button>
           <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}><History />История действий</button>
         </nav>
@@ -121,7 +126,7 @@ function AdminShell({ staff, csrf, onCsrf, onLogout }: { staff: Staff; csrf: str
         </div>
       </aside>
       <main className="admin-content">
-        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} staff={staff} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
+        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} staff={staff} /> : view === "moderation" ? <Moderation csrf={csrf} onCsrf={onCsrf} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} /> : <Audit csrf={csrf} onCsrf={onCsrf} />}
       </main>
     </div>
   );
@@ -221,10 +226,17 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
 function Dashboard({ staff, onCsrf }: { csrf: string; onCsrf: (value: string) => void; staff: Staff }) {
   const [counts, setCounts] = useState<Counts | null>(null);
   const [failed, setFailed] = useState(false);
+  const [metrics, setMetrics] = useState<SystemMetrics | null>(null);
+  const [metricsFailed, setMetricsFailed] = useState(false);
+  const [images, setImages] = useState<ImageAnalysis | null>(null);
   useEffect(() => {
     void api<Counts>("/dashboard").then(({ data, response }) => {
       setCounts(data); onCsrf(response.headers.get(csrfHeader) ?? "");
     }).catch(() => setFailed(true));
+  }, [onCsrf]);
+  useEffect(() => {
+    void api<SystemMetrics>("/system/metrics").then(({ data, response }) => { setMetrics(data); onCsrf(response.headers.get(csrfHeader) ?? ""); }).catch(() => setMetricsFailed(true));
+    void api<ImageAnalysis>("/media/analysis").then(({ data, response }) => { setImages(data); onCsrf(response.headers.get(csrfHeader) ?? ""); }).catch(() => undefined);
   }, [onCsrf]);
   const cards = counts ? [
     ["Активные пользователи", counts.active_users, Users],
@@ -237,8 +249,55 @@ function Dashboard({ staff, onCsrf }: { csrf: string; onCsrf: (value: string) =>
     <section>
       <header className="admin-page-header"><div><p>Обзор сервиса</p><h1>Добрый день, {staff.login}</h1></div><span className="admin-live"><i />Система работает</span></header>
       {failed ? <AdminEmpty title="Не удалось загрузить данные" text="Обновите страницу и попробуйте снова." /> : !counts ? <AdminStatus text="Загружаем показатели…" /> : <div className="admin-stat-grid">{cards.map(([label, value, Icon]) => <article className="admin-stat" key={label}><span><Icon /></span><p>{label}</p><strong>{value.toLocaleString("ru-RU")}</strong></article>)}</div>}
+      <h2 className="admin-section-title">Ресурсы VPS</h2>
+      {metricsFailed ? <p className="admin-muted">Данные временно недоступны.</p> : !metrics ? <p className="admin-muted">Загружаем показатели VPS…</p> : <><div className="admin-resource-grid"><ResourceCard label="Диск" used={metrics.disk.used_bytes} total={metrics.disk.size_bytes} /><ResourceCard label="Оперативная память" used={metrics.memory.used_bytes} total={metrics.memory.total_bytes} /><article className="admin-resource-card"><p>CPU · load average</p><strong>{metrics.cpu.load_1.toFixed(2)}</strong><small>5 мин: {metrics.cpu.load_5.toFixed(2)} · 15 мин: {metrics.cpu.load_15.toFixed(2)}</small></article><article className="admin-resource-card"><p>Время работы</p><strong>{formatDuration(metrics.uptime_seconds)}</strong><small>обновлено {new Date(metrics.collected_at).toLocaleTimeString("ru-RU")}</small></article></div><div className="admin-table-wrap"><table><thead><tr><th>Контейнер</th><th>CPU</th><th>Память</th></tr></thead><tbody>{metrics.containers.map((container) => <tr key={container.name}><td>{container.name}</td><td>{container.cpu_percent.toFixed(2)}%</td><td>{container.memory_usage} / {container.memory_limit}</td></tr>)}</tbody></table></div></>}
+      <h2 className="admin-section-title">Изображения</h2>
+      {images ? <p className="admin-muted">{images.file_count} файлов · {formatBytes(images.total_bytes)} · {Object.entries(images.formats).map(([format, count]) => `${format}: ${count}`).join(", ") || "файлов пока нет"}. Повторное сжатие не выполнялось.</p> : <p className="admin-muted">Анализируем файлы…</p>}
     </section>
   );
+}
+
+function ResourceCard({ label, used, total }: { label: string; used: number; total: number }) {
+  const percent = total ? Math.round((used / total) * 100) : 0;
+  return <article className="admin-resource-card"><p>{label}</p><strong>{percent}%</strong><small>{formatBytes(used)} из {formatBytes(total)}</small><i><b style={{ width: `${percent}%` }} /></i></article>;
+}
+
+const rejectionReasons = [
+  ["unclear_description", "Непонятное или неполное описание"], ["prohibited_content", "Запрещённый контент"],
+  ["paid_or_advertising", "Платное или рекламное событие"], ["inappropriate_photo", "Неподходящая фотография"],
+  ["invalid_place_or_time", "Неверное место или время"], ["duplicate_or_spam", "Дубликат или спам"],
+] as const;
+
+function Moderation({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
+  const [items, setItems] = useState<Review[] | null>(null);
+  const [selected, setSelected] = useState<ReviewDetail | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState<(typeof rejectionReasons)[number][0]>("unclear_description");
+  const load = useCallback(async () => {
+    try {
+      const result = await api<{ items: Review[] }>("/events/reviews");
+      onCsrf(result.response.headers.get(csrfHeader) ?? ""); setItems(result.data.items); setFailed(false);
+    } catch { setFailed(true); setItems([]); }
+  }, [onCsrf]);
+  useEffect(() => { void load(); }, [load]);
+  const open = async (review: Review) => {
+    setBusy(true);
+    try { const result = await api<ReviewDetail>(`/events/reviews/${review.id}`); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(result.data); }
+    finally { setBusy(false); }
+  };
+  const decide = async (action: "approve" | "reject") => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const result = await api(`/events/reviews/${selected.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: csrf }, body: JSON.stringify({ revision_id: selected.event_revision_id, reason: action === "reject" ? reason : null }) });
+      onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await load();
+    } finally { setBusy(false); }
+  };
+  return <section><header className="admin-page-header"><div><p>Проверка пользовательских событий</p><h1>Модерация</h1></div>{items && <span className="admin-live">{items.length} ожидают</span>}</header>
+    {failed ? <AdminEmpty title="Очередь недоступна" text="Обновите страницу и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !items.length ? <AdminEmpty title="Очередь пуста" text="Новых событий на проверке нет." /> : <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Автор</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.display_name}</td><td>{item.city}</td><td>{new Date(item.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" disabled={busy} onClick={() => void open(item)}>Проверить</button></td></tr>)}</tbody></table></div>}
+    {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес</dt><dd>{selected.normalized_address}</dd></div><div><dt>Видимость</dt><dd>{selected.address_visibility}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p>{selected.description}</p><div className="admin-review-actions"><button className="admin-approve" disabled={busy} onClick={() => void decide("approve")}>Одобрить</button><select value={reason} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy} onClick={() => void decide("reject")}>Отклонить</button></div></section></div>}
+  </section>;
 }
 
 function Audit({ onCsrf }: { csrf: string; onCsrf: (value: string) => void }) {
@@ -268,6 +327,8 @@ function AdminStatus({ text }: { text: string }) { return <main className="admin
 function AdminEmpty({ title, text }: { title: string; text: string }) { return <div className="admin-empty"><History /><h2>{title}</h2><p>{text}</p></div>; }
 function actionLabel(action: string) { return ({ "staff.bootstrap": "Создан первый администратор", "staff.login_bootstrap": "Подготовлен вход", "staff.login": "Вход в панель", "staff.logout": "Выход из панели" } as Record<string, string>)[action] ?? action; }
 function resultLabel(result: AuditEntry["result"]) { return result === "success" ? "Успешно" : result === "blocked" ? "Заблокировано" : "Отказ"; }
+function formatBytes(value: number) { if (value < 1024 * 1024) return `${Math.round(value / 1024)} КБ`; if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} МБ`; return `${(value / 1024 / 1024 / 1024).toFixed(1)} ГБ`; }
+function formatDuration(value: number) { const days = Math.floor(value / 86400); const hours = Math.floor((value % 86400) / 3600); return days ? `${days} д. ${hours} ч.` : `${hours} ч.`; }
 
 class AdminApiError extends Error { constructor(public status: number) { super("Admin request failed"); } }
 async function api<T = undefined>(path: string, init?: RequestInit): Promise<{ data: T; response: Response }> {

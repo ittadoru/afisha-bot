@@ -124,7 +124,6 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   };
 
   const openCityChooser = async () => {
-    if (!await leaveCreate()) return;
     setChoosingCity(true);
   };
 
@@ -139,9 +138,8 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
     <main className="mini-app">
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => void openCityChooser()} />
       <div className="mini-content">
-        {choosingCity ? (
-          <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} onSelect={(city) => void saveCity(city)} onClose={() => setChoosingCity(false)} />
-        ) : previewState ? (
+        {choosingCity && <div className="city-chooser-overlay"><CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} onSelect={(city) => void saveCity(city)} onClose={() => setChoosingCity(false)} /></div>}
+        {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
           <Suspense fallback={<DemoState state="loading" />}>

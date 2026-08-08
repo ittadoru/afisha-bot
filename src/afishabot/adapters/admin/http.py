@@ -1,5 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime
+import json
 from pathlib import Path
 from typing import Annotated, Literal, cast
 from uuid import UUID
@@ -78,6 +79,21 @@ class DashboardResponse(BaseModel):
     pending_events: int
     open_profile_reports: int
     active_moderators: int
+
+
+class SystemMetricsResponse(BaseModel):
+    collected_at: datetime
+    disk: dict[str, int]
+    memory: dict[str, int]
+    cpu: dict[str, float]
+    uptime_seconds: int
+    containers: list[dict[str, str | float]]
+
+
+class ImageAnalysisResponse(BaseModel):
+    file_count: int
+    total_bytes: int
+    formats: dict[str, int]
 
 
 class AuditEntryResponse(BaseModel):
@@ -261,6 +277,56 @@ async def dashboard(
     response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     return DashboardResponse(**asdict(await dashboard_counts(engine)))
+
+
+@router.get("/system/metrics", response_model=SystemMetricsResponse)
+async def system_metrics(
+    request: Request,
+    response: Response,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> SystemMetricsResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    _, csrf_token = await _require_session(engine, session_token, _required_secret(settings))
+    try:
+        raw = json.loads(settings.admin_metrics_file.read_text(encoding="utf-8"))
+        result = SystemMetricsResponse.model_validate(raw)
+    except (OSError, ValueError) as error:
+        raise _error(503, "system_metrics_unavailable") from error
+    if (datetime.now().astimezone() - result.collected_at).total_seconds() > 180:
+        raise _error(503, "system_metrics_stale")
+    response.headers[CSRF_HEADER] = csrf_token
+    response.headers["Cache-Control"] = "no-store"
+    return result
+
+
+@router.get("/media/analysis", response_model=ImageAnalysisResponse)
+async def image_analysis(
+    request: Request,
+    response: Response,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> ImageAnalysisResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    _, csrf_token = await _require_session(engine, session_token, _required_secret(settings))
+    formats: dict[str, int] = {}
+    total_bytes = 0
+    file_count = 0
+    if settings.media_root.is_dir():
+        for path in settings.media_root.rglob("*"):
+            if not path.is_file():
+                continue
+            try:
+                size = path.stat().st_size
+            except OSError:
+                continue
+            suffix = path.suffix.lower().lstrip(".") or "without_extension"
+            formats[suffix] = formats.get(suffix, 0) + 1
+            total_bytes += size
+            file_count += 1
+    response.headers[CSRF_HEADER] = csrf_token
+    response.headers["Cache-Control"] = "no-store"
+    return ImageAnalysisResponse(file_count=file_count, total_bytes=total_bytes, formats=formats)
 
 
 @router.get("/audit", response_model=AuditPageResponse)

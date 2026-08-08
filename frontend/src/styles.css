@@ -36,6 +36,8 @@
   --ring: #08786c;
   --surface-raised: rgb(255 253 247 / .96);
   --shadow: 0 14px 40px rgb(23 63 58 / .15);
+  --tg-safe-top: 0px;
+  --tg-safe-bottom: 0px;
 }
 
 :root[data-theme="dark"] {
@@ -59,7 +61,8 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100dvh; background: var(--background); }
+body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100dvh; padding-top: var(--tg-safe-top); padding-bottom: var(--tg-safe-bottom); background: var(--background); }
+.city-chooser-overlay { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--background); }
 button, input { font: inherit; }
 button { cursor: pointer; }
 p { margin: 0; color: var(--muted-foreground); line-height: 1.6; }
