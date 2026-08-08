@@ -46,10 +46,10 @@ class EventPhotoResponse(BaseModel):
 @router.put("/event-photo", response_model=EventPhotoResponse, status_code=201)
 async def upload_event_photo(
     request: Request,
-    crop_x: Annotated[float, Header(alias="X-Afisha-Crop-X")],
-    crop_y: Annotated[float, Header(alias="X-Afisha-Crop-Y")],
-    crop_width: Annotated[float, Header(alias="X-Afisha-Crop-Width")],
-    crop_height: Annotated[float, Header(alias="X-Afisha-Crop-Height")],
+    crop_x: Annotated[float | None, Header(alias="X-Afisha-Crop-X")] = None,
+    crop_y: Annotated[float | None, Header(alias="X-Afisha-Crop-Y")] = None,
+    crop_width: Annotated[float | None, Header(alias="X-Afisha-Crop-Width")] = None,
+    crop_height: Annotated[float | None, Header(alias="X-Afisha-Crop-Height")] = None,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
 ) -> EventPhotoResponse:
@@ -74,7 +74,11 @@ async def upload_event_photo(
     await to_thread.run_sync(source.parent.mkdir, 0o750, True, True)
     await to_thread.run_sync(source.write_bytes, bytes(data))
     try:
-        crop = NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
+        crop = (
+            NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
+            if None not in (crop_x, crop_y, crop_width, crop_height)
+            else None
+        )
         await to_thread.run_sync(EventImageProcessor().process, source, destination, crop)
     except UnsafeImageError as error:
         logger.warning(

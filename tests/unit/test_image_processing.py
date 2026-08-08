@@ -206,6 +206,53 @@ def test_image_processor_rejects_non_4_by_3_box_on_4_by_3_source(
         )
 
 
+def test_image_processor_auto_crops_wide_photo_to_4_by_3(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without an explicit crop the processor takes a centered horizontal 4:3 frame."""
+
+    install_fake_pyvips(monkeypatch)
+    FakeVipsImage.crop_calls = []
+
+    source = tmp_path / "wide.jpg"
+    source.write_bytes(b"image")
+    EventImageProcessor().process(source, tmp_path / "event.webp")
+
+    left, top, width, height = FakeVipsImage.crop_calls[0]
+    assert (left, top) == (400, 0)
+    assert (width, height) == (2400, 1800)
+    FakeVipsImage.crop_calls = []
+
+
+def test_image_processor_auto_crop_reduces_to_full_width_on_portrait_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A tall source keeps its full width; only height is trimmed to keep 4:3."""
+
+    class TallFactory(FakeImageFactory):
+        @classmethod
+        def new_from_file(cls, filename: str, **kwargs: object) -> FakeVipsImage:
+            del filename, kwargs
+            image = FakeVipsImage()
+            image.width = 900
+            image.height = 2400
+            return image
+
+    module = ModuleType("pyvips")
+    module.Image = TallFactory  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "pyvips", module)
+    FakeVipsImage.crop_calls = []
+
+    source = tmp_path / "tall.jpg"
+    source.write_bytes(b"image")
+    EventImageProcessor().process(source, tmp_path / "event.webp")
+
+    left, top, width, height = FakeVipsImage.crop_calls[0]
+    assert (left, top) == (0, 862)
+    assert (width, height) == (900, 675)
+    FakeVipsImage.crop_calls = []
+
+
 def test_image_processor_accepts_rotated_portrait_photo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

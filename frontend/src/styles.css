@@ -138,6 +138,7 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .success-message { padding: 1rem; border-radius: 14px; color: #155a46; background: #dff0e9; }
 .event-photo-uploader, .event-photo-ready, .photo-crop-editor { display: grid; gap: 10px; }
 .event-photo-uploader > small { color: var(--muted-foreground); }
+.photo-auto-hint { margin: 0; color: var(--muted-foreground); font-size: .82rem; font-weight: 600; }
 .event-photo-ready > img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; }
 .event-photo-ready > p { display: flex; align-items: center; gap: 7px; margin: 0; color: #08786c; font-weight: 700; }
 .event-photo-ready > p svg { width: 19px; }

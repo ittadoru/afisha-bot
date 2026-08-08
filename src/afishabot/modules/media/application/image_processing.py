@@ -53,8 +53,9 @@ class EventImageProcessor:
     def __init__(self, limits: ImageLimits | None = None) -> None:
         self._limits = limits or ImageLimits()
 
-    def process(self, source: Path, destination: Path, crop: NormalizedCrop) -> Path:
-        crop.validate()
+    def process(self, source: Path, destination: Path, crop: NormalizedCrop | None = None) -> Path:
+        if crop is not None:
+            crop.validate()
         if not source.is_file() or source.is_symlink():
             raise UnsafeImageError("source_is_not_a_regular_file")
         if source.stat().st_size > self._limits.max_file_bytes:
@@ -75,14 +76,20 @@ class EventImageProcessor:
                 raise UnsafeImageError("too_many_pixels")
 
             image = image.autorot()
-            left = round(crop.x * image.width)
-            top = round(crop.y * image.height)
-            width = min(round(crop.width * image.width), image.width - left)
-            height = min(round(crop.height * image.height), image.height - top)
-            if width <= 0 or height <= 0:
-                raise UnsafeImageError("crop_is_empty")
-            if abs((width / height) - (4 / 3)) > 0.03:
-                raise UnsafeImageError("crop_must_be_4_3")
+            if crop is None:
+                width = min(image.width, round(image.height * 4 / 3))
+                height = round(width * 3 / 4)
+                left = (image.width - width) // 2
+                top = (image.height - height) // 2
+            else:
+                left = round(crop.x * image.width)
+                top = round(crop.y * image.height)
+                width = min(round(crop.width * image.width), image.width - left)
+                height = min(round(crop.height * image.height), image.height - top)
+                if width <= 0 or height <= 0:
+                    raise UnsafeImageError("crop_is_empty")
+                if abs((width / height) - (4 / 3)) > 0.03:
+                    raise UnsafeImageError("crop_must_be_4_3")
             image = image.crop(left, top, width, height)
             image = image.thumbnail_image(
                 self._limits.output_width,
