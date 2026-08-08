@@ -59,15 +59,12 @@ type PublicEvent = {
   cancellation_reason_code?: string | null; latitude?: number | null; longitude?: number | null;
 };
 
-const demoPeople = [
-  { id: 1, name: "Мадина", category: "Творчество", title: "Ищу компанию порисовать город", text: "Берём скетчбуки и встречаемся в центре. Опыт не важен.", likes: 12, questions: 3 },
-  { id: 2, name: "Расул", category: "Спорт", title: "Нужны двое на волейбол", text: "Играем вечером после работы, спокойно и без соревнований.", likes: 8, questions: 1 },
-  { id: 3, name: "Амина", category: "Обучение", title: "Практика английского за кофе", text: "Хочу собрать небольшую разговорную компанию на выходных.", likes: 16, questions: 4 },
-];
+type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: string; author: { display_name: string; avatar_url: string | null } };
 
 export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { profile: AccountProfile; csrfToken: string; onProfileUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void> }) {
   const initialPublicId = window.location.pathname.match(/^\/app\/profile\/(\d{8})$/)?.[1] ?? null;
   const initialEventId = window.location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})$/i)?.[1] ?? null;
+  const initialLookingPostId = window.location.pathname.match(/^\/app\/looking\/([0-9a-f-]{36})$/i)?.[1] ?? null;
   const [section, setSection] = useState<Section>(initialPublicId ? "profile" : "events");
   const [eventsMode, setEventsMode] = useState<EventsMode>("map");
   const [previewState, setPreviewState] = useState<PreviewState>(null);
@@ -79,6 +76,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [cityError, setCityError] = useState("");
   const [createDirty, setCreateDirty] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
+  const [selectedLookingPostId, setSelectedLookingPostId] = useState<string | null>(initialLookingPostId);
   const [streetGroup, setStreetGroup] = useState<{ ids: string[]; street: string } | null>(null);
   const createDiscardRef = useRef<(() => Promise<void>) | null>(null);
   const registerCreateDiscard = useCallback((discard: (() => Promise<void>) | null) => { createDiscardRef.current = discard; }, []);
@@ -163,8 +161,8 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
         ) : (
           <Suspense fallback={<DemoState state="loading" />}>
             {section === "events" && (eventsMode === "map" ? <EventMap embedded city={selectedCity ?? undefined} onOpenEvent={openEvent} onOpenStreetGroup={openStreetGroup} onOpenList={openEventsList} /> : <EventsList city={selectedCity} onOpen={openEvent} />)}
-            {section === "people" && <PeopleList onCreate={() => setSection("create")} />}
-            {section === "create" && <CreateScreen city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection("events"); }} />}
+            {section === "people" && <PeopleList city={selectedCity} csrfToken={csrfToken} onCreate={() => setSection("create")} onOpen={(id) => { setSelectedLookingPostId(id); window.history.pushState({}, "", `/app/looking/${id}`); }} />}
+            {section === "create" && <CreateScreen city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection("people"); }} />}
             {section === "notifications" && <Notifications />}
             {section === "profile" && <Profile profile={profile} initialPublicId={initialPublicId} csrfToken={csrfToken} onUpdate={onProfileUpdate} onChooseCity={() => void openCityChooser()} onLogout={onLogout} onPreview={setPreviewState} />}
           </Suspense>
@@ -173,6 +171,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       <BottomNav active={section} onSelect={selectSection} />
       {streetGroup && <StreetGroupSheet group={streetGroup} onClose={() => setStreetGroup(null)} onOpen={(id) => { setStreetGroup(null); openEvent(id); }} />}
       {selectedEventId && <EventSheet eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} />}
+      {selectedLookingPostId && <LookingPostSheet postId={selectedLookingPostId} csrfToken={csrfToken} onClose={() => { setSelectedLookingPostId(null); window.history.pushState({}, "", "/app"); }} />}
     </main>
   );
 
@@ -219,8 +218,20 @@ function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: strin
   return <section className="feed" aria-label="Список событий"><p className="section-kicker">Все будущие события · {city?.name}</p>{items.length ? items.map((event) => <button type="button" className={`event-card real-event-card category-${event.category_slug}${event.kind === "special" ? " special-event" : ""}`} key={event.id} onClick={() => onOpen(event.id)}><EventPhoto className="event-list-photo" src={event.photo_url} /><div className="event-copy">{event.kind === "special" && <span className="municipal-label"><Sparkles /> Общественное событие</span>}<span className="category-chip">{event.category}</span><h2>{event.title}</h2><p>{formatEventTime(event.starts_at)} · {event.visible_address}</p><span><Users aria-hidden="true" /> {event.participant_count} собираются</span></div></button>) : <DemoState state="empty" />}</section>;
 }
 
-function PeopleList({ onCreate }: { onCreate: () => void }) {
-  return <section className="feed" aria-label="Ищу людей"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div><Button onClick={onCreate}><Plus /> Идея</Button></div>{demoPeople.map((post) => <article className="people-card" key={post.id}><header><span className="demo-avatar">{post.name[0]}</span><div><strong>{post.name}</strong><small>сегодня, 12:30</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.text}</p><footer><span><Heart /> {post.likes}</span><span><MessageCircleQuestion /> Вопросы и ответы · {post.questions}</span></footer></article>)}</section>;
+function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | null; csrfToken: string; onCreate: () => void; onOpen: (id: string) => void }) {
+  const [items, setItems] = useState<LookingPost[] | null>(null); const [failed, setFailed] = useState(false); const [sort, setSort] = useState<"new" | "old" | "popular">("new");
+  const load = useCallback(async () => { if (!city) { setItems([]); return; } setItems(null); setFailed(false); try { const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts?city_id=${encodeURIComponent(city.id)}&sort=${sort}`, { credentials: "include" }); if (!r.ok) throw new Error(); setItems((await r.json() as { items: LookingPost[] }).items); } catch { setFailed(true); setItems([]); } }, [city, sort]);
+  useEffect(() => { void load(); }, [load]);
+  const like = async (post: LookingPost) => { const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); if (r.ok) void load(); };
+  return <section className="feed" aria-label="Ищу людей"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div><Button onClick={onCreate}><Plus /> Идея</Button></div><div className="view-switch" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}>Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}>Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}>Популярные</button></div>{failed ? <DemoState state="error" /> : items === null ? <DemoState state="loading" /> : items.length ? items.map((post) => <article className="people-card" key={post.id} onClick={() => onOpen(post.id)}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><footer><button type="button" disabled={post.is_author} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart /> {post.like_count}</button><span><MessageCircleQuestion /> Вопросы и ответы · {post.question_count}</span></footer></article>) : <DemoState state="empty" />}</section>;
+}
+
+function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrfToken: string; onClose: () => void }) {
+  const [post, setPost] = useState<LookingPost | null>(null); const [questions, setQuestions] = useState<Array<{ id: string; question: string; answer: string }>>([]); const [question, setQuestion] = useState(""); const [message, setMessage] = useState("");
+  const load = useCallback(async () => { const [detail, qa] = await Promise.all([fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { credentials: "include" })]); if (detail.ok) setPost(await detail.json() as LookingPost); if (qa.ok) setQuestions((await qa.json() as { items: Array<{ id: string; question: string; answer: string }> }).items); }, [postId]);
+  useEffect(() => { void load(); }, [load]);
+  const ask = async () => { const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ question }) }); if (r.ok) { setQuestion(""); setMessage("Вопрос отправлен автору."); void load(); } else setMessage("Не удалось отправить вопрос."); };
+  return <div className="event-sheet-backdrop" onClick={onClose}><section className="event-sheet" onClick={(event) => event.stopPropagation()}><button className="sheet-handle" type="button" aria-label="Закрыть" onClick={onClose} />{post ? <><span className="category-chip">{post.category}</span><h2>{post.title}</h2><p>{post.body}</p><h3>Вопросы и ответы</h3>{questions.map((item) => <article className="profile-event" key={item.id}><strong>{item.question}</strong><span>{item.answer}</span></article>)}{!post.is_author && post.status === "active" && <div className="profile-editor"><textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={200} placeholder="Задайте вопрос автору" /><Button disabled={!question.trim()} onClick={() => void ask()}>Спросить</Button></div>}{message && <p className="success-message">{message}</p>}</> : <DemoState state="loading" />}</section></div>;
 }
 
 function CreateScreen({ city, categories, catalogFailed, csrfToken, organizerStatus, onDirtyChange, registerDiscard, onChooseCity, onDone }: { city: MapCity | null; categories: Category[]; catalogFailed: boolean; csrfToken: string; organizerStatus: "new" | "trusted"; onDirtyChange: (dirty: boolean) => void; registerDiscard: (discard: (() => Promise<void>) | null) => void; onChooseCity: () => void; onDone: () => void }) {
@@ -233,7 +244,13 @@ function CreateScreen({ city, categories, catalogFailed, csrfToken, organizerSta
     if (catalogFailed) return <section className="centered-screen"><SearchX /><h1>Категории недоступны</h1><p>Откройте приложение снова и повторите попытку.</p></section>;
     return <EventCreation city={city} categories={categories} csrfToken={csrfToken} organizerStatus={organizerStatus} onDirtyChange={onDirtyChange} registerDiscard={registerDiscard} onChooseCity={onChooseCity} onCancel={() => setKind(null)} onFinished={onDone} />;
   }
-  return <section className="demo-form"><button className="text-back" type="button" onClick={() => setKind(null)}>← Назад</button><p className="section-kicker">Ищу людей</p><h1>Новая идея</h1><button className="selected-city" type="button" onClick={onChooseCity}><MapPin /><span><small>Город</small>{city?.name ?? "Выберите город"}</span><ChevronRight /></button><label>Название<input placeholder="Кого и для чего вы ищете" /></label><label>Категория<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Выберите категорию</option>{selectableCategories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label>Описание<textarea placeholder="Расскажите самое важное" maxLength={300} /></label><Button disabled>Сохранение идеи будет добавлено позже</Button></section>;
+  return <LookingPostCreation city={city} categories={selectableCategories} csrfToken={csrfToken} categoryId={categoryId} setCategoryId={setCategoryId} onBack={() => setKind(null)} onDone={onDone} />;
+}
+
+function LookingPostCreation({ city, categories, csrfToken, categoryId, setCategoryId, onBack, onDone }: { city: MapCity | null; categories: Category[]; csrfToken: string; categoryId: string; setCategoryId: (id: string) => void; onBack: () => void; onDone: () => void }) {
+  const [title, setTitle] = useState(""); const [body, setBody] = useState(""); const [error, setError] = useState(""); const [saving, setSaving] = useState(false);
+  const save = async () => { if (!city || !categoryId) { setError("Выберите город и категорию."); return; } setSaving(true); setError(""); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ city_id: city.id, category_id: categoryId, title, body }) }); setSaving(false); if (r.ok) onDone(); else setError(r.status === 503 ? "Защита от спама временно недоступна. Повторите позже." : "Не удалось опубликовать идею."); };
+  return <section className="demo-form"><button className="text-back" type="button" onClick={onBack}>← Назад</button><p className="section-kicker">Ищу людей · 72 часа</p><h1>Новая идея</h1><p className="selected-city"><MapPin /><span><small>Город</small>{city?.name ?? "Выберите город"}</span></p><label>Название<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={30} placeholder="Кого и для чего вы ищете" /></label><label>Категория<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Выберите категорию</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label>Описание<textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Расскажите самое важное" maxLength={300} /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button disabled={saving || !title.trim() || !body.trim() || !categoryId} onClick={() => void save()}>{saving ? "Публикуем…" : "Опубликовать идею"}</Button></section>;
 }
 
 function Notifications() {

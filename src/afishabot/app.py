@@ -10,6 +10,7 @@ from afishabot.adapters.http.geo import router as geo_router
 from afishabot.adapters.http.health import router as health_router
 from afishabot.adapters.http.middleware import RequestContextMiddleware
 from afishabot.adapters.http.media import router as media_router
+from afishabot.adapters.http.looking_posts import router as looking_posts_router
 from afishabot.adapters.http.profiles import router as profiles_router
 from afishabot.core.config import Settings
 from afishabot.core.lifespan import lifespan
@@ -37,6 +38,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     application.include_router(geo_router)
     application.include_router(auth_router)
     application.include_router(events_router)
+    application.include_router(looking_posts_router)
     application.include_router(profiles_router)
     application.include_router(media_router)
     application.include_router(admin_router)

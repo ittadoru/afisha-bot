@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, DateTime, Integer, MetaData, SmallInteger, String, Table
+from sqlalchemy import Boolean, Column, DateTime, Integer, MetaData, SmallInteger, String, Table, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import UserDefinedType
 
@@ -30,8 +30,42 @@ cities = Table(
     Column("boundary_source", String(), nullable=False),
     Column("is_active", Boolean, nullable=False),
     Column("low_activity_cleanup_enabled", Boolean, nullable=False),
+    Column("looking_posts_enabled", Boolean, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+looking_posts = Table(
+    "looking_posts", metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("author_user_id", UUID(as_uuid=True), nullable=False),
+    Column("city_id", UUID(as_uuid=True), nullable=False),
+    Column("category_id", UUID(as_uuid=True), nullable=False),
+    Column("title", String(30), nullable=False), Column("body", String(300), nullable=False),
+    Column("status", Text, nullable=False), Column("version", Integer, nullable=False),
+    Column("pending_event_id", UUID(as_uuid=True)), Column("converted_event_id", UUID(as_uuid=True)),
+    Column("created_at", DateTime(timezone=True), nullable=False), Column("expires_at", DateTime(timezone=True), nullable=False),
+    Column("closed_at", DateTime(timezone=True)), Column("delete_after", DateTime(timezone=True)),
+)
+looking_post_likes = Table(
+    "looking_post_likes",
+    metadata,
+    Column("looking_post_id", UUID(as_uuid=True), primary_key=True),
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("active", Boolean, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+looking_post_questions = Table(
+    "looking_post_questions",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("looking_post_id", UUID(as_uuid=True), nullable=False),
+    Column("asker_user_id", UUID(as_uuid=True), nullable=False),
+    Column("question", String(200), nullable=False),
+    Column("answer", String(300)),
+    Column("answered_at", DateTime(timezone=True)),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("delete_after", DateTime(timezone=True)),
 )
 categories = Table(
     "categories",

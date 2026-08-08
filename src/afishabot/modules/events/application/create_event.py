@@ -38,6 +38,8 @@ class CreateEventCommand:
     photo_upload_id: UUID
     canonical_address: CanonicalAddress
     street_anchor_id: UUID | None = None
+    source_looking_post_id: UUID | None = None
+    source_looking_post_version: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +94,8 @@ async def create_event(
         raise EventCreationError("event_too_long")
     if command.capacity is not None and command.capacity < 3:
         raise EventCreationError("capacity_too_small")
+    if (command.source_looking_post_id is None) != (command.source_looking_post_version is None):
+        raise EventCreationError("looking_post_source_incomplete")
 
     async with engine.begin() as connection:
         await connection.execute(
@@ -126,6 +130,27 @@ async def create_event(
                     "published" if status == "published" else "pending_review"
                 ),
             )
+
+        if command.source_looking_post_id is not None:
+            source = (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT author_user_id, city_id, category_id, status, version, pending_event_id
+                        FROM discovery.looking_posts WHERE id=:post FOR UPDATE
+                        """
+                    ),
+                    {"post": command.source_looking_post_id},
+                )
+            ).mappings().one_or_none()
+            if source is None or source["author_user_id"] != command.user_id:
+                raise EventCreationError("looking_post_not_available")
+            if source["status"] != "active" or source["pending_event_id"] is not None:
+                raise EventCreationConflict("looking_post_conversion_pending")
+            if source["version"] != command.source_looking_post_version:
+                raise EventCreationConflict("looking_post_stale")
+            if source["city_id"] != command.city_id or source["category_id"] != command.category_id:
+                raise EventCreationError("looking_post_source_mismatch")
 
         organizer_status = await connection.scalar(
             text(
@@ -328,6 +353,36 @@ async def create_event(
                     "user": command.user_id,
                 },
             )
+        if command.source_looking_post_id is not None:
+            if published:
+                await connection.execute(
+                    text(
+                        """
+                        UPDATE discovery.looking_posts
+                        SET status='converted', converted_event_id=:event, closed_at=now(),
+                            delete_after=now()+interval '24 hours', version=version+1
+                        WHERE id=:post AND status='active'
+                        """
+                    ),
+                    {"post": command.source_looking_post_id, "event": event_id},
+                )
+                await connection.execute(
+                    text(
+                        """
+                        INSERT INTO events.event_interests (event_id, user_id, active, created_at, updated_at)
+                        SELECT :event, user_id, true, now(), now()
+                        FROM discovery.looking_post_likes
+                        WHERE looking_post_id=:post AND active
+                        ON CONFLICT (event_id, user_id) DO UPDATE SET active=true, updated_at=now()
+                        """
+                    ),
+                    {"post": command.source_looking_post_id, "event": event_id},
+                )
+            else:
+                await connection.execute(
+                    text("UPDATE discovery.looking_posts SET pending_event_id=:event, version=version+1 WHERE id=:post"),
+                    {"post": command.source_looking_post_id, "event": event_id},
+                )
         await connection.execute(
             text(
                 """
