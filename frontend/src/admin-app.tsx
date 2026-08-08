@@ -168,8 +168,10 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
     title: "",
     description: "",
     city_id: "",
-    starts_at: "",
-    ends_at: "",
+    start_date: "",
+    start_time: "",
+    end_date: "",
+    end_time: "",
     place: "",
     latitude: "",
     longitude: "",
@@ -192,8 +194,17 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
   const setField = (key: keyof typeof form) => (event: { target: { value: string } }) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const create = async (event: FormEvent) => {
     event.preventDefault();
-    setBusyForm(true);
     setFormError("");
+    const startsAt = buildLocalIso(form.start_date, form.start_time);
+    const endsAt = buildLocalIso(form.end_date, form.end_time);
+    const latitude = coerceCoordinate(form.latitude, -90, 90, "Широта");
+    const longitude = coerceCoordinate(form.longitude, -180, 180, "Долгота");
+    if (!startsAt) { setFormError("Укажите дату и время начала — дату выберите в календаре, а время (например, 12:30) — в соседнем поле."); return; }
+    if (!endsAt) { setFormError("Укажите дату и время конца — так же, как начало."); return; }
+    if (endsAt <= startsAt) { setFormError("Конец события должен быть позже начала."); return; }
+    if (latitude.error) { setFormError(latitude.error); return; }
+    if (longitude.error) { setFormError(longitude.error); return; }
+    setBusyForm(true);
     try {
       await api("/events/special", {
         method: "POST",
@@ -202,14 +213,14 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
           title: form.title,
           description: form.description,
           city_id: form.city_id,
-          starts_at: new Date(form.starts_at).toISOString(),
-          ends_at: new Date(form.ends_at).toISOString(),
+          starts_at: startsAt,
+          ends_at: endsAt,
           place: form.place,
-          latitude: form.latitude ? Number(form.latitude) : null,
-          longitude: form.longitude ? Number(form.longitude) : null,
+          latitude: latitude.value,
+          longitude: longitude.value,
         }),
       });
-      setForm({ title: "", description: "", city_id: form.city_id, starts_at: "", ends_at: "", place: "", latitude: "", longitude: "" });
+      setForm({ title: "", description: "", city_id: form.city_id, start_date: "", start_time: "", end_date: "", end_time: "", place: "", latitude: "", longitude: "" });
       await load();
     } catch (reason) {
       if (reason instanceof AdminApiError && reason.status === 401) { onExpire(); return; }
@@ -240,18 +251,37 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
         <label>Описание<textarea value={form.description} onChange={setField("description")} maxLength={1000} rows={4} required /></label>
         <label>Город<select value={form.city_id} onChange={setField("city_id")}>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</select></label>
         <div className="admin-create-row">
-          <label>Начало<input type="datetime-local" value={form.starts_at} onChange={setField("starts_at")} required /></label>
-          <label>Конец<input type="datetime-local" value={form.ends_at} onChange={setField("ends_at")} required /></label>
+          <label>Дата начала<input type="date" value={form.start_date} onChange={setField("start_date")} required /></label>
+          <label>Время начала<input type="time" value={form.start_time} onChange={setField("start_time")} required /></label>
+        </div>
+        <div className="admin-create-row">
+          <label>Дата конца<input type="date" value={form.end_date} onChange={setField("end_date")} required /></label>
+          <label>Время конца<input type="time" value={form.end_time} onChange={setField("end_time")} required /></label>
         </div>
         <label>Место (необязательно)<input value={form.place} onChange={setField("place")} maxLength={500} placeholder="Например: парк Ак-Гёль" /></label>
         <div className="admin-create-row">
-          <label>Широта (необязательно)<input type="number" step="any" value={form.latitude} onChange={setField("latitude")} placeholder="центр города" /></label>
-          <label>Долгота (необязательно)<input type="number" step="any" value={form.longitude} onChange={setField("longitude")} placeholder="центр города" /></label>
+          <label>Широта (необязательно)<input type="text" inputMode="decimal" value={form.latitude} onChange={setField("latitude")} placeholder="например: 46,58 или 46.58" /></label>
+          <label>Долгота (необязательно)<input type="text" inputMode="decimal" value={form.longitude} onChange={setField("longitude")} placeholder="например: 30,35 или 30.35" /></label>
         </div>
         {formError && <p className="admin-form-error" role="alert">{formError}</p>}
         <div className="admin-create-actions"><button type="submit" disabled={busyForm}>{busyForm ? "Публикуем…" : "Опубликовать"}</button><button type="button" className="admin-ghost" onClick={() => setCreating(false)}>Отмена</button></div>
       </form>}
     <label className="admin-inline-control">Причина отмены<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="plans_changed">Планы изменились</option><option value="not_enough_participants">Не набралось участников</option><option value="venue_problem">Проблемы с местом</option><option value="unforeseen_circumstances">Непредвиденные обстоятельства</option></select></label>{items === null ? <AdminStatus text="Загружаем события…" /> : items.length ? <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((event) => <tr key={event.id}><td>{event.title}</td><td>{event.city}</td><td>{new Date(event.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-more" onClick={() => void cancel(event)}>Отменить</button></td></tr>)}</tbody></table></div> : <AdminEmpty title="Активных особых событий нет" text="Создайте первое общественное событие." />}</section>;
+}
+
+function buildLocalIso(date: string, time: string): string | null {
+  if (!date || !time) return null;
+  const value = new Date(`${date}T${time}`);
+  return Number.isNaN(value.getTime()) ? null : value.toISOString();
+}
+
+function coerceCoordinate(raw: string, min: number, max: number, label: string): { value: number | null; error: string } {
+  const text = raw.trim().replace(",", ".");
+  if (!text) return { value: null, error: "" };
+  const value = Number(text);
+  if (!Number.isFinite(value)) return { value: null, error: `${label}: введите число через точку или запятую (например, 46,58).` };
+  if (value < min || value > max) return { value: null, error: `${label}: значение вне допустимого диапазона (от ${min} до ${max}).` };
+  return { value, error: "" };
 }
 
 function Dashboard({ staff, csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; staff: Staff }) {
