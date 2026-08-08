@@ -4,12 +4,14 @@ import base64
 import json
 from datetime import datetime
 from typing import Annotated, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from afishabot.adapters.http.auth import CSRF_HEADER, SESSION_COOKIE
 from afishabot.adapters.http.events import optional_viewer
@@ -30,6 +32,7 @@ from afishabot.modules.discovery.application.looking_posts import (
     looking_post_feed,
     questions_for_viewer,
     set_looking_post_like,
+    withdraw_looking_post,
 )
 
 router = APIRouter(prefix="/looking-posts", tags=["looking-posts"])
@@ -51,6 +54,12 @@ class QuestionRequest(BaseModel):
 class AnswerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     answer: str = Field(min_length=1, max_length=300)
+
+
+class ReportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    reason: str = Field(min_length=3, max_length=300)
+    question_id: UUID | None = None
 
 
 async def _limit(redis: Redis, *, user_id: UUID, action: str, maximum: int, seconds: int) -> None:
@@ -87,7 +96,9 @@ async def feed(
     parsed_cursor = None
     if cursor is not None:
         try:
-            data = json.loads(base64.urlsafe_b64decode(cursor + "=="))
+            data = json.loads(base64.urlsafe_b64decode(cursor + "=" * (-len(cursor) % 4)))
+            if data.get("city_id") != str(city_id) or data.get("sort") != sort:
+                raise ValueError("cursor scope mismatch")
             parsed_cursor = (data.get("likes"), datetime.fromisoformat(data["at"]), UUID(data["id"]))
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
             raise HTTPException(status_code=422, detail="invalid_cursor") from error
@@ -97,7 +108,7 @@ async def feed(
     return {
         "items": items,
         "next_cursor": (
-            base64.urlsafe_b64encode(json.dumps({"likes": next_cursor[0], "at": next_cursor[1].isoformat(), "id": str(next_cursor[2])}).encode()).decode().rstrip("=") if next_cursor else None
+            base64.urlsafe_b64encode(json.dumps({"city_id": str(city_id), "sort": sort, "likes": next_cursor[0], "at": next_cursor[1].isoformat(), "id": str(next_cursor[2])}).encode()).decode().rstrip("=") if next_cursor else None
         ),
     }
 
@@ -186,6 +197,7 @@ async def question(
     request: Request, post_id: UUID, body: QuestionRequest,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
 ) -> Response:
     settings, redis, engine = dependencies(request)
     validate_origin(request, settings)
@@ -198,6 +210,49 @@ async def question(
     except LookingPostError as error:
         raise _error(error) from error
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def withdraw(
+    request: Request, post_id: UUID,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> Response:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    try:
+        await withdraw_looking_post(engine, post_id=post_id, user_id=user_id)
+    except LookingPostError as error:
+        raise _error(error) from error
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{post_id}/reports", status_code=status.HTTP_201_CREATED)
+async def report(
+    request: Request, post_id: UUID, body: ReportRequest,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, str]:
+    settings, redis, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    await _limit(redis, user_id=user_id, action="report", maximum=10, seconds=3600)
+    async with engine.begin() as connection:
+        post = (await connection.execute(text("SELECT author_user_id FROM discovery.looking_posts WHERE id=:id AND status='active'"), {"id": post_id})).mappings().one_or_none()
+        if post is None: raise HTTPException(status_code=404, detail="looking_post_not_found")
+        if post["author_user_id"] == user_id: raise HTTPException(status_code=422, detail="cannot_report_self")
+        if body.question_id is not None:
+            valid = await connection.scalar(text("SELECT 1 FROM discovery.looking_post_questions WHERE id=:question AND looking_post_id=:post AND answer IS NOT NULL"), {"question": body.question_id, "post": post_id})
+            if valid is None: raise HTTPException(status_code=422, detail="invalid_question")
+        try:
+            await connection.execute(text("""INSERT INTO trust_safety.profile_reports
+              (id,reporter_user_id,subject_user_id,reason,comment,source_question_id,source_looking_post_id)
+              VALUES (:id,:reporter,:subject,'other',:comment,:question,:post)"""), {"id": uuid4(), "reporter": user_id, "subject": post["author_user_id"], "comment": body.reason.strip(), "question": body.question_id, "post": post_id})
+        except IntegrityError as error:
+            # Existing open report is a successful idempotent outcome for the UI.
+            raise HTTPException(status_code=409, detail="report_already_open") from error
+    return {"status": "accepted"}
 
 
 @router.post("/{post_id}/questions/{question_id}/answer", status_code=status.HTTP_204_NO_CONTENT)

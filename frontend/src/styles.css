@@ -69,7 +69,7 @@
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; min-height: 100vh; min-height: 100dvh; background: var(--background); }
-html:has(.mini-app), body:has(.mini-app) { height: 100%; overflow: hidden; overscroll-behavior: none; }
+html[data-mini-app="true"], html[data-mini-app="true"] body { height: 100%; overflow: hidden; overscroll-behavior: none; }
 .city-chooser-overlay { position: fixed; inset: 0; z-index: 40; overflow-y: auto; background: var(--background); }
 button, input { font: inherit; }
 button { cursor: pointer; }
@@ -169,7 +169,11 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .event-preview p { display: flex; align-items: flex-start; gap: 6px; color: var(--muted-foreground); white-space: pre-wrap; }
 .event-preview p svg { flex: 0 0 auto; width: 17px; }
 .wizard-error { margin: 0; }
-.wizard-actions { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom)); z-index: 5; display: flex; justify-content: flex-end; gap: 9px; padding: 10px 0; background: color-mix(in srgb, var(--background) 94%, transparent); backdrop-filter: blur(12px); }
+.wizard-actions { position: sticky; bottom: 0; z-index: 5; display: flex; justify-content: flex-end; gap: 9px; padding: 10px 0; background: color-mix(in srgb, var(--background) 94%, transparent); backdrop-filter: blur(12px); }
+.sheet-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.sheet-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; border: 0; border-radius: 10px; color: var(--primary); background: transparent; font-weight: 800; }
+.sheet-actions svg { width: 18px; }
+.sheet-actions .danger-action { color: #b83b3b; }
 .event-submit-success { display: grid; place-items: center; align-content: center; min-height: calc(100dvh - 150px); padding: 28px; text-align: center; }
 .event-submit-success > svg { width: 64px; height: 64px; color: var(--primary); }
 .event-submit-success h1 { margin: 5px 0; }

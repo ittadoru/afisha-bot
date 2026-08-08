@@ -30,6 +30,10 @@ class LookingPostConflict(LookingPostError):
     pass
 
 
+class LookingPostClosed(LookingPostConflict):
+    pass
+
+
 def _compact(value: str, maximum: int) -> str:
     result = " ".join(value.split())
     if not result or len(result) > maximum or any(ord(char) < 32 for char in result):
@@ -123,13 +127,18 @@ async def looking_post_detail(engine: AsyncEngine, *, post_id: UUID, viewer_id: 
             WHERE p.id=:id
         """), {"id": post_id, "viewer": viewer_id})).mappings().one_or_none()
     if row is None: raise LookingPostNotFound
+    if row["status"] == "hidden" and row["author_user_id"] != viewer_id:
+        raise LookingPostNotFound
     return _feed_item(row, viewer_id)
 
 
 async def set_looking_post_like(engine: AsyncEngine, *, post_id: UUID, user_id: UUID, active: bool) -> dict[str, Any]:
     async with engine.begin() as connection:
         post = (await connection.execute(text("SELECT author_user_id FROM discovery.looking_posts WHERE id=:id AND status='active' AND expires_at>now() FOR UPDATE"), {"id": post_id})).mappings().one_or_none()
-        if post is None: raise LookingPostNotFound
+        if post is None:
+            exists = await connection.scalar(text("SELECT 1 FROM discovery.looking_posts WHERE id=:id"), {"id": post_id})
+            if exists: raise LookingPostClosed("idea_closed")
+            raise LookingPostNotFound
         if post["author_user_id"] == user_id: raise LookingPostError("author_cannot_like")
         await connection.execute(text("""
             INSERT INTO discovery.looking_post_likes (looking_post_id,user_id,active) VALUES (:post,:user,:active)
@@ -142,7 +151,8 @@ async def set_looking_post_like(engine: AsyncEngine, *, post_id: UUID, user_id: 
 async def questions_for_viewer(engine: AsyncEngine, *, post_id: UUID, viewer_id: UUID) -> dict[str, list[dict[str, Any]]]:
     async with engine.connect() as connection:
         post = (await connection.execute(text("SELECT author_user_id FROM discovery.looking_posts WHERE id=:id"), {"id": post_id})).mappings().one_or_none()
-        if post is None: raise LookingPostNotFound
+        if post is None or (post["author_user_id"] != viewer_id and await connection.scalar(text("SELECT 1 FROM discovery.looking_posts WHERE id=:id AND status='hidden'"), {"id": post_id})):
+            raise LookingPostNotFound
         public = (await connection.execute(text("SELECT id,question,answer,answered_at,created_at FROM discovery.looking_post_questions WHERE looking_post_id=:post AND answer IS NOT NULL ORDER BY answered_at,id"), {"post": post_id})).mappings().all()
         own = (await connection.execute(text("SELECT id,question,created_at FROM discovery.looking_post_questions WHERE looking_post_id=:post AND asker_user_id=:user AND answer IS NULL"), {"post": post_id, "user": viewer_id})).mappings().all()
         pending: list[dict[str, Any]] = [dict(row) for row in own]
@@ -164,7 +174,7 @@ async def ask_question(engine: AsyncEngine, *, post_id: UUID, user_id: UUID, que
             if previous is not None:
                 return previous
             post = (await connection.execute(text("SELECT author_user_id FROM discovery.looking_posts WHERE id=:id AND status='active' AND expires_at>now() FOR UPDATE"), {"id": post_id})).mappings().one_or_none()
-            if post is None: raise LookingPostNotFound
+            if post is None: raise LookingPostClosed("idea_closed")
             if post["author_user_id"] == user_id: raise LookingPostError("author_cannot_ask")
             question_id = uuid4()
             await connection.execute(text("INSERT INTO discovery.looking_post_questions (id,looking_post_id,asker_user_id,question) VALUES (:id,:post,:user,:question)"), {"id": question_id, "post": post_id, "user": user_id, "question": question})
@@ -197,7 +207,21 @@ async def expire_looking_posts(engine: AsyncEngine) -> int:
           UPDATE discovery.looking_posts SET status='expired',closed_at=now(),delete_after=now()+interval '24 hours',version=version+1
           WHERE status='active' AND expires_at<=now() RETURNING id
         """))
-    return len(result.all())
+        ids = [row[0] for row in result.all()]
+        if ids:
+            await connection.execute(text("UPDATE discovery.looking_post_questions SET delete_after=now()+interval '24 hours' WHERE looking_post_id = ANY(:ids) AND delete_after IS NULL"), {"ids": ids})
+    return len(ids)
+
+
+async def withdraw_looking_post(engine: AsyncEngine, *, post_id: UUID, user_id: UUID) -> None:
+    async with engine.begin() as connection:
+        result = await connection.execute(text("""
+          UPDATE discovery.looking_posts SET status='hidden', closed_at=now(), delete_after=now()+interval '24 hours', version=version+1
+          WHERE id=:id AND author_user_id=:user AND status='active' AND expires_at>now()
+        """), {"id": post_id, "user": user_id})
+        if not result.rowcount:
+            raise LookingPostClosed("idea_closed")
+        await connection.execute(text("UPDATE discovery.looking_post_questions SET delete_after=now()+interval '24 hours' WHERE looking_post_id=:id AND delete_after IS NULL"), {"id": post_id})
 
 
 async def _notify(connection: Any, *, recipient: UUID, kind: str, title: str, body: str, subject_id: UUID, link: str) -> None:
@@ -212,6 +236,9 @@ def _fingerprint(action: str, *parts: object) -> str:
 
 
 async def _existing_request(connection: Any, user_id: UUID, key: UUID, fingerprint: str) -> UUID | None:
+    # A missing row cannot be locked with FOR UPDATE.  Lock a stable hash first,
+    # so two identical taps cannot both create a row before either inserts it.
+    await connection.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": f"looking-post:{user_id}:{key}"})
     row = (await connection.execute(text("SELECT request_fingerprint, resource_id FROM discovery.looking_post_requests WHERE user_id=:user AND idempotency_key=:key FOR UPDATE"), {"user": user_id, "key": key})).mappings().one_or_none()
     if row is None:
         return None

@@ -10,6 +10,7 @@ import "@/admin.css";
 
 function initializeTelegramMiniApp(): void {
   const webApp = window.Telegram?.WebApp;
+  document.documentElement.dataset.miniApp = String(window.location.pathname.startsWith("/app"));
   const applyTheme = () => {
     const isMiniApp = window.location.pathname.startsWith("/app");
     const isDark = isMiniApp && webApp?.colorScheme === "dark";
@@ -45,6 +46,7 @@ function initializeTelegramMiniApp(): void {
     const height = viewport?.height ?? webApp.viewportStableHeight ?? webApp.viewportHeight ?? window.innerHeight;
     document.documentElement.style.setProperty("--app-height", `${Math.round(height)}px`);
     document.documentElement.dataset.keyboardOpen = String(Boolean(viewport && window.innerHeight - viewport.height > 120));
+    window.dispatchEvent(new Event("miniappviewportchange"));
   };
   applySafeArea();
   webApp.onEvent?.("themeChanged", applyTheme);
