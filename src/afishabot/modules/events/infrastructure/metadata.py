@@ -83,6 +83,7 @@ event_revisions = Table(
     Column("ends_at", DateTime(timezone=True), nullable=False),
     Column("location", Geography(), nullable=False),
     Column("normalized_address", Text, nullable=False),
+    Column("organizer_address", String(300)),
     Column("street_name", Text, nullable=False),
     Column("address_visibility", Text, nullable=False),
     Column("street_anchor_id", UUID(as_uuid=True)),

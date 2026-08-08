@@ -35,6 +35,7 @@ class CreateEventCommand:
     latitude: float
     longitude: float
     address_visibility: AddressVisibility
+    organizer_address: str | None
     location_note: str | None
     photo_upload_id: UUID
     canonical_address: CanonicalAddress
@@ -257,6 +258,7 @@ async def create_event(
                 INSERT INTO events.event_revisions
                     (id, event_id, revision_number, title, description, landmark,
                      starts_at, ends_at, location, normalized_address,
+                     organizer_address,
                      street_name, address_visibility, street_anchor_id,
                      moderation_status,
                      decided_at)
@@ -264,7 +266,7 @@ async def create_event(
                     (:revision, :event, 1, :title, :description, :location_note,
                      :starts, :ends,
                      ST_SetSRID(ST_Point(:longitude, :latitude), 4326)::geography,
-                     :address, :street, :visibility, :street_anchor,
+                    :address, :organizer_address, :street, :visibility, :street_anchor,
                      :moderation,
                      CASE WHEN :published THEN now() ELSE NULL END)
                 """
@@ -280,6 +282,7 @@ async def create_event(
                 "longitude": command.longitude,
                 "latitude": command.latitude,
                 "address": command.canonical_address.display_name,
+                "organizer_address": command.organizer_address,
                 "street": command.canonical_address.street
                 or command.canonical_address.city,
                 "visibility": command.address_visibility,

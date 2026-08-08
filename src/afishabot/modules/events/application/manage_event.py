@@ -224,13 +224,13 @@ async def submit_change(
                 """
                 INSERT INTO events.event_revisions
                     (id,event_id,revision_number,title,description,rules,landmark,
-                     starts_at,ends_at,location,normalized_address,street_name,
+                     starts_at,ends_at,location,normalized_address,organizer_address,street_name,
                      address_visibility,street_anchor_id,moderation_status)
                 VALUES
                     (:id,:event,:number,:title,:description,:rules,:landmark,
                      :starts,:ends,
                      ST_SetSRID(ST_Point(:longitude,:latitude),4326)::geography,
-                     :address,:street,:visibility,:street_anchor,'pending')
+                     :address,:organizer_address,:street,:visibility,:street_anchor,'pending')
                 """
             ),
             {
@@ -246,6 +246,7 @@ async def submit_change(
                 "longitude": approved["longitude"],
                 "latitude": approved["latitude"],
                 "address": approved["normalized_address"],
+                "organizer_address": approved["organizer_address"],
                 "street": approved["street_name"],
                 "visibility": approved["address_visibility"],
                 "street_anchor": approved["street_anchor_id"],

@@ -91,8 +91,9 @@ class CreateEventRequest(BaseModel):
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
     address_visibility: Literal["street_only", "exact_participants", "exact_public"]
+    address_text: str = Field(min_length=1, max_length=300)
+    address_confirmed: bool
     location_note: str | None = Field(default=None, max_length=80)
-    exact_address_confirmed: bool
     photo_upload_id: UUID
 
     @field_validator("title")
@@ -118,6 +119,16 @@ class CreateEventRequest(BaseModel):
             return None
         normalized = " ".join(value.split())
         return normalized or None
+
+    @field_validator("address_text")
+    @classmethod
+    def address_text_must_be_compact(cls, value: str) -> str:
+        if any(character in value for character in ("\n", "\r", "\t", "\x00")):
+            raise ValueError("address must not contain control characters")
+        normalized = " ".join(value.split())
+        if not normalized:
+            raise ValueError("address must not be blank")
+        return normalized
 
     @field_validator("starts_at", "ends_at")
     @classmethod
@@ -206,10 +217,10 @@ async def submit_event(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
-    if body.address_visibility == "exact_public" and not body.exact_address_confirmed:
+    if not body.address_confirmed:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="exact_address_confirmation_required",
+            detail="address_confirmation_required",
         )
     serialized = json.dumps(
         body.model_dump(mode="json"),
@@ -276,6 +287,21 @@ async def submit_event(
             detail="address_unavailable",
         ) from error
 
+    organizer_address = (
+        None
+        if body.address_text == canonical_address.display_name
+        else body.address_text
+    )
+    if (
+        body.address_visibility == "exact_public"
+        and canonical_address.precision == "locality"
+        and organizer_address is None
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="exact_address_detail_required",
+        )
+
     street_anchor_id: UUID | None = None
     if body.address_visibility != "exact_public":
         if canonical_address.street is None:
@@ -317,6 +343,7 @@ async def submit_event(
                 latitude=body.latitude,
                 longitude=body.longitude,
                 address_visibility=body.address_visibility,
+                organizer_address=organizer_address,
                 location_note=body.location_note,
                 photo_upload_id=body.photo_upload_id,
                 canonical_address=canonical_address,
