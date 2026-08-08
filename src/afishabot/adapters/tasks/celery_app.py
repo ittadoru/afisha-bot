@@ -5,6 +5,7 @@ from celery import Celery
 from afishabot.core.config import Settings
 from afishabot.core.database import create_database_engine
 from afishabot.modules.events.application.manage_event import finish_due_events
+from afishabot.modules.media.application.storage_analysis import estimate_savings
 
 
 def create_celery_app(settings: Settings | None = None) -> Celery:
@@ -41,3 +42,20 @@ def finish_due_events_task() -> int:
             await engine.dispose()
 
     return asyncio.run(run())
+
+
+@celery_app.task(name="afishabot.media.estimate_storage_savings")
+def estimate_storage_savings_task(job_id: str) -> None:
+    async def run() -> None:
+        settings = Settings()
+        engine = create_database_engine(settings.database_dsn())
+        try:
+            from uuid import UUID
+
+            await estimate_savings(
+                engine, media_root=settings.media_root, job_id=UUID(job_id)
+            )
+        finally:
+            await engine.dispose()
+
+    asyncio.run(run())

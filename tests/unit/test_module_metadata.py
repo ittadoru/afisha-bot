@@ -37,5 +37,4 @@ def test_each_module_owns_exactly_one_schema() -> None:
         "reputation",
         "trust_safety",
     }
-    assert all(item.tables for item in metadata if item.schema != "reputation")
-    assert not reputation_metadata.tables
+    assert all(item.tables for item in metadata)

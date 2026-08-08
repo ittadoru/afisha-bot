@@ -35,7 +35,9 @@ type CityOption = { id: string; slug: string; name: string; center_latitude: num
 type Review = { id: string; event_id: string; event_revision_id: string; submitted_at: string; title: string; starts_at: string; city: string; public_id: string; display_name: string };
 type ReviewDetail = Review & { description: string; ends_at: string; normalized_address: string; street_name: string | null; landmark: string | null; address_visibility: string; latitude: number; longitude: number; capacity: number | null; category: string; organizer_status: string; successful_events: number; photo_url: string };
 type SystemMetrics = { collected_at: string; disk: { size_bytes: number; used_bytes: number; available_bytes: number }; memory: { total_bytes: number; used_bytes: number; available_bytes: number }; cpu: { load_1: number; load_5: number; load_15: number }; uptime_seconds: number; containers: Array<{ name: string; cpu_percent: number; memory_usage: string; memory_limit: string }> };
-type ImageAnalysis = { file_count: number; total_bytes: number; formats: Record<string, number> };
+type ImageBreakdown = { name: string; file_count: number; total_bytes: number; percent?: number };
+type ImageEstimate = { quality: number; sample_file_count: number; sample_bytes: number; sample_saved_bytes: number; sample_saved_percent: number; eligible_bytes: number; estimated_saved_bytes: number };
+type ImageAnalysis = { collected_at: string; source: "database"; file_count: number; total_bytes: number; permanent_file_count: number; permanent_bytes: number; temporary_file_count: number; temporary_bytes: number; formats: ImageBreakdown[]; purposes: ImageBreakdown[]; directories: ImageBreakdown[]; estimate_status: "idle" | "queued" | "running" | "completed" | "failed"; estimate_job_id: string | null; estimate_collected_at: string | null; estimate: ImageEstimate | null };
 
 const csrfHeader = "X-Afisha-Admin-CSRF";
 
@@ -166,9 +168,9 @@ function SpecialEvents({ csrf, onCsrf }: { csrf: string; onCsrf: (value: string)
   }, [onCsrf]);
   useEffect(() => { void load().catch(() => setItems([])); }, [load]);
   useEffect(() => {
-    void api<{ cities: CityOption[] }>("/geo/catalog")
-      .then(({ data, response }) => {
-        onCsrf(response.headers.get(csrfHeader) ?? "");
+    void fetch("/api/geo/catalog", { credentials: "same-origin", headers: { Accept: "application/json" } })
+      .then(async (response) => { if (!response.ok) throw new Error("catalog unavailable"); return await response.json() as { cities: CityOption[] }; })
+      .then((data) => {
         setCities(data.cities);
         setForm((current) => ({ ...current, city_id: current.city_id || data.cities[0]?.id || "" }));
       })
@@ -240,6 +242,10 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
   const [metricsFailed, setMetricsFailed] = useState(false);
   const [metricsRefreshing, setMetricsRefreshing] = useState(false);
   const [images, setImages] = useState<ImageAnalysis | null>(null);
+  const [imagesLoading, setImagesLoading] = useState(true);
+  const [imagesRefreshing, setImagesRefreshing] = useState(false);
+  const [estimateSubmitting, setEstimateSubmitting] = useState(false);
+  const [imagesError, setImagesError] = useState("");
   useEffect(() => {
     void api<Counts>("/dashboard").then(({ data, response }) => {
       setCounts(data); onCsrf(response.headers.get(csrfHeader) ?? "");
@@ -261,8 +267,32 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
   };
   useEffect(() => {
     void loadMetrics();
-    void api<ImageAnalysis>("/media/analysis").then(({ data, response }) => { setImages(data); onCsrf(response.headers.get(csrfHeader) ?? ""); }).catch(() => undefined);
+    void api<ImageAnalysis>("/media/analysis").then(({ data, response }) => { setImages(data); onCsrf(response.headers.get(csrfHeader) ?? ""); }).catch(() => undefined).finally(() => setImagesLoading(false));
   }, [loadMetrics, onCsrf]);
+  const refreshImages = async () => {
+    setImagesRefreshing(true); setImagesError("");
+    const request = async (token: string) => await api<ImageAnalysis>("/media/analysis/refresh", { method: "POST", headers: { [csrfHeader]: token } });
+    try {
+      let result: { data: ImageAnalysis; response: Response };
+      try { result = await request(csrf); } catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
+      setImages(result.data); onCsrf(result.response.headers.get(csrfHeader) ?? "");
+    } catch { setImagesError("Не удалось собрать отчёт. Повторите попытку."); } finally { setImagesRefreshing(false); }
+  };
+  const estimateImages = async () => {
+    setEstimateSubmitting(true); setImagesError("");
+    const request = async (token: string) => await api<{ job_id: string }>("/media/analysis/estimate", { method: "POST", headers: { [csrfHeader]: token } });
+    try {
+      try { await request(csrf); } catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; await request(await renewCsrf()); }
+      setImages((current) => current ? { ...current, estimate_status: "queued", estimate: null } : current);
+    } catch (error) { setImagesError(error instanceof AdminApiError && error.status === 409 ? "Оценка уже выполняется." : "Не удалось запустить оценку."); } finally { setEstimateSubmitting(false); }
+  };
+  useEffect(() => {
+    if (images?.estimate_status !== "queued" && images?.estimate_status !== "running") return;
+    const timer = window.setTimeout(() => {
+      void api<ImageAnalysis>("/media/analysis").then(({ data }) => setImages(data)).catch(() => undefined);
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [images?.estimate_status]);
   const cards = counts ? [
     ["Активные пользователи", counts.active_users, Users],
     ["Будущие события", counts.upcoming_events, CalendarClock],
@@ -276,8 +306,9 @@ function Dashboard({ staff, csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (
       {failed ? <AdminEmpty title="Не удалось загрузить данные" text="Обновите страницу и попробуйте снова." /> : !counts ? <AdminStatus text="Загружаем показатели…" /> : <div className="admin-stat-grid">{cards.map(([label, value, Icon]) => <article className="admin-stat" key={label}><span><Icon /></span><p>{label}</p><strong>{value.toLocaleString("ru-RU")}</strong></article>)}</div>}
       <div className="admin-section-heading"><h2 className="admin-section-title">Ресурсы VPS</h2><button className="admin-icon-button" type="button" onClick={() => void refreshMetrics()} disabled={metricsRefreshing} aria-label="Обновить ресурсы VPS" title="Обновить"><RefreshCw className={metricsRefreshing ? "spinning" : ""} /></button></div>
       {metricsFailed && !metrics ? <p className="admin-muted">Данные временно недоступны. Нажмите обновить.</p> : !metrics ? <p className="admin-muted">Загружаем последний снимок VPS…</p> : <><div className="admin-resource-grid"><ResourceCard label="Диск" used={metrics.disk.used_bytes} total={metrics.disk.size_bytes} /><ResourceCard label="Оперативная память" used={metrics.memory.used_bytes} total={metrics.memory.total_bytes} /><article className="admin-resource-card"><p>CPU · load average</p><strong>{metrics.cpu.load_1.toFixed(2)}</strong><small>5 мин: {metrics.cpu.load_5.toFixed(2)} · 15 мин: {metrics.cpu.load_15.toFixed(2)}</small></article><article className="admin-resource-card"><p>Время работы</p><strong>{formatDuration(metrics.uptime_seconds)}</strong><small>обновлено {new Date(metrics.collected_at).toLocaleTimeString("ru-RU")}</small></article></div>{metricsFailed && <p className="admin-form-error" role="alert">Не удалось обновить данные VPS. Показан последний снимок.</p>}<div className="admin-table-wrap"><table><thead><tr><th>Контейнер</th><th>CPU</th><th>Память</th></tr></thead><tbody>{metrics.containers.map((container) => <tr key={container.name}><td>{container.name}</td><td>{container.cpu_percent.toFixed(2)}%</td><td>{container.memory_usage} / {container.memory_limit}</td></tr>)}</tbody></table></div></>}
-      <h2 className="admin-section-title">Изображения</h2>
-      {images ? <p className="admin-muted">{images.file_count} файлов · {formatBytes(images.total_bytes)} · {Object.entries(images.formats).map(([format, count]) => `${format}: ${count}`).join(", ") || "файлов пока нет"}. Повторное сжатие не выполнялось.</p> : <p className="admin-muted">Анализируем файлы…</p>}
+      <div className="admin-section-heading"><h2 className="admin-section-title">Изображения</h2><button className="admin-icon-button" type="button" onClick={() => void refreshImages()} disabled={imagesRefreshing} aria-label="Собрать отчёт по изображениям" title="Собрать отчёт"><RefreshCw className={imagesRefreshing ? "spinning" : ""} /></button></div>
+      {imagesLoading ? <p className="admin-muted">Загружаем последний отчёт…</p> : !images ? <p className="admin-muted">Отчёта ещё нет. Нажмите обновить: расчёт использует только агрегаты БД.</p> : <div className="admin-media-report"><p className="admin-muted">{images.file_count} файлов · {formatBytes(images.total_bytes)} · готовые: {images.permanent_file_count} / {formatBytes(images.permanent_bytes)} · временные: {images.temporary_file_count} / {formatBytes(images.temporary_bytes)}. По данным БД, {new Date(images.collected_at).toLocaleString("ru-RU")}.</p><p className="admin-muted">Форматы: {images.formats.map((item) => `${item.name}: ${item.file_count}`).join(", ") || "файлов пока нет"}.</p>{images.directories.length > 0 && <div className="admin-media-directories">{images.directories.map((item) => <span key={item.name}>{item.name === "other" ? "Остальное" : item.name}: {formatBytes(item.total_bytes)} ({item.percent ?? 0}%)</span>)}</div>}<div className="admin-media-actions"><button className="admin-table-action" type="button" disabled={estimateSubmitting || images.estimate_status === "queued" || images.estimate_status === "running"} onClick={() => void estimateImages()}>{estimateSubmitting || images.estimate_status === "queued" || images.estimate_status === "running" ? "Оцениваем…" : "Оценить экономию WebP"}</button>{images.estimate && <p className="admin-muted">Проба quality {images.estimate.quality}: {images.estimate.sample_file_count} файлов / {formatBytes(images.estimate.sample_bytes)}, экономия {images.estimate.sample_saved_percent}% (≈ {formatBytes(images.estimate.estimated_saved_bytes)} для всех подходящих файлов). Оригиналы не изменялись.</p>}</div></div>}
+      {imagesError && <p className="admin-form-error" role="alert">{imagesError}</p>}
     </section>
   );
 }
@@ -297,7 +328,7 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
   const [items, setItems] = useState<Review[] | null>(null);
   const [selected, setSelected] = useState<ReviewDetail | null>(null);
   const [failed, setFailed] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"approve" | "reject" | "open" | null>(null);
   const [reason, setReason] = useState<(typeof rejectionReasons)[number][0]>("unclear_description");
   const [decisionError, setDecisionError] = useState("");
   const [decisionMessage, setDecisionMessage] = useState("");
@@ -309,13 +340,13 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
   }, [onCsrf]);
   useEffect(() => { void load(); }, [load]);
   const open = async (review: Review) => {
-    setBusy(true);
+    setBusy("open");
     try { const result = await api<ReviewDetail>(`/events/reviews/${review.id}`); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(result.data); }
-    finally { setBusy(false); }
+    finally { setBusy(null); }
   };
   const decide = async (action: "approve" | "reject") => {
     if (!selected) return;
-    setBusy(true); setDecisionError("");
+    setBusy(action); setDecisionError("");
     const request = async (token: string) => await api(`/events/reviews/${selected.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: token }, body: JSON.stringify({ revision_id: selected.event_revision_id, reason: action === "reject" ? reason : null }) });
     try {
       let result: { data: undefined; response: Response };
@@ -323,12 +354,12 @@ function Moderation({ csrf, onCsrf, renewCsrf }: { csrf: string; onCsrf: (value:
       catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
       onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await load();
       setDecisionMessage(action === "approve" ? "Событие одобрено и опубликовано." : "Событие отклонено, автор получит причину.");
-    } catch (error) { setDecisionError(error instanceof AdminApiError && error.status === 409 ? "Заявка уже была обработана. Обновите очередь." : "Не удалось сохранить решение. Попробуйте ещё раз."); }
-    finally { setBusy(false); }
+    } catch (error) { setDecisionError(moderationErrorMessage(error)); }
+    finally { setBusy(null); }
   };
   return <section><header className="admin-page-header"><div><p>Проверка пользовательских событий</p><h1>Модерация</h1></div>{items && <span className="admin-live">{items.length} ожидают</span>}</header>{decisionMessage && <p className="success-message" role="status">{decisionMessage}</p>}
-    {failed ? <AdminEmpty title="Очередь недоступна" text="Обновите страницу и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !items.length ? <AdminEmpty title="Очередь пуста" text="Новых событий на проверке нет." /> : <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Автор</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.display_name}</td><td>{item.city}</td><td>{new Date(item.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" disabled={busy} onClick={() => void open(item)}>Проверить</button></td></tr>)}</tbody></table></div>}
-    {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес</dt><dd>{selected.normalized_address}{selected.landmark ? ` · ${selected.landmark}` : ""}</dd></div><div><dt>Видимость</dt><dd>{selected.address_visibility}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p>{selected.description}</p>{decisionError && <p className="admin-form-error" role="alert">{decisionError}</p>}<div className="admin-review-actions"><button className="admin-approve" disabled={busy} onClick={() => void decide("approve")}>{busy ? "Сохраняем…" : "Одобрить"}</button><select value={reason} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy} onClick={() => void decide("reject")}>{busy ? "Сохраняем…" : "Отклонить"}</button></div></section></div>}
+    {failed ? <AdminEmpty title="Очередь недоступна" text="Обновите страницу и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !items.length ? <AdminEmpty title="Очередь пуста" text="Новых событий на проверке нет." /> : <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Автор</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.display_name}</td><td>{item.city}</td><td>{new Date(item.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" disabled={busy !== null} onClick={() => void open(item)}>Проверить</button></td></tr>)}</tbody></table></div>}
+    {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес</dt><dd>{selected.normalized_address}{selected.landmark ? ` · ${selected.landmark}` : ""}</dd></div><div><dt>Видимость</dt><dd>{visibilityLabel(selected.address_visibility)}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p className="admin-review-description">{selected.description}</p>{decisionError && <p className="admin-form-error" role="alert">{decisionError}</p>}<div className="admin-review-actions"><button className="admin-approve" disabled={busy !== null} onClick={() => void decide("approve")}>{busy === "approve" ? "Одобряем…" : "Одобрить"}</button><div className="admin-reject-group"><select value={reason} disabled={busy !== null} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy !== null} onClick={() => void decide("reject")}>{busy === "reject" ? "Отклоняем…" : "Отклонить"}</button></div></div></section></div>}
   </section>;
 }
 
@@ -362,10 +393,12 @@ function resultLabel(result: AuditEntry["result"]) { return result === "success"
 function formatBytes(value: number) { if (value < 1024 * 1024) return `${Math.round(value / 1024)} КБ`; if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} МБ`; return `${(value / 1024 / 1024 / 1024).toFixed(1)} ГБ`; }
 function formatDuration(value: number) { const days = Math.floor(value / 86400); const hours = Math.floor((value % 86400) / 3600); return days ? `${days} д. ${hours} ч.` : `${hours} ч.`; }
 
-class AdminApiError extends Error { constructor(public status: number) { super("Admin request failed"); } }
+function visibilityLabel(value: string) { return ({ exact_public: "Точный адрес виден всем", exact_participants: "Точный адрес виден участникам", street_only: "Публично видна только улица" } as Record<string, string>)[value] ?? value; }
+function moderationErrorMessage(error: unknown) { if (!(error instanceof AdminApiError)) return "Не удалось сохранить решение. Попробуйте ещё раз."; if (error.status === 409) return "Заявка уже обработана или изменилась. Обновите очередь."; if (error.status === 422 && error.detail === "event_already_started") return "Нельзя одобрить событие, которое уже началось."; return "Не удалось сохранить решение. Попробуйте ещё раз."; }
+class AdminApiError extends Error { constructor(public status: number, public detail?: string) { super("Admin request failed"); } }
 async function api<T = undefined>(path: string, init?: RequestInit): Promise<{ data: T; response: Response }> {
   const response = await fetch(`/api/admin${path}`, { ...init, credentials: "same-origin", headers: { Accept: "application/json", ...init?.headers } });
-  if (!response.ok) throw new AdminApiError(response.status);
+  if (!response.ok) { const body = await response.json().catch(() => null) as { detail?: string } | null; throw new AdminApiError(response.status, body?.detail); }
   const data = response.status === 204 ? undefined : await response.json();
   return { data: data as T, response };
 }

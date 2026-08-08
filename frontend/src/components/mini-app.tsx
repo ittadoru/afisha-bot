@@ -75,6 +75,8 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [catalogFailed, setCatalogFailed] = useState(false);
   const [selectedCity, setSelectedCity] = useState<MapCity | null>(null);
   const [choosingCity, setChoosingCity] = useState(false);
+  const [citySaving, setCitySaving] = useState(false);
+  const [cityError, setCityError] = useState("");
   const [createDirty, setCreateDirty] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(initialEventId);
   const [streetGroup, setStreetGroup] = useState<{ ids: string[]; street: string } | null>(null);
@@ -124,21 +126,38 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   };
 
   const openCityChooser = async () => {
+    setCityError("");
     setChoosingCity(true);
   };
 
   const saveCity = async (city: MapCity) => {
-    setSelectedCity(city);
-    setChoosingCity(false);
-    const response = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ display_name: profile.display_name, bio: profile.bio, selected_city_id: city.id, version: profile.version ?? 1 }) });
-    if (response.ok) onProfileUpdate(await response.json() as AccountProfile);
+    if (citySaving || city.id === selectedCity?.id) { setChoosingCity(false); return; }
+    setCitySaving(true); setCityError("");
+    const request = async (version: number) => await fetch(`${appConfig.apiBaseUrl}/account/profile/city`, {
+      method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken },
+      body: JSON.stringify({ selected_city_id: city.id, version }),
+    });
+    try {
+      let response = await request(profile.version ?? 1);
+      if (response.status === 409) {
+        const current = await fetch(`${appConfig.apiBaseUrl}/account/profile`, { credentials: "include" });
+        if (current.ok) response = await request((await current.json() as AccountProfile).version ?? 1);
+      }
+      if (!response.ok) throw new Error(String(response.status));
+      const updated = await response.json() as AccountProfile;
+      onProfileUpdate(updated);
+      setSelectedCity(city);
+      setChoosingCity(false);
+    } catch (error) {
+      setCityError(error instanceof Error && error.message === "422" ? "Этот город сейчас недоступен." : "Не удалось сменить город. Повторите попытку.");
+    } finally { setCitySaving(false); }
   };
 
   return (
     <main className="mini-app">
       <MiniHeader city={selectedCity} section={section} eventsMode={eventsMode} onModeChange={setEventsMode} onChooseCity={() => void openCityChooser()} />
       <div className="mini-content">
-        {choosingCity && <div className="city-chooser-overlay"><CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} onSelect={(city) => void saveCity(city)} onClose={() => setChoosingCity(false)} /></div>}
+        {choosingCity && <div className="city-chooser-overlay"><CityChooser cities={catalog?.cities ?? []} selected={selectedCity} failed={catalogFailed} saving={citySaving} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /></div>}
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
@@ -181,8 +200,8 @@ function MiniHeader({ city, section, eventsMode, onModeChange, onChooseCity }: {
   );
 }
 
-function CityChooser({ cities, selected, failed, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; failed: boolean; onSelect: (city: MapCity) => void; onClose: () => void }) {
-  return <section className="feed city-chooser"><button className="text-back" type="button" onClick={onClose}>← Назад</button><p className="section-kicker">Город событий</p><h1>Выберите город</h1>{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{cities.map((city) => <button className="menu-row" type="button" key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span><ChevronRight /></button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></section>;
+function CityChooser({ cities, selected, failed, saving, error, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; failed: boolean; saving: boolean; error: string; onSelect: (city: MapCity) => void; onClose: () => void }) {
+  return <section className="feed city-chooser"><button className="text-back" type="button" disabled={saving} onClick={onClose}>← Назад</button><p className="section-kicker">Город событий</p><h1>Выберите город</h1>{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{error && <p className="form-error" role="alert">{error}</p>}{cities.map((city) => <button className="menu-row" type="button" disabled={saving} key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span>{saving ? <LoaderCircle className="spin" /> : <ChevronRight />}</button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></section>;
 }
 
 function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: string) => void }) {
@@ -212,7 +231,7 @@ function CreateScreen({ city, categories, catalogFailed, csrfToken, organizerSta
   if (kind === "event") {
     if (!city) return <section className="centered-screen"><MapPin /><h1>Сначала выберите город</h1><Button onClick={onChooseCity}>Выбрать город</Button></section>;
     if (catalogFailed) return <section className="centered-screen"><SearchX /><h1>Категории недоступны</h1><p>Откройте приложение снова и повторите попытку.</p></section>;
-    return <EventCreation city={city} categories={categories} csrfToken={csrfToken} organizerStatus={organizerStatus} onDirtyChange={onDirtyChange} registerDiscard={registerDiscard} onCancel={() => setKind(null)} onFinished={onDone} />;
+    return <EventCreation city={city} categories={categories} csrfToken={csrfToken} organizerStatus={organizerStatus} onDirtyChange={onDirtyChange} registerDiscard={registerDiscard} onChooseCity={onChooseCity} onCancel={() => setKind(null)} onFinished={onDone} />;
   }
   return <section className="demo-form"><button className="text-back" type="button" onClick={() => setKind(null)}>← Назад</button><p className="section-kicker">Ищу людей</p><h1>Новая идея</h1><button className="selected-city" type="button" onClick={onChooseCity}><MapPin /><span><small>Город</small>{city?.name ?? "Выберите город"}</span><ChevronRight /></button><label>Название<input placeholder="Кого и для чего вы ищете" /></label><label>Категория<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Выберите категорию</option>{selectableCategories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label>Описание<textarea placeholder="Расскажите самое важное" maxLength={300} /></label><Button disabled>Сохранение идеи будет добавлено позже</Button></section>;
 }

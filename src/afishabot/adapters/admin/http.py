@@ -1,7 +1,7 @@
 import asyncio
+import json
 from dataclasses import asdict
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import Annotated, Literal, cast
 from uuid import UUID
@@ -13,7 +13,31 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from afishabot.adapters.tasks.celery_app import estimate_storage_savings_task
 from afishabot.core.config import Settings
+from afishabot.modules.events.application.manage_event import (
+    CancelReason,
+    EventManagementConflict,
+    EventManagementError,
+    cancel_special_event,
+    create_special_event,
+)
+from afishabot.modules.media.application.storage_analysis import (
+    inventory,
+    queue_estimate,
+    save_inventory,
+)
+from afishabot.modules.media.application.storage_analysis import (
+    latest as latest_storage_analysis,
+)
+from afishabot.modules.trust_safety.application.event_moderation import (
+    ModerationConflict,
+    ModerationNotFound,
+    ReviewDecision,
+    decide_review,
+    review_detail,
+    review_queue,
+)
 from afishabot.modules.trust_safety.application.staff_admin import (
     AdminAuthBlocked,
     AdminAuthDenied,
@@ -25,26 +49,11 @@ from afishabot.modules.trust_safety.application.staff_admin import (
     contextual_hash,
     create_login_bootstrap,
     dashboard_counts,
+    load_staff_mutation_session,
     load_staff_read_session,
     load_staff_session,
-    load_staff_mutation_session,
     record_admin_event,
     revoke_staff_session,
-)
-from afishabot.modules.trust_safety.application.event_moderation import (
-    ModerationConflict,
-    ModerationNotFound,
-    ReviewDecision,
-    decide_review,
-    review_detail,
-    review_queue,
-)
-from afishabot.modules.events.application.manage_event import (
-    CancelReason,
-    EventManagementConflict,
-    EventManagementError,
-    cancel_special_event,
-    create_special_event,
 )
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -93,9 +102,28 @@ class SystemMetricsResponse(BaseModel):
 
 
 class ImageAnalysisResponse(BaseModel):
+    collected_at: datetime
+    source: Literal["database"]
     file_count: int
     total_bytes: int
-    formats: dict[str, int]
+    permanent_file_count: int
+    permanent_bytes: int
+    temporary_file_count: int
+    temporary_bytes: int
+    formats: list[dict[str, str | int]]
+    purposes: list[dict[str, str | int]]
+    directories: list[dict[str, str | int | float]]
+    estimate_status: Literal["idle", "queued", "running", "completed", "failed"] = (
+        "idle"
+    )
+    estimate_job_id: str | None = None
+    estimate_collected_at: datetime | None = None
+    estimate: dict[str, int | float] | None = None
+
+
+class ImageEstimateQueuedResponse(BaseModel):
+    job_id: UUID
+    status: Literal["queued"] = "queued"
 
 
 class AuditEntryResponse(BaseModel):
@@ -114,10 +142,17 @@ class AuditPageResponse(BaseModel):
 class ReviewDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     revision_id: UUID
-    reason: Literal[
-        "unclear_description", "prohibited_content", "paid_or_advertising",
-        "inappropriate_photo", "invalid_place_or_time", "duplicate_or_spam",
-    ] | None = None
+    reason: (
+        Literal[
+            "unclear_description",
+            "prohibited_content",
+            "paid_or_advertising",
+            "inappropriate_photo",
+            "invalid_place_or_time",
+            "duplicate_or_spam",
+        ]
+        | None
+    ) = None
 
 
 class CancelSpecialRequest(BaseModel):
@@ -179,9 +214,7 @@ async def login(
     body: LoginRequest,
     request: Request,
     response: Response,
-    bootstrap_cookie: Annotated[
-        str | None, Cookie(alias=BOOTSTRAP_COOKIE)
-    ] = None,
+    bootstrap_cookie: Annotated[str | None, Cookie(alias=BOOTSTRAP_COOKIE)] = None,
     csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
 ) -> LoginResponse:
     settings, redis, engine = _dependencies(request)
@@ -273,9 +306,7 @@ async def dashboard(
 ) -> DashboardResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, _ = await _require_session(
-        engine, session_token, _required_secret(settings)
-    )
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     response.headers["Cache-Control"] = "no-store"
     return DashboardResponse(**asdict(await dashboard_counts(engine)))
 
@@ -309,7 +340,9 @@ async def refresh_system_metrics(
     if session_token is None or csrf_token is None:
         raise _error(401, "admin_session_required")
     identity = await load_staff_mutation_session(
-        engine, token=session_token, csrf_token=csrf_token,
+        engine,
+        token=session_token,
+        csrf_token=csrf_token,
         auth_secret=_required_secret(settings),
     )
     if identity is None:
@@ -337,23 +370,69 @@ async def image_analysis(
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
     _, _ = await _require_session(engine, session_token, _required_secret(settings))
-    formats: dict[str, int] = {}
-    total_bytes = 0
-    file_count = 0
-    if settings.media_root.is_dir():
-        for path in settings.media_root.rglob("*"):
-            if not path.is_file():
-                continue
-            try:
-                size = path.stat().st_size
-            except OSError:
-                continue
-            suffix = path.suffix.lower().lstrip(".") or "without_extension"
-            formats[suffix] = formats.get(suffix, 0) + 1
-            total_bytes += size
-            file_count += 1
+    result = await latest_storage_analysis(engine)
+    if result is None:
+        raise _error(404, "storage_analysis_not_collected")
     response.headers["Cache-Control"] = "no-store"
-    return ImageAnalysisResponse(file_count=file_count, total_bytes=total_bytes, formats=formats)
+    return ImageAnalysisResponse.model_validate(result)
+
+
+@router.post("/media/analysis/refresh", response_model=ImageAnalysisResponse)
+async def refresh_image_analysis(
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> ImageAnalysisResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    if (
+        await load_staff_mutation_session(
+            engine,
+            token=session_token,
+            csrf_token=csrf_token,
+            auth_secret=_required_secret(settings),
+        )
+        is None
+    ):
+        raise _error(401, "admin_session_required")
+    result = await inventory(engine)
+    await save_inventory(engine, result)
+    latest = await latest_storage_analysis(engine)
+    return ImageAnalysisResponse.model_validate(latest or result)
+
+
+@router.post(
+    "/media/analysis/estimate",
+    response_model=ImageEstimateQueuedResponse,
+    status_code=202,
+)
+async def estimate_image_savings(
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> ImageEstimateQueuedResponse:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    if (
+        await load_staff_mutation_session(
+            engine,
+            token=session_token,
+            csrf_token=csrf_token,
+            auth_secret=_required_secret(settings),
+        )
+        is None
+    ):
+        raise _error(401, "admin_session_required")
+    try:
+        job_id = await queue_estimate(engine)
+    except RuntimeError as error:
+        raise _error(409, "storage_estimate_running") from error
+    estimate_storage_savings_task.delay(str(job_id))
+    return ImageEstimateQueuedResponse(job_id=job_id)
 
 
 @router.get("/audit", response_model=AuditPageResponse)
@@ -365,9 +444,7 @@ async def audit(
 ) -> AuditPageResponse:
     settings, _, engine = _dependencies(request)
     _validate_admin_request(request, settings)
-    _, _ = await _require_session(
-        engine, session_token, _required_secret(settings)
-    )
+    _, _ = await _require_session(engine, session_token, _required_secret(settings))
     rows = await audit_page(engine, before=before)
     items = [
         AuditEntryResponse(
@@ -398,12 +475,17 @@ async def event_reviews(
     _validate_admin_request(request, settings)
     _, _ = await _require_session(engine, session_token, _required_secret(settings))
     rows = await review_queue(engine, offset=offset, limit=limit + 1)
-    return {"items": rows[:limit], "next_offset": offset + limit if len(rows) > limit else None}
+    return {
+        "items": rows[:limit],
+        "next_offset": offset + limit if len(rows) > limit else None,
+    }
 
 
 @router.get("/events/reviews/{review_id}")
 async def event_review_detail(
-    review_id: UUID, request: Request, response: Response,
+    review_id: UUID,
+    request: Request,
+    response: Response,
     session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> dict[str, object]:
     settings, _, engine = _dependencies(request)
@@ -419,7 +501,8 @@ async def event_review_detail(
 
 @router.get("/events/reviews/{review_id}/photo")
 async def event_review_photo(
-    review_id: UUID, request: Request,
+    review_id: UUID,
+    request: Request,
     session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> Response:
     settings, _, engine = _dependencies(request)
@@ -429,16 +512,22 @@ async def event_review_photo(
         detail = await review_detail(engine, review_id)
     except ModerationNotFound as error:
         raise _error(404, "review_not_found") from error
-    path = Path(settings.media_root) / "event-staging" / f"{detail['media_asset_id']}.webp"
+    path = (
+        Path(settings.media_root) / "event-staging" / f"{detail['media_asset_id']}.webp"
+    )
     if not path.is_file():
         raise _error(404, "photo_not_found")
-    return FileResponse(path, media_type="image/webp", headers={"Cache-Control": "private, no-store"})
+    return FileResponse(
+        path, media_type="image/webp", headers={"Cache-Control": "private, no-store"}
+    )
 
 
 @router.post("/events/reviews/{review_id}/{action}", status_code=204)
 async def decide_event_review(
-    review_id: UUID, action: Literal["approve", "reject"],
-    body: ReviewDecisionRequest, request: Request,
+    review_id: UUID,
+    action: Literal["approve", "reject"],
+    body: ReviewDecisionRequest,
+    request: Request,
     session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
     csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
 ) -> None:
@@ -447,7 +536,9 @@ async def decide_event_review(
     if session_token is None or csrf_token is None:
         raise _error(401, "admin_session_required")
     identity = await load_staff_mutation_session(
-        engine, token=session_token, csrf_token=csrf_token,
+        engine,
+        token=session_token,
+        csrf_token=csrf_token,
         auth_secret=_required_secret(settings),
     )
     if identity is None:
@@ -457,7 +548,12 @@ async def decide_event_review(
     ):
         raise _error(422, "decision_invalid")
     try:
-        await decide_review(engine, ReviewDecision(review_id, body.revision_id, identity.id, action, body.reason))
+        await decide_review(
+            engine,
+            ReviewDecision(
+                review_id, body.revision_id, identity.id, action, body.reason
+            ),
+        )
     except ModerationConflict as error:
         raise _error(409, str(error)) from error
 
@@ -514,7 +610,9 @@ async def cancel_special(
     if session_token is None or csrf_token is None:
         raise _error(401, "admin_session_required")
     identity = await load_staff_mutation_session(
-        engine, token=session_token, csrf_token=csrf_token,
+        engine,
+        token=session_token,
+        csrf_token=csrf_token,
         auth_secret=_required_secret(settings),
     )
     if identity is None or identity.role != "admin":
@@ -542,9 +640,10 @@ async def special_events(
         raise _error(403, "admin_required")
     async with engine.connect() as connection:
         rows = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT e.id,r.title,r.starts_at,r.ends_at,c.name AS city
                     FROM events.events e
                     JOIN events.event_revisions r ON r.id=e.approved_revision_id
@@ -552,9 +651,12 @@ async def special_events(
                     WHERE e.kind='special' AND e.lifecycle_status='published'
                     ORDER BY r.starts_at,e.id
                     """
+                    )
                 )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
     return {"items": [dict(row) for row in rows]}
 
 

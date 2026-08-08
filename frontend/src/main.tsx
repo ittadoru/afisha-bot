@@ -21,19 +21,21 @@ function initializeTelegramMiniApp(): void {
   applyTheme();
   if (!webApp) return;
 
-  // Telegram opens Mini Apps as a bottom sheet by default. Calling expand()
-  // immediately makes the app use the maximum available WebView height.
   webApp.ready();
-  webApp.expand();
-  if (webApp.isVersionAtLeast?.("8.0") && webApp.requestFullscreen) {
-    webApp.requestFullscreen();
-  }
+  const expand = () => webApp.expand();
+  webApp.onEvent?.("fullscreenFailed", expand);
+  try {
+    if (webApp.isVersionAtLeast?.("8.0") && webApp.requestFullscreen) webApp.requestFullscreen();
+    else expand();
+  } catch { expand(); }
   const applySafeArea = () => {
     const inset = webApp.contentSafeAreaInset ?? webApp.safeAreaInset;
     if (!inset) return;
     const root = document.documentElement.style;
     root.setProperty("--tg-safe-top", `${inset.top}px`);
     root.setProperty("--tg-safe-bottom", `${inset.bottom}px`);
+    root.setProperty("--tg-safe-left", `${inset.left}px`);
+    root.setProperty("--tg-safe-right", `${inset.right}px`);
   };
   applySafeArea();
   webApp.onEvent?.("themeChanged", applyTheme);

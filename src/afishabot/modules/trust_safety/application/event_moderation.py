@@ -38,9 +38,10 @@ async def review_queue(
 ) -> list[dict[str, Any]]:
     async with engine.connect() as connection:
         rows = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT q.id, q.event_id, q.event_revision_id, q.submitted_at,
                            r.title, r.starts_at, c.name AS city,
                            p.public_id, p.display_name
@@ -55,19 +56,23 @@ async def review_queue(
                     ORDER BY q.submitted_at, q.id
                     LIMIT :limit OFFSET :offset
                     """
-                ),
-                {"limit": limit, "offset": offset},
+                    ),
+                    {"limit": limit, "offset": offset},
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
     return [dict(row) for row in rows]
 
 
 async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
     async with engine.connect() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT q.id, q.event_id, q.event_revision_id, q.submitted_at,
                            r.title, r.description, r.starts_at, r.ends_at,
                            r.normalized_address, r.street_name, r.landmark,
@@ -89,10 +94,13 @@ async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
                     WHERE q.id=:review AND q.status='pending'
                       AND e.current_revision_id=q.event_revision_id
                     """
-                ),
-                {"review": review_id},
+                    ),
+                    {"review": review_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
     if row is None:
         raise ModerationNotFound
     return dict(row)
@@ -103,9 +111,10 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
         raise ModerationConflict("invalid_rejection_reason")
     async with engine.begin() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT q.event_id, q.event_revision_id, e.creator_user_id,
                            e.lifecycle_status, e.approved_revision_id,
                            e.schedule_changes_used, r.title, r.description,
@@ -128,23 +137,27 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                       AND e.current_revision_id=q.event_revision_id
                     FOR UPDATE OF q, e, r
                     """
-                ),
-                {"review": decision.review_id},
+                    ),
+                    {"review": decision.review_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if row is None:
             raise ModerationConflict("review_already_decided")
         if row["event_revision_id"] != decision.revision_id:
             raise ModerationConflict("stale_review")
-        if decision.action == "approve" and row["starts_at"] <= datetime.now().astimezone():
+        if (
+            decision.action == "approve"
+            and row["starts_at"] <= datetime.now().astimezone()
+        ):
             raise ModerationConflict("event_already_started")
 
         approved = decision.action == "approve"
         review_status = "approved" if approved else "rejected"
         is_published_change = row["approved_revision_id"] is not None
-        lifecycle = (
-            "published" if approved or is_published_change else "rejected"
-        )
+        lifecycle = "published" if approved or is_published_change else "rejected"
         event_moderation = (
             "approved" if is_published_change and not approved else review_status
         )
@@ -163,8 +176,12 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 WHERE id=:review
                 """
             ),
-            {"status": review_status, "staff": decision.staff_id,
-             "reason": decision.reason, "review": decision.review_id},
+            {
+                "status": review_status,
+                "staff": decision.staff_id,
+                "reason": decision.reason,
+                "review": decision.review_id,
+            },
         )
         await connection.execute(
             text(
@@ -186,9 +203,14 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 WHERE id=:event AND current_revision_id=:revision
                 """
             ),
-            {"lifecycle": lifecycle, "event_status": event_moderation,
-             "approved": approved, "revision": decision.revision_id,
-             "event": row["event_id"], "schedule_changed": schedule_changed},
+            {
+                "lifecycle": lifecycle,
+                "event_status": event_moderation,
+                "approved": approved,
+                "revision": decision.revision_id,
+                "event": row["event_id"],
+                "schedule_changed": schedule_changed,
+            },
         )
         reason_text = REJECTION_REASONS.get(decision.reason or "", "")
         await connection.execute(
@@ -202,14 +224,23 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 """
             ),
             {
-                "id": uuid4(), "user": row["creator_user_id"],
-                "kind": "event_changed_approved" if approved and is_published_change
-                else "event_approved" if approved else "event_rejected",
-                "title": "Изменения одобрены" if approved and is_published_change
-                else "Событие опубликовано" if approved else "Событие нужно исправить",
+                "id": uuid4(),
+                "user": row["creator_user_id"],
+                "kind": "event_changed_approved"
+                if approved and is_published_change
+                else "event_approved"
+                if approved
+                else "event_rejected",
+                "title": "Изменения одобрены"
+                if approved and is_published_change
+                else "Событие опубликовано"
+                if approved
+                else "Событие нужно исправить",
                 "body": row["title"] if approved else reason_text,
                 "event": row["event_id"],
-                "link": f"/app/event/{row['event_id']}" if approved else f"/app/event/{row['event_id']}/edit",
+                "link": f"/app/event/{row['event_id']}"
+                if approved
+                else f"/app/event/{row['event_id']}/edit",
             },
         )
         if approved and is_published_change:
@@ -241,9 +272,11 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                     WHERE p.event_id=:event AND p.status='active'
                     """
                 ),
-                {"event": row["event_id"],
-                 "schedule_changed": schedule_changed,
-                 "body": " · ".join(changes)},
+                {
+                    "event": row["event_id"],
+                    "schedule_changed": schedule_changed,
+                    "body": " · ".join(changes),
+                },
             )
         await connection.execute(
             text(
@@ -253,10 +286,15 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 VALUES (:id, :staff, :action, 'success',
                         jsonb_build_object('event_id', CAST(:event AS text),
                                            'review_id', CAST(:review AS text),
-                                           'reason', :reason))
+                                           'reason', CAST(:reason AS text)))
                 """
             ),
-            {"id": uuid4(), "staff": decision.staff_id,
-             "action": f"event.{decision.action}", "event": row["event_id"],
-             "review": decision.review_id, "reason": decision.reason},
+            {
+                "id": uuid4(),
+                "staff": decision.staff_id,
+                "action": f"event.{decision.action}",
+                "event": row["event_id"],
+                "review": decision.review_id,
+                "reason": decision.reason,
+            },
         )
