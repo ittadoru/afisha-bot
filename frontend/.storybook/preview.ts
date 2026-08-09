@@ -1,7 +1,6 @@
 import type { Preview } from "@storybook/react-vite";
 
 import "@fontsource-variable/manrope";
-import "cropperjs/dist/cropper.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "../src/styles.css";
 
