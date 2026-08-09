@@ -130,3 +130,25 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
   .admin-review dl, .admin-review-actions, .admin-reject-group { grid-template-columns: 1fr; }
   .admin-reject-group { padding: 16px 0 0; border-top: 1px solid #e1e7e4; border-left: 0; }
 }
+
+/* Shared professional rhythm for the staff surface */
+body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { background: #f3f5f3; color: #172724; }
+.admin-login-page { background: #f3f5f3; }
+.admin-login-card { border-color: #d9e0dc; border-radius: 16px; box-shadow: 0 20px 64px rgb(20 45 39 / .1); }
+.admin-mark, .admin-brand > span { background: #116f64; }
+.admin-login-form input, .admin-create-form input, .admin-create-form select, .admin-create-form textarea, .admin-anchor-form input, .admin-filters input, .admin-filters select, .admin-anchor-choice select, .admin-anchor-fields input { border-radius: 10px; transition: border-color .16s ease, box-shadow .16s ease; }
+.admin-login-form button, .admin-more, .admin-create-actions button { border-radius: 10px; background: #116f64; transition: background .16s ease, transform .14s ease; }
+.admin-login-form button:active, .admin-more:active, .admin-create-actions button:active { transform: scale(.99); }
+.admin-sidebar { border-color: #dfe5e1; }
+.admin-sidebar button { border-radius: 10px; }
+.admin-sidebar button:hover, .admin-sidebar button:focus-visible, .admin-sidebar button.active { color: #0f5e55; background: #e5f0ec; }
+.admin-content { max-width: 1560px; width: 100%; margin: 0 auto; }
+.admin-stat, .admin-resource-card, .admin-media-report, .admin-table-wrap, .admin-create-form { border-color: #dde4e0; border-radius: 14px; box-shadow: 0 1px 2px rgb(20 45 39 / .025); }
+.admin-review { border: 1px solid #d9e0dc; border-radius: 18px; box-shadow: 0 28px 90px rgb(0 0 0 / .24); }
+.admin-table-wrap th { background: #f7f9f8; }
+.admin-table-wrap tbody tr { transition: background .14s ease; }
+.admin-table-wrap tbody tr:hover { background: #f7faf8; }
+.admin-table-action, .admin-icon-button { border-radius: 9px; }
+@media (prefers-reduced-motion: reduce) {
+  .admin-status span, .spinning { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+}

@@ -185,7 +185,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             element.className = item.marker_type === "street"
               ? "street-event-marker"
               : `public-event-marker category-${item.category_slug ?? "other"}${item.kind === "special" ? " special" : ""}`;
-            element.textContent = item.marker_type === "street" ? `△ ${item.street_name} · ${item.event_count}` : item.kind === "special" ? "★" : categorySymbol(item.category_slug);
+            element.textContent = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.kind === "special" ? "ОС" : categorySymbol(item.category_slug);
             element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${item.category}: ${item.title}`);
             element.addEventListener("click", () => item.marker_type === "street" ? callbacksRef.current.onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && callbacksRef.current.onOpenEvent?.(item.id));
             return new MapLibreMarker({ element })
@@ -251,5 +251,5 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
 }
 
 function categorySymbol(slug: string | null): string {
-  return ({ sport: "⚽", games: "◆", cinema: "▶", music: "♪", walks: "●", tourism: "▲", cars: "◇", cafe: "☕" } as Record<string, string>)[slug ?? ""] ?? "●";
+  return ({ sport: "СП", games: "ИГ", cinema: "КИ", music: "МУ", walks: "ПР", tourism: "ТУ", cars: "АВ", cafe: "КА", education: "ОБ", creativity: "ТВ", volunteering: "ВО", work: "РА" } as Record<string, string>)[slug ?? ""] ?? "СО";
 }

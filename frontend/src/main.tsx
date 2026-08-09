@@ -11,10 +11,9 @@ function initializeTelegramMiniApp(): void {
   const webApp = window.Telegram?.WebApp;
   document.documentElement.dataset.miniApp = String(window.location.pathname.startsWith("/app"));
   const applyTheme = () => {
-    const isMiniApp = window.location.pathname.startsWith("/app");
-    const isDark = isMiniApp && webApp?.colorScheme === "dark";
-    document.documentElement.dataset.theme = isDark ? "dark" : "light";
-    const background = isDark ? "#111816" : "#f8f4ea";
+    document.documentElement.dataset.theme = "light";
+    document.documentElement.style.colorScheme = "light";
+    const background = "#f7f3e8";
     webApp?.setHeaderColor?.(background);
     webApp?.setBackgroundColor?.(background);
   };
