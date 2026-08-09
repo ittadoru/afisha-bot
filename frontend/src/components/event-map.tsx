@@ -10,6 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
+import { TextBlink } from "@/components/ui/text-blink";
 
 interface EventMapProps {
   onBack?: () => void;
@@ -66,6 +67,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [empty, setEmpty] = useState(false);
+  const [markersLoading, setMarkersLoading] = useState(!selecting);
   const [address, setAddress] = useState(selecting ? "Двигайте карту, чтобы выбрать точное место" : "События выбранного города");
 
   useEffect(() => {
@@ -170,6 +172,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         return;
       }
       if (!city.id) return;
+      setMarkersLoading(true);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
       void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include", signal: eventsController.signal })
@@ -179,13 +182,21 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         })
         .then(({ items }) => {
           setEmpty(items.length === 0);
+          setMarkersLoading(false);
           publicMarkersRef.current = items.map((item) => {
             const element = document.createElement("button");
             element.type = "button";
             element.className = item.marker_type === "street"
               ? "street-event-marker"
               : `public-event-marker category-${item.category_slug ?? "other"}${item.kind === "special" ? " special" : ""}`;
-            element.textContent = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.kind === "special" ? "ОС" : categorySymbol(item.category_slug);
+            const markerContent = document.createElement("span");
+            markerContent.className = item.marker_type === "street" ? "street-marker-shape" : "event-pin-shape";
+            const markerLabel = document.createElement("span");
+            markerLabel.className = "marker-label";
+            markerLabel.textContent = item.marker_type === "street" ? String(item.event_count ?? 0) : item.kind === "special" ? "ОС" : categorySymbol(item.category_slug);
+            markerContent.append(markerLabel);
+            element.append(markerContent);
+            element.title = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.title ?? item.category ?? "Событие";
             element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${item.category}: ${item.title}`);
             element.addEventListener("click", () => item.marker_type === "street" ? callbacksRef.current.onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && callbacksRef.current.onOpenEvent?.(item.id));
             return new MapLibreMarker({ element })
@@ -193,7 +204,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           });
         })
         .catch((error: unknown) => {
-          if (!(error instanceof DOMException && error.name === "AbortError")) setEmpty(false);
+          if (!(error instanceof DOMException && error.name === "AbortError")) { setEmpty(false); setMarkersLoading(false); }
         });
     });
     map.on("error", () => {
@@ -238,12 +249,12 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         <section className="map-shell" aria-label="Карта событий">
           <div ref={containerRef} className="map-canvas" />
           {selecting && <span className="fixed-location-marker" aria-label="Центр выбранного места" role="img">●</span>}
-          {!selecting && <aside className="map-address" aria-live="polite">
+          {selecting && <aside className="map-address selection-address" aria-live="polite">
             <MapPin aria-hidden="true" />
-            <div><strong>{city.name}</strong><span>{address}</span></div>
+            <div><strong>Выбранное место</strong><span>{address}</span></div>
           </aside>}
-          {empty && <div className="map-empty-chip">В этом городе пока нет событий</div>}
-          {!selecting && <div className="map-legend"><span className="legend-exact" /> Точное место <span className="legend-street" /> Общая улица</div>}
+          {markersLoading && <TextBlink as="div" className="map-loading-text" role="status" aria-live="polite">Собираем события…</TextBlink>}
+          {empty && <div className="map-empty-chip">Пока тихо — создайте первое событие</div>}
         </section>
       )}
     </section>

@@ -15,7 +15,7 @@ export default defineConfig({
     { name: "mobile-webkit", use: { ...devices["iPhone 13"] } },
   ],
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4173",
+    command: "VITE_USE_MOCKS=true npm run dev -- --host 127.0.0.1 --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
   },

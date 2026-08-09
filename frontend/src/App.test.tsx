@@ -58,7 +58,8 @@ describe("landing", () => {
     render(<App />);
 
     expect(await screen.findByLabelText("Карта событий")).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "Основные разделы" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Разделы главного экрана" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
   });
 
   it("allows visiting every future Mini App section", async () => {
@@ -68,13 +69,15 @@ describe("landing", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Ищу людей" }));
     expect(await screen.findByRole("heading", { name: "Найдите компанию" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Создать" }));
-    expect(await screen.findByRole("heading", { name: "Что создаём?" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Создать объявление" }));
+    expect(await screen.findByRole("heading", { name: "Новая идея" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /^Новости/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Открыть уведомления" }));
     expect(await screen.findByRole("heading", { name: "Уведомления" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Моё" }));
+    fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Открыть профиль" }));
     expect(await screen.findByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ошибка" }));
@@ -95,12 +98,16 @@ describe("landing", () => {
   it("requires age confirmation after the first exchange", async () => {
     window.history.replaceState({}, "", "/app");
     const firstProfile = { ...profile, age_confirmed: false };
-    vi.stubGlobal("fetch", vi.fn()
-      .mockResolvedValueOnce(new Response("", { status: 401 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ nonce: "nonce" }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ profile: firstProfile, csrf_token: "csrf", created: true }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(profile), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({ cities: [], categories: [] }), { status: 200 })));
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/account/me")) return new Response("", { status: 401 });
+      if (url.endsWith("/auth/mini/bootstrap")) return okJson({ nonce: "nonce" });
+      if (url.endsWith("/auth/mini/exchange")) return okJson({ profile: firstProfile, csrf_token: "csrf", created: true });
+      if (url.endsWith("/account/age-consent")) return okJson(profile);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+      if (url.endsWith("/account/notifications")) return okJson([]);
+      return okJson(profile);
+    }));
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Мне исполнилось 14 лет" }));

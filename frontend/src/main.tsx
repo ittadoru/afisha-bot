@@ -7,6 +7,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import "@/styles.css";
 import "@/admin.css";
 
+if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "true" && !window.Telegram) {
+  window.Telegram = { WebApp: { initData: "mock-telegram-init-data", ready: () => undefined, expand: () => undefined } };
+}
+
 function initializeTelegramMiniApp(): void {
   const webApp = window.Telegram?.WebApp;
   document.documentElement.dataset.miniApp = String(window.location.pathname.startsWith("/app"));
