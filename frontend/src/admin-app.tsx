@@ -8,6 +8,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Sparkles,
+  MapPinned,
   UserCog,
   Users,
 } from "lucide-react";
@@ -29,11 +30,12 @@ type AuditEntry = {
   result: "success" | "failure" | "blocked";
 };
 type AuditPage = { items: AuditEntry[]; next_before: string | null };
-type View = "dashboard" | "moderation" | "special" | "audit";
+type View = "dashboard" | "moderation" | "streets" | "special" | "audit";
 type SpecialEvent = { id: string; title: string; starts_at: string; ends_at: string; city: string };
 type CityOption = { id: string; slug: string; name: string; center_latitude: number; center_longitude: number };
 type Review = { id: string; event_id: string; event_revision_id: string; submitted_at: string; title: string; starts_at: string; city: string; public_id: string; display_name: string };
-type ReviewDetail = Review & { description: string; ends_at: string; normalized_address: string; organizer_address: string | null; organizer_street: string | null; organizer_place: string | null; street_name: string | null; landmark: string | null; address_visibility: string; latitude: number; longitude: number; capacity: number | null; category: string; organizer_status: string; successful_events: number; photo_url: string };
+type ReviewDetail = Review & { description: string; ends_at: string; normalized_address: string; organizer_address: string | null; organizer_street: string | null; organizer_place: string | null; street_name: string | null; landmark: string | null; address_visibility: string; street_anchor_id: string | null; street_anchor_name: string | null; latitude: number; longitude: number; capacity: number | null; category: string; organizer_status: string; successful_events: number; photo_url: string };
+type StreetAnchor = { id: string; city_id: string; display_name: string; source: "nominatim" | "staff"; geometry_version: number; updated_at: string; latitude: number; longitude: number; active_event_count: number };
 type SystemMetrics = { collected_at: string; disk: { size_bytes: number; used_bytes: number; available_bytes: number }; memory: { total_bytes: number; used_bytes: number; available_bytes: number }; cpu: { load_1: number; load_5: number; load_15: number }; uptime_seconds: number; containers: Array<{ name: string; cpu_percent: number; memory_usage: string; memory_limit: string }> };
 type ImageBreakdown = { name: string; file_count: number; total_bytes: number; percent?: number };
 type ImageEstimate = { quality: number; sample_file_count: number; sample_bytes: number; sample_saved_bytes: number; sample_saved_percent: number; eligible_bytes: number; estimated_saved_bytes: number };
@@ -142,6 +144,7 @@ function AdminShell({ staff, csrf, onCsrf, renewCsrf, onExpire, onLogout }: { st
         <nav aria-label="Разделы панели">
           <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><LayoutDashboard />Главная</button>
           <button className={view === "moderation" ? "active" : ""} onClick={() => setView("moderation")}><ClipboardCheck />Модерация</button>
+          <button className={view === "streets" ? "active" : ""} onClick={() => setView("streets")}><MapPinned />Улицы</button>
           <button className={view === "special" ? "active" : ""} onClick={() => setView("special")}><Sparkles />Особые события</button>
           <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}><History />История действий</button>
         </nav>
@@ -151,7 +154,7 @@ function AdminShell({ staff, csrf, onCsrf, renewCsrf, onExpire, onLogout }: { st
         </div>
       </aside>
       <main className="admin-content">
-        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} staff={staff} /> : view === "moderation" ? <Moderation csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} /> : <Audit csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} />}
+        {view === "dashboard" ? <Dashboard csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} staff={staff} /> : view === "moderation" ? <Moderation csrf={csrf} onCsrf={onCsrf} renewCsrf={renewCsrf} onExpire={onExpire} /> : view === "streets" ? <Streets csrf={csrf} onExpire={onExpire} /> : view === "special" ? <SpecialEvents csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} /> : <Audit csrf={csrf} onCsrf={onCsrf} onExpire={onExpire} />}
       </main>
     </div>
   );
@@ -381,6 +384,12 @@ function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsr
   const [reason, setReason] = useState<(typeof rejectionReasons)[number][0]>("unclear_description");
   const [decisionError, setDecisionError] = useState("");
   const [decisionMessage, setDecisionMessage] = useState("");
+  const [anchors, setAnchors] = useState<StreetAnchor[]>([]);
+  const [anchorId, setAnchorId] = useState("");
+  const [newAnchor, setNewAnchor] = useState(false);
+  const [anchorName, setAnchorName] = useState("");
+  const [anchorLatitude, setAnchorLatitude] = useState("");
+  const [anchorLongitude, setAnchorLongitude] = useState("");
   const load = useCallback(async () => {
     try {
       const result = await api<{ items: Review[] }>("/events/reviews");
@@ -390,14 +399,17 @@ function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsr
   useEffect(() => { void load(); }, [load]);
   const open = async (review: Review) => {
     setBusy("open");
-    try { const result = await api<ReviewDetail>(`/events/reviews/${review.id}`); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(result.data); }
+    try { const result = await api<ReviewDetail>(`/events/reviews/${review.id}`); onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(result.data); setAnchorId(result.data.street_anchor_id ?? ""); setAnchorName(result.data.organizer_street ?? ""); setAnchorLatitude(String(result.data.latitude)); setAnchorLongitude(String(result.data.longitude)); setNewAnchor(false); if (result.data.address_visibility !== "exact_public") { const catalog = await fetch("/api/geo/catalog").then((response) => response.json() as Promise<{ cities: CityOption[] }>); const city = catalog.cities.find((item) => item.name === result.data.city); if (city) { const list = await api<{ items: StreetAnchor[] }>(`/street-anchors?city_id=${city.id}&limit=100`); setAnchors(list.data.items); } } }
     catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); }
     finally { setBusy(null); }
   };
   const decide = async (action: "approve" | "reject") => {
     if (!selected) return;
     setBusy(action); setDecisionError("");
-    const request = async (token: string) => await api(`/events/reviews/${selected.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: token }, body: JSON.stringify({ revision_id: selected.event_revision_id, reason: action === "reject" ? reason : null }) });
+    const isPrivate = selected.address_visibility !== "exact_public";
+    if (action === "approve" && isPrivate && !anchorId && !newAnchor) { setDecisionError("Для закрытого адреса выберите существующую улицу или создайте примерную точку."); return; }
+    if (action === "approve" && newAnchor && (!anchorName.trim() || !anchorLatitude || !anchorLongitude)) { setDecisionError("Укажите название улицы и примерные координаты точки."); return; }
+    const request = async (token: string) => await api(`/events/reviews/${selected.id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: token }, body: JSON.stringify({ revision_id: selected.event_revision_id, reason: action === "reject" ? reason : null, street_anchor_id: action === "approve" && !newAnchor ? anchorId || null : null, new_street_anchor: action === "approve" && newAnchor ? { display_name: anchorName, latitude: Number(anchorLatitude), longitude: Number(anchorLongitude) } : null }) });
     try {
       let result: { data: undefined; response: Response };
       try { result = await request(csrf); }
@@ -409,8 +421,20 @@ function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsr
   };
   return <section><header className="admin-page-header"><div><p>Проверка пользовательских событий</p><h1>Модерация</h1></div>{items && <span className="admin-live">{items.length} ожидают</span>}</header>{decisionMessage && <p className="success-message" role="status">{decisionMessage}</p>}
     {failed ? <AdminEmpty title="Очередь недоступна" text="Обновите страницу и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !items.length ? <AdminEmpty title="Очередь пуста" text="Новых событий на проверке нет." /> : <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Автор</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.display_name}</td><td>{item.city}</td><td>{new Date(item.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" disabled={busy !== null} onClick={() => void open(item)}>Проверить</button></td></tr>)}</tbody></table></div>}
-    {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес карты</dt><dd>{selected.normalized_address}</dd></div>{selected.organizer_street && <div><dt>Улица организатора</dt><dd>{selected.organizer_street}</dd></div>}{selected.organizer_place && <div><dt>Дом, место или ориентир</dt><dd>{selected.organizer_place}</dd></div>}{selected.organizer_address && <div><dt>Адрес для карточки</dt><dd>{selected.organizer_address}</dd></div>}<div><dt>Видимость</dt><dd>{visibilityLabel(selected.address_visibility)}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p className="admin-review-description">{selected.description}</p>{decisionError && <p className="admin-form-error" role="alert">{decisionError}</p>}<div className="admin-review-actions"><button className="admin-approve" disabled={busy !== null} onClick={() => void decide("approve")}>{busy === "approve" ? "Одобряем…" : "Одобрить"}</button><div className="admin-reject-group"><select value={reason} disabled={busy !== null} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy !== null} onClick={() => void decide("reject")}>{busy === "reject" ? "Отклоняем…" : "Отклонить"}</button></div></div></section></div>}
+    {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес карты</dt><dd>{selected.normalized_address}</dd></div>{selected.organizer_street && <div><dt>Улица организатора</dt><dd>{selected.organizer_street}</dd></div>}{selected.organizer_place && <div><dt>Дом, место или ориентир</dt><dd>{selected.organizer_place}</dd></div>}{selected.organizer_address && <div><dt>Адрес для карточки</dt><dd>{selected.organizer_address}</dd></div>}<div><dt>Видимость</dt><dd>{visibilityLabel(selected.address_visibility)}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p className="admin-review-description">{selected.description}</p>{selected.address_visibility !== "exact_public" && <fieldset className="admin-anchor-choice"><legend>Общая метка улицы</legend><p className="admin-muted">Точная точка события видна только модераторам. Публичной станет приблизительная точка улицы.</p><label><input type="radio" checked={!newAnchor} onChange={() => setNewAnchor(false)} /> Выбрать существующую</label><select value={anchorId} disabled={newAnchor} onChange={(event) => setAnchorId(event.target.value)}><option value="">Выберите улицу</option>{anchors.map((anchor) => <option value={anchor.id} key={anchor.id}>{anchor.display_name} · {anchor.active_event_count} активных</option>)}</select><label><input type="radio" checked={newAnchor} onChange={() => setNewAnchor(true)} /> Создать новую</label>{newAnchor && <div className="admin-anchor-fields"><label>Название улицы<input value={anchorName} maxLength={200} onChange={(event) => setAnchorName(event.target.value)} /></label><label>Широта примерной точки<input value={anchorLatitude} inputMode="decimal" onChange={(event) => setAnchorLatitude(event.target.value)} /></label><label>Долгота примерной точки<input value={anchorLongitude} inputMode="decimal" onChange={(event) => setAnchorLongitude(event.target.value)} /></label><small>Поставьте приблизительную точку улицы; она не должна совпадать с точным местом события.</small></div>}</fieldset>}{decisionError && <p className="admin-form-error" role="alert">{decisionError}</p>}<div className="admin-review-actions"><button className="admin-approve" disabled={busy !== null} onClick={() => void decide("approve")}>{busy === "approve" ? "Одобряем…" : "Одобрить"}</button><div className="admin-reject-group"><select value={reason} disabled={busy !== null} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy !== null} onClick={() => void decide("reject")}>{busy === "reject" ? "Отклоняем…" : "Отклонить"}</button></div></div></section></div>}
   </section>;
+}
+
+function Streets({ csrf, onExpire }: { csrf: string; onExpire: () => void }) {
+  const [cities, setCities] = useState<CityOption[]>([]); const [cityId, setCityId] = useState("");
+  const [query, setQuery] = useState(""); const [items, setItems] = useState<StreetAnchor[] | null>(null);
+  const [error, setError] = useState(""); const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ display_name: "", latitude: "", longitude: "" });
+  const load = useCallback(async (targetCity = cityId) => { if (!targetCity) return; try { const result = await api<{ items: StreetAnchor[] }>(`/street-anchors?city_id=${targetCity}&q=${encodeURIComponent(query)}`); setItems(result.data.items); setError(""); } catch (reason) { if (reason instanceof AdminApiError && reason.status === 401) onExpire(); else setError("Не удалось загрузить улицы."); } }, [cityId, onExpire, query]);
+  useEffect(() => { void fetch("/api/geo/catalog").then((response) => response.json() as Promise<{ cities: CityOption[] }>).then((data) => { setCities(data.cities); setCityId(data.cities[0]?.id ?? ""); }).catch(() => setError("Не удалось загрузить города.")); }, []);
+  useEffect(() => { void load(); }, [load]);
+  const create = async (event: FormEvent) => { event.preventDefault(); setError(""); try { await api("/street-anchors", { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: csrf }, body: JSON.stringify({ city_id: cityId, display_name: form.display_name, latitude: Number(form.latitude), longitude: Number(form.longitude) }) }); setCreating(false); setForm({ display_name: "", latitude: "", longitude: "" }); await load(); } catch (reason) { setError(reason instanceof AdminApiError && reason.detail === "street_anchor_exists" ? "Такая улица уже есть: выберите её из списка." : "Не удалось сохранить улицу. Проверьте точку и повторите."); } };
+  return <section><header className="admin-page-header"><div><p>Приблизительные общие точки</p><h1>Улицы</h1></div><button className="admin-table-action" onClick={() => setCreating((value) => !value)}>Добавить улицу</button></header><div className="admin-filters"><label>Город<select value={cityId} onChange={(event) => setCityId(event.target.value)}>{cities.map((city) => <option value={city.id} key={city.id}>{city.name}</option>)}</select></label><label>Поиск<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Название улицы" /></label><button className="admin-table-action" onClick={() => void load()}>Найти</button></div>{creating && <form className="admin-anchor-form" onSubmit={create}><h2>Новая общая точка</h2><p className="admin-muted">Укажите единое название и приблизительную точку улицы. Точные координаты событий сюда не копируются.</p><label>Название улицы<input value={form.display_name} maxLength={200} required onChange={(event) => setForm({ ...form, display_name: event.target.value })} /></label><label>Широта<input value={form.latitude} inputMode="decimal" required onChange={(event) => setForm({ ...form, latitude: event.target.value })} /></label><label>Долгота<input value={form.longitude} inputMode="decimal" required onChange={(event) => setForm({ ...form, longitude: event.target.value })} /></label><button type="submit">Сохранить улицу</button></form>}{error && <p className="admin-form-error" role="alert">{error}</p>}{items === null ? <AdminStatus text="Загружаем улицы…" /> : !items.length ? <AdminEmpty title="Улиц пока нет" text="Их можно создать заранее или прямо при модерации закрытого адреса." /> : <div className="admin-table-wrap"><table><thead><tr><th>Улица</th><th>Активные события</th><th>Источник</th><th>Изменено</th></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.display_name}</td><td>{item.active_event_count}</td><td>{item.source === "staff" ? "Модератор" : "Nominatim"}</td><td>{new Date(item.updated_at).toLocaleString("ru-RU")}</td></tr>)}</tbody></table></div>}</section>;
 }
 
 function Audit({ onCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; onExpire: () => void }) {

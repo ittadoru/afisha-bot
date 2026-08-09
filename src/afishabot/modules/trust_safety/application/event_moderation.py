@@ -6,6 +6,11 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
+from afishabot.modules.discovery.public.street_anchors import (
+    StreetAnchorError,
+    create_staff_street_anchor_in_transaction,
+)
+
 REJECTION_REASONS = {
     "unclear_description": "Непонятное или неполное описание",
     "prohibited_content": "Запрещённый контент",
@@ -31,6 +36,8 @@ class ReviewDecision:
     staff_id: UUID
     action: Literal["approve", "reject"]
     reason: str | None = None
+    street_anchor_id: UUID | None = None
+    new_street_anchor: tuple[str, float, float] | None = None
 
 
 async def review_queue(
@@ -78,7 +85,8 @@ async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
                            r.normalized_address, r.organizer_address,
                            r.organizer_street, r.organizer_place,
                            r.street_name, r.landmark,
-                           r.address_visibility,
+                           r.address_visibility, r.street_anchor_id,
+                           a.display_name AS street_anchor_name,
                            ST_Y(r.location::geometry) AS latitude,
                            ST_X(r.location::geometry) AS longitude,
                            e.capacity, c.name AS city, cat.name AS category,
@@ -93,6 +101,7 @@ async def review_detail(engine: AsyncEngine, review_id: UUID) -> dict[str, Any]:
                     JOIN accounts.profiles p ON p.user_id=e.creator_user_id
                     JOIN reputation.organizer_profiles o ON o.user_id=e.creator_user_id
                     JOIN events.event_photos ep ON ep.revision_id=r.id AND ep.position=1
+                    LEFT JOIN discovery.street_anchors a ON a.id=r.street_anchor_id
                     WHERE q.id=:review AND q.status='pending'
                       AND e.current_revision_id=q.event_revision_id
                     """
@@ -120,7 +129,8 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                     SELECT q.event_id, q.event_revision_id, e.creator_user_id,
                            e.lifecycle_status, e.approved_revision_id,
                            e.schedule_changes_used, r.title, r.description,
-                           r.starts_at, r.ends_at, ep.media_asset_id,
+                           r.starts_at, r.ends_at, r.address_visibility, r.organizer_street,
+                           e.city_id, ep.media_asset_id,
                            old.title AS old_title,
                            old.description AS old_description,
                            old.starts_at AS old_starts_at,
@@ -155,6 +165,54 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
             and row["starts_at"] <= datetime.now().astimezone()
         ):
             raise ModerationConflict("event_already_started")
+
+        selected_anchor: UUID | None = None
+        if decision.action == "approve" and row["address_visibility"] != "exact_public":
+            if decision.street_anchor_id and decision.new_street_anchor:
+                raise ModerationConflict("street_anchor_choice_invalid")
+            if decision.new_street_anchor:
+                name, latitude, longitude = decision.new_street_anchor
+                try:
+                    selected_anchor = await create_staff_street_anchor_in_transaction(
+                        connection, city_id=row["city_id"], display_name=name,
+                        latitude=latitude, longitude=longitude,
+                    )
+                except StreetAnchorError as error:
+                    raise ModerationConflict(str(error)) from error
+                await connection.execute(
+                    text(
+                        """
+                        INSERT INTO trust_safety.staff_audit_log
+                          (id, actor_staff_id, action, result, details)
+                        VALUES (:id,:staff,'street_anchor.create','success',
+                          jsonb_build_object('street_anchor_id',CAST(:anchor AS text),
+                                             'city_id',CAST(:city AS text)))
+                        """
+                    ),
+                    {"id": uuid4(), "staff": decision.staff_id, "anchor": str(selected_anchor), "city": str(row["city_id"])},
+                )
+            elif decision.street_anchor_id:
+                selected_anchor = await connection.scalar(
+                    text(
+                        "SELECT id FROM discovery.street_anchors WHERE id=:anchor AND city_id=:city"
+                    ),
+                    {"anchor": decision.street_anchor_id, "city": row["city_id"]},
+                )
+                if selected_anchor is None:
+                    raise ModerationConflict("street_anchor_city_mismatch")
+            else:
+                raise ModerationConflict("street_anchor_required")
+            anchor_name = await connection.scalar(
+                text("SELECT display_name FROM discovery.street_anchors WHERE id=:anchor"),
+                {"anchor": selected_anchor},
+            )
+            await connection.execute(
+                text(
+                    "UPDATE events.event_revisions SET street_anchor_id=:anchor, "
+                    "organizer_street=:street WHERE id=:revision"
+                ),
+                {"anchor": selected_anchor, "street": anchor_name, "revision": decision.revision_id},
+            )
 
         approved = decision.action == "approve"
         review_status = "approved" if approved else "rejected"
@@ -288,7 +346,8 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 VALUES (:id, :staff, :action, 'success',
                         jsonb_build_object('event_id', CAST(:event AS text),
                                            'review_id', CAST(:review AS text),
-                                           'reason', CAST(:reason AS text)))
+                                           'reason', CAST(:reason AS text),
+                                           'street_anchor_id', CAST(:anchor AS text)))
                 """
             ),
             {
@@ -298,5 +357,6 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 "event": str(row["event_id"]),
                 "review": str(decision.review_id),
                 "reason": decision.reason,
+                "anchor": str(selected_anchor) if selected_anchor else None,
             },
         )

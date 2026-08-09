@@ -14,7 +14,58 @@ class StreetAnchorError(Exception):
 
 
 def street_key(value: str) -> str:
-    return " ".join(value.casefold().replace("ё", "е").split())
+    normalized = " ".join(value.casefold().replace("ё", "е").split())
+    for prefix in ("улица ", "ул. ", "ул "):
+        if normalized.startswith(prefix):
+            normalized = normalized[len(prefix) :]
+            break
+    return normalized
+
+
+async def create_staff_street_anchor_in_transaction(
+    connection: AsyncConnection,
+    *,
+    city_id: UUID,
+    display_name: str,
+    latitude: float,
+    longitude: float,
+) -> UUID:
+    """Create one approximate staff-controlled point without touching an existing one."""
+    key = street_key(display_name)
+    if not key:
+        raise StreetAnchorError("street_anchor_name_invalid")
+    row = await connection.scalar(
+        text(
+            """
+            WITH valid AS (
+              SELECT ST_SetSRID(ST_Point(:longitude, :latitude),4326)::geography AS point
+              FROM discovery.cities c
+              WHERE c.id=:city AND ST_DWithin(
+                c.boundary,
+                ST_SetSRID(ST_Point(:longitude, :latitude),4326)::geography,
+                :radius_meters
+              )
+            )
+            INSERT INTO discovery.street_anchors
+              (id, city_id, street_key, display_name, provider_place_id, source, anchor)
+            SELECT :id, :city, :key, :display, NULL, 'staff', point FROM valid
+            ON CONFLICT (city_id, street_key) DO NOTHING
+            RETURNING id
+            """
+        ),
+        {"id": uuid4(), "city": city_id, "key": key, "display": display_name.strip(),
+         "latitude": latitude, "longitude": longitude,
+         "radius_meters": SERVICE_AREA_RADIUS_METERS},
+    )
+    if row is not None:
+        return row
+    exists = await connection.scalar(
+        text("SELECT id FROM discovery.street_anchors WHERE city_id=:city AND street_key=:key"),
+        {"city": city_id, "key": key},
+    )
+    if exists is not None:
+        raise StreetAnchorError("street_anchor_exists")
+    raise StreetAnchorError("street_anchor_outside_city")
 
 
 async def save_street_anchor(

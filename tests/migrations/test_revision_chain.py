@@ -32,9 +32,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 29
+    assert len(files) == 30
     assert parents - {None} < revisions
-    assert revisions - parents == {"0029_event_chat_and_telegram"}
+    assert revisions - parents == {"0030_staff_street_anchors"}
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:

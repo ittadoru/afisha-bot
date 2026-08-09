@@ -38,6 +38,11 @@ from afishabot.modules.trust_safety.application.event_moderation import (
     review_detail,
     review_queue,
 )
+from afishabot.modules.discovery.application.street_anchors import (
+    StreetAnchorError,
+    create_staff_street_anchor_in_transaction,
+    street_key,
+)
 from afishabot.modules.trust_safety.application.staff_admin import (
     AdminAuthBlocked,
     AdminAuthDenied,
@@ -139,6 +144,21 @@ class AuditPageResponse(BaseModel):
     next_before: datetime | None
 
 
+class NewStreetAnchorRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    display_name: str = Field(min_length=1, max_length=200)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class StreetAnchorCreateRequest(NewStreetAnchorRequest):
+    city_id: UUID
+
+
+class StreetAnchorUpdateRequest(NewStreetAnchorRequest):
+    geometry_version: int = Field(ge=1)
+
+
 class ReviewDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     revision_id: UUID
@@ -153,6 +173,8 @@ class ReviewDecisionRequest(BaseModel):
         ]
         | None
     ) = None
+    street_anchor_id: UUID | None = None
+    new_street_anchor: NewStreetAnchorRequest | None = None
 
 
 class CancelSpecialRequest(BaseModel):
@@ -481,6 +503,111 @@ async def event_reviews(
     }
 
 
+@router.get("/street-anchors")
+async def street_anchors(
+    request: Request,
+    response: Response,
+    city_id: UUID,
+    q: Annotated[str, Query(max_length=200)] = "",
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    async with engine.connect() as connection:
+        rows = (await connection.execute(text("""
+            SELECT a.id, a.city_id, a.display_name, a.source, a.geometry_version,
+                   a.updated_at, ST_Y(a.anchor::geometry) AS latitude,
+                   ST_X(a.anchor::geometry) AS longitude,
+                   COUNT(r.id) FILTER (WHERE e.lifecycle_status='published'
+                       AND r.ends_at > now())::int AS active_event_count
+            FROM discovery.street_anchors a
+            LEFT JOIN events.event_revisions r ON r.street_anchor_id=a.id
+            LEFT JOIN events.events e ON e.id=r.event_id
+            WHERE a.city_id=:city AND a.street_key LIKE :query
+            GROUP BY a.id
+            ORDER BY a.display_name
+            LIMIT :limit
+        """), {"city": city_id, "query": f"%{street_key(q)}%", "limit": limit})).mappings().all()
+    response.headers["Cache-Control"] = "no-store"
+    return {"items": [dict(row) for row in rows]}
+
+
+@router.get("/street-anchors/{anchor_id}")
+async def street_anchor_detail(
+    anchor_id: UUID,
+    request: Request,
+    response: Response,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    async with engine.connect() as connection:
+        anchor = (await connection.execute(text("""
+            SELECT a.id,a.city_id,c.name AS city,a.display_name,a.source,a.geometry_version,
+                   a.updated_at,ST_Y(a.anchor::geometry) AS latitude,ST_X(a.anchor::geometry) AS longitude
+            FROM discovery.street_anchors a JOIN discovery.cities c ON c.id=a.city_id
+            WHERE a.id=:id
+        """), {"id": anchor_id})).mappings().one_or_none()
+        if anchor is None:
+            raise _error(404, "street_anchor_not_found")
+        events = (await connection.execute(text("""
+            SELECT e.id, r.title, r.starts_at
+            FROM events.event_revisions r JOIN events.events e ON e.id=r.event_id
+            WHERE r.street_anchor_id=:id AND e.lifecycle_status='published' AND r.ends_at > now()
+            ORDER BY r.starts_at
+        """), {"id": anchor_id})).mappings().all()
+    response.headers["Cache-Control"] = "no-store"
+    return {**dict(anchor), "events": [dict(row) for row in events]}
+
+
+@router.post("/street-anchors", status_code=201)
+async def create_street_anchor(
+    body: StreetAnchorCreateRequest, request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, str]:
+    settings, _, engine = _dependencies(request); _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None: raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(engine, token=session_token, csrf_token=csrf_token, auth_secret=_required_secret(settings))
+    if identity is None: raise _error(401, "admin_session_required")
+    try:
+        async with engine.begin() as connection:
+            anchor_id = await create_staff_street_anchor_in_transaction(connection, city_id=body.city_id, display_name=body.display_name, latitude=body.latitude, longitude=body.longitude)
+            await connection.execute(text("""INSERT INTO trust_safety.staff_audit_log
+              (id,actor_staff_id,action,result,details) VALUES (gen_random_uuid(),:staff,'street_anchor.create','success',jsonb_build_object('street_anchor_id',CAST(:anchor AS text)))"""), {"staff": identity.id, "anchor": str(anchor_id)})
+    except StreetAnchorError as error: raise _error(409 if str(error)=="street_anchor_exists" else 422, str(error)) from error
+    return {"id": str(anchor_id)}
+
+
+@router.patch("/street-anchors/{anchor_id}", status_code=204)
+async def update_street_anchor(
+    anchor_id: UUID, body: StreetAnchorUpdateRequest, request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> None:
+    settings, _, engine = _dependencies(request); _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None: raise _error(401, "admin_session_required")
+    identity = await load_staff_mutation_session(engine, token=session_token, csrf_token=csrf_token, auth_secret=_required_secret(settings))
+    if identity is None: raise _error(401, "admin_session_required")
+    key = street_key(body.display_name)
+    async with engine.begin() as connection:
+        row = await connection.scalar(text("""
+          UPDATE discovery.street_anchors a SET display_name=:name,street_key=:key,
+            anchor=ST_SetSRID(ST_Point(:longitude,:latitude),4326)::geography,
+            source='staff',geometry_version=geometry_version+1,updated_at=now()
+          FROM discovery.cities c WHERE a.id=:id AND c.id=a.city_id
+            AND a.geometry_version=:version AND ST_DWithin(c.boundary,
+              ST_SetSRID(ST_Point(:longitude,:latitude),4326)::geography,:radius)
+          RETURNING a.id
+        """), {"id": anchor_id,"name":body.display_name.strip(),"key":key,"latitude":body.latitude,"longitude":body.longitude,"version":body.geometry_version,"radius":20000})
+        if row is None: raise _error(409, "street_anchor_stale_or_outside_city")
+        await connection.execute(text("""INSERT INTO trust_safety.staff_audit_log
+          (id,actor_staff_id,action,result,details) VALUES (gen_random_uuid(),:staff,'street_anchor.update','success',jsonb_build_object('street_anchor_id',CAST(:anchor AS text)))"""), {"staff":identity.id,"anchor":str(anchor_id)})
+
+
 @router.get("/events/reviews/{review_id}")
 async def event_review_detail(
     review_id: UUID,
@@ -551,7 +678,11 @@ async def decide_event_review(
         await decide_review(
             engine,
             ReviewDecision(
-                review_id, body.revision_id, identity.id, action, body.reason
+                review_id, body.revision_id, identity.id, action, body.reason,
+                body.street_anchor_id,
+                (body.new_street_anchor.display_name, body.new_street_anchor.latitude,
+                 body.new_street_anchor.longitude)
+                if body.new_street_anchor else None,
             ),
         )
     except ModerationConflict as error:

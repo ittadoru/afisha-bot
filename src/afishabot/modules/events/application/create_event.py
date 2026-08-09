@@ -216,7 +216,11 @@ async def create_event(
 
         event_id = uuid4()
         revision_id = uuid4()
-        published = organizer_status == "trusted"
+        # Hidden locations always need a moderator-selected approximate street anchor.
+        published = (
+            organizer_status == "trusted"
+            and command.address_visibility == "exact_public"
+        )
         event_status = "published" if published else "pending"
         moderation_status = "approved" if published else "pending"
         await connection.execute(
