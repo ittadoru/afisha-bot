@@ -52,6 +52,7 @@ profiles = Table(
     Column("bio", String(150)),
     Column("selected_city_id", UUID(as_uuid=True)),
     Column("avatar_asset_id", UUID(as_uuid=True)),
+    Column("background_asset_id", UUID(as_uuid=True)),
     Column("display_name_changed_at", DateTime(timezone=True)),
     Column("version", Integer, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),

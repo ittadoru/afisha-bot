@@ -146,3 +146,64 @@ class AvatarImageProcessor:
         finally:
             source.unlink(missing_ok=True)
         return destination
+
+
+class ProfileBackgroundImageProcessor:
+    """Create a metadata-free, center-cropped 16:9 WebP profile background."""
+
+    def process(self, source: Path, destination: Path) -> Path:
+        limits = ImageLimits(
+            max_file_bytes=12 * 1024 * 1024,
+            max_pixels=40_000_000,
+            output_width=1280,
+            output_height=720,
+        )
+        if (
+            not source.is_file()
+            or source.is_symlink()
+            or source.stat().st_size > limits.max_file_bytes
+        ):
+            source.unlink(missing_ok=True)
+            raise UnsafeImageError("file_too_large")
+        try:
+            import pyvips
+
+            image = cast(
+                VipsImage,
+                pyvips.Image.new_from_file(  # pyright: ignore[reportUnknownMemberType]
+                    str(source), access="sequential", fail_on="warning"
+                ),
+            )
+            if image.width <= 0 or image.height <= 0:
+                raise UnsafeImageError("invalid_dimensions")
+            if image.width * image.height > limits.max_pixels:
+                raise UnsafeImageError("too_many_pixels")
+            image = image.autorot()
+            width = min(image.width, round(image.height * 16 / 9))
+            height = round(width * 9 / 16)
+            image = image.crop(
+                (image.width - width) // 2,
+                (image.height - height) // 2,
+                width,
+                height,
+            )
+            image = image.thumbnail_image(
+                limits.output_width,
+                height=limits.output_height,
+                size="force",
+                crop="centre",
+            )
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
+            try:
+                image.webpsave(str(temporary), Q=82, effort=5, strip=True)
+                os.replace(temporary, destination)
+            finally:
+                temporary.unlink(missing_ok=True)
+        except UnsafeImageError:
+            raise
+        except Exception as exc:
+            raise UnsafeImageError("image_decode_or_encode_failed") from exc
+        finally:
+            source.unlink(missing_ok=True)
+        return destination

@@ -34,6 +34,7 @@ class ProfileView:
     selected_city_id: UUID | None
     city_name: str | None
     avatar_asset_id: UUID | None
+    background_asset_id: UUID | None
     version: int
     next_name_change_at: datetime | None
     organizer_status: str
@@ -105,6 +106,7 @@ async def load_profile(
                         f"""
                     SELECT p.user_id, p.public_id, p.display_name, p.bio,
                            p.selected_city_id, c.name AS city_name, p.avatar_asset_id,
+                           p.background_asset_id,
                            p.version, p.display_name_changed_at,
                            COALESCE(o.status, 'new') AS organizer_status,
                            COALESCE(o.successful_events, 0) AS successful_events,
@@ -117,7 +119,8 @@ async def load_profile(
                     LEFT JOIN events.events e ON e.creator_user_id = p.user_id
                     WHERE {condition}
                     GROUP BY p.user_id, p.public_id, p.display_name, p.bio,
-                             p.selected_city_id, c.name, p.avatar_asset_id, p.version,
+                             p.selected_city_id, c.name, p.avatar_asset_id,
+                             p.background_asset_id, p.version,
                              p.display_name_changed_at, o.status, o.successful_events
                     """
                     ),
@@ -139,6 +142,7 @@ async def load_profile(
         selected_city_id=row["selected_city_id"],
         city_name=row["city_name"],
         avatar_asset_id=row["avatar_asset_id"],
+        background_asset_id=row["background_asset_id"],
         version=row["version"],
         next_name_change_at=next_change,
         organizer_status=row["organizer_status"],
@@ -252,9 +256,13 @@ async def create_report(
     try:
         async with engine.begin() as connection:
             await connection.execute(
-                text("""INSERT INTO trust_safety.profile_reports
-                    (id, reporter_user_id, subject_user_id, reason, comment, avatar_asset_id)
-                    VALUES (:id,:reporter,:subject,:reason,:comment,:avatar)"""),
+                text(
+                    """INSERT INTO trust_safety.profile_reports
+                    (id, reporter_user_id, subject_user_id, reason, comment,
+                     avatar_asset_id, background_asset_id)
+                    VALUES
+                    (:id,:reporter,:subject,:reason,:comment,:avatar,:background)"""
+                ),
                 {
                     "id": uuid4(),
                     "reporter": reporter_id,
@@ -262,6 +270,7 @@ async def create_report(
                     "reason": reason,
                     "comment": note,
                     "avatar": subject.avatar_asset_id,
+                    "background": subject.background_asset_id,
                 },
             )
     except IntegrityError as error:

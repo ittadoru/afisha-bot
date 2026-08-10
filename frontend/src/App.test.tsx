@@ -15,6 +15,7 @@ const profile = {
   bio: null,
   selected_city_id: null,
   age_confirmed: true,
+  background_url: null,
 };
 
 function okJson(body: object, status = 200) {
@@ -71,6 +72,8 @@ describe("landing", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Создать объявление" }));
     expect(await screen.findByRole("heading", { name: "Новая идея" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Вернуться на главный экран" })).toHaveLength(1);
+    expect(screen.queryByText("← Назад")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
     fireEvent.click(await screen.findByRole("button", { name: "Открыть уведомления" }));
@@ -79,6 +82,8 @@ describe("landing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
     fireEvent.click(await screen.findByRole("button", { name: "Открыть профиль" }));
     expect(await screen.findByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Стандартный фон профиля" })).toBeInTheDocument();
+    expect(screen.getByText("Добавить фон")).toBeInTheDocument();
     expect(screen.queryByText("Открыть профиль")).not.toBeInTheDocument();
     expect(screen.queryByPlaceholderText("Восьмизначный номер")).not.toBeInTheDocument();
 
@@ -115,7 +120,7 @@ describe("landing", () => {
       if (url.endsWith("/account/me")) return okJson(profile);
       if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
       if (url.endsWith("/account/notifications")) return okJson([]);
-      if (url.endsWith(`/events/${eventId}`)) return okJson({ id: eventId, kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Прогулка у моря", description: "Спокойная встреча", starts_at: "2026-08-12T16:00:00+03:00", ends_at: "2026-08-12T18:00:00+03:00", visible_address: "Набережная", participant_count: 4, capacity: 10, available_places: 6, interest_count: 3, viewer_interested: false, viewer_is_organizer: false, viewer_membership: "none", photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "87654321", organizer_name: "Амина", organizer_status: "trusted", chat_enabled: true });
+      if (url.endsWith(`/events/${eventId}`)) return okJson({ id: eventId, kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Прогулка у моря", description: "Спокойная встреча", starts_at: "2026-08-12T16:00:00+03:00", ends_at: "2026-08-12T18:00:00+03:00", visible_address: "Набережная", participant_count: 4, capacity: 10, available_places: 6, interest_count: 3, viewer_interested: false, viewer_is_organizer: false, viewer_membership: "participating", photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "87654321", organizer_name: "Амина", organizer_status: "trusted", chat_enabled: true });
       return okJson(profile);
     }));
 
@@ -124,6 +129,8 @@ describe("landing", () => {
     expect(await screen.findByRole("heading", { name: "Прогулка у моря" })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "Поделиться событием" })).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /^Поделиться$/ })).not.toBeInTheDocument();
+    const chat = screen.getByRole("button", { name: "Открыть чат события" });
+    expect(chat.querySelector("i")).toBeInTheDocument();
   });
 
   it("does not create a user outside Telegram", async () => {

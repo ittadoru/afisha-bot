@@ -1,8 +1,7 @@
-import { Check, ImagePlus, Trash2 } from "lucide-react";
+import { Check, ImagePlus } from "lucide-react";
 import { useState } from "react";
 
 import { appConfig } from "@/config";
-import { Button } from "@/components/ui/button";
 
 const MAX_FILE_BYTES = 12 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -79,7 +78,16 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
         body: file,
       });
       if (!response.ok) throw new Error(await photoErrorMessage(response));
-      onChange(await response.json() as EventPhotoUpload);
+      const previous = value;
+      const uploaded = await response.json() as EventPhotoUpload;
+      onChange(uploaded);
+      if (previous && previous.upload_id !== uploaded.upload_id) {
+        void fetch(`${appConfig.apiBaseUrl}/media/event-photos/${previous.upload_id}`, {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "X-Afisha-CSRF": csrfToken },
+        }).catch(() => undefined);
+      }
     } catch (uploadError) {
       setError(uploadError instanceof Error && uploadError.message
         ? uploadError.message
@@ -87,19 +95,6 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
     } finally {
       setBusy(false);
     }
-  };
-
-  const remove = async () => {
-    if (!value) return;
-    setBusy(true);
-    const response = await fetch(`${appConfig.apiBaseUrl}/media/event-photos/${value.upload_id}`, {
-      method: "DELETE",
-      credentials: "include",
-      headers: { "X-Afisha-CSRF": csrfToken },
-    });
-    setBusy(false);
-    if (response.ok) onChange(null);
-    else setError("Не удалось удалить фотографию.");
   };
 
   return (
@@ -110,11 +105,10 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
         <p><Check aria-hidden="true" /> Фотография загружена и очищена от скрытых данных.</p>
       </>}
       <div className="event-photo-actions">
-        <label className={value ? "file-picker compact-picker" : "file-picker"}>
-          {busy ? <span>Обрабатываем…</span> : <><ImagePlus aria-hidden="true" /><span>{value ? "Заменить" : "Выбрать фотографию"}</span></>}
+        <label className="file-picker">
+          {busy ? <span>Обрабатываем…</span> : <><ImagePlus aria-hidden="true" /><span>{value ? "Заменить фотографию" : "Выбрать фотографию"}</span></>}
           <input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => chooseFile(event.target.files?.[0])} />
         </label>
-        {value && <Button variant="outline" disabled={busy} onClick={() => void remove()}><Trash2 /> Удалить</Button>}
       </div>
       <small>JPEG, PNG или WebP, не больше 12 МБ.</small>
       {error && <p className="form-error" role="alert">{error}</p>}

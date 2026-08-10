@@ -9,6 +9,7 @@ from afishabot.modules.media.application.image_processing import (
     EventImageProcessor,
     ImageLimits,
     NormalizedCrop,
+    ProfileBackgroundImageProcessor,
     UnsafeImageError,
 )
 
@@ -18,6 +19,8 @@ class FakeVipsImage:
     height: int = 1800
     fail_save: ClassVar[bool] = False
     crop_calls: ClassVar[list[tuple[int, int, int, int]]] = []
+    thumbnail_calls: ClassVar[list[tuple[int, dict[str, object]]]] = []
+    webpsave_calls: ClassVar[list[dict[str, object]]] = []
 
     def autorot(self) -> Self:
         return self
@@ -29,6 +32,7 @@ class FakeVipsImage:
         return self
 
     def thumbnail_image(self, width: int, **kwargs: object) -> Self:
+        self.thumbnail_calls.append((width, kwargs))
         self.width = width
         height = kwargs["height"]
         assert isinstance(height, int)
@@ -36,7 +40,7 @@ class FakeVipsImage:
         return self
 
     def webpsave(self, filename: str, **kwargs: object) -> None:
-        del kwargs
+        self.webpsave_calls.append(kwargs)
         if self.fail_save:
             raise RuntimeError("encoder failed")
         Path(filename).write_bytes(b"webp")
@@ -295,3 +299,65 @@ def test_image_processor_accepts_rotated_portrait_photo(
     assert top + height <= 1800
     assert abs((width / height) - (4 / 3)) < 0.001
     FakeVipsImage.crop_calls = []
+
+
+@pytest.mark.parametrize(
+    ("source_width", "source_height", "expected_crop"),
+    [
+        (3200, 1800, (0, 0, 3200, 1800)),
+        (1800, 1800, (0, 394, 1800, 1012)),
+        (900, 2400, (0, 947, 900, 506)),
+    ],
+)
+def test_profile_background_processor_center_crops_to_16_by_9(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    source_width: int,
+    source_height: int,
+    expected_crop: tuple[int, int, int, int],
+) -> None:
+    install_fake_pyvips(monkeypatch)
+    FakeImageFactory.width = source_width
+    FakeImageFactory.height = source_height
+    FakeVipsImage.crop_calls = []
+    FakeVipsImage.thumbnail_calls = []
+    FakeVipsImage.webpsave_calls = []
+    source = tmp_path / "background.jpg"
+    destination = tmp_path / "background.webp"
+    source.write_bytes(b"image")
+    try:
+        ProfileBackgroundImageProcessor().process(source, destination)
+        assert FakeVipsImage.crop_calls[0] == expected_crop
+        assert FakeVipsImage.thumbnail_calls == [
+            (1280, {"height": 720, "size": "force", "crop": "centre"})
+        ]
+        assert FakeVipsImage.webpsave_calls == [
+            {"Q": 82, "effort": 5, "strip": True}
+        ]
+        assert destination.read_bytes() == b"webp"
+        assert not source.exists()
+    finally:
+        FakeImageFactory.width = 3200
+        FakeImageFactory.height = 1800
+        FakeVipsImage.crop_calls = []
+        FakeVipsImage.thumbnail_calls = []
+        FakeVipsImage.webpsave_calls = []
+
+
+def test_profile_background_processor_rejects_pixel_bomb(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install_fake_pyvips(monkeypatch)
+    FakeImageFactory.width = 10_000
+    FakeImageFactory.height = 10_000
+    source = tmp_path / "background.png"
+    source.write_bytes(b"image")
+    try:
+        with pytest.raises(UnsafeImageError, match="too_many_pixels"):
+            ProfileBackgroundImageProcessor().process(
+                source, tmp_path / "background.webp"
+            )
+        assert not source.exists()
+    finally:
+        FakeImageFactory.width = 3200
+        FakeImageFactory.height = 1800

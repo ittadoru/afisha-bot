@@ -14,7 +14,7 @@ from afishabot.modules.accounts.application.auth import (
     revoke_session,
     rotate_session_csrf,
 )
-from afishabot.modules.accounts.application.profiles import load_profile
+from afishabot.modules.accounts.application.profiles import ProfileView, load_profile
 from afishabot.modules.accounts.domain.telegram_auth import (
     TelegramAuthError,
     verify_telegram_init_data,
@@ -22,8 +22,8 @@ from afishabot.modules.accounts.domain.telegram_auth import (
 from afishabot.modules.accounts.infrastructure.auth_guard import (
     AuthGuardDenied,
     AuthGuardUnavailable,
-    create_bootstrap,
     consume_bootstrap_and_claim_payload,
+    create_bootstrap,
     protected_digest,
 )
 
@@ -49,6 +49,7 @@ class ProfileResponse(BaseModel):
     age_confirmed: bool
     city_name: str | None = None
     avatar_url: str | None = None
+    background_url: str | None = None
     version: int = 1
     next_name_change_at: str | None = None
     organizer_status: str = "new"
@@ -146,8 +147,9 @@ async def exchange(
         path="/api",
     )
     response.headers["Cache-Control"] = "no-store"
+    full = await load_profile(engine, user_id=session.profile.user_id)
     return SessionResponse(
-        profile=_profile_response(session.profile),
+        profile=_profile_response(session.profile, full),
         csrf_token=session.csrf_token,
         created=session.created,
     )
@@ -173,16 +175,7 @@ async def me(
     response.headers[CSRF_HEADER] = csrf_token
     response.headers["Cache-Control"] = "no-store"
     full = await load_profile(engine, user_id=profile.user_id)
-    return ProfileResponse(
-        public_id=full.public_id, display_name=full.display_name, bio=full.bio,
-        selected_city_id=str(full.selected_city_id) if full.selected_city_id else None,
-        age_confirmed=profile.age_confirmed, city_name=full.city_name,
-        avatar_url=f"/api/profiles/{full.public_id}/avatar?v={full.version}" if full.avatar_asset_id else None,
-        version=full.version,
-        next_name_change_at=full.next_name_change_at.isoformat() if full.next_name_change_at else None,
-        organizer_status=full.organizer_status, successful_events=full.successful_events,
-        upcoming_count=full.upcoming_count, completed_count=full.completed_count,
-    )
+    return _profile_response(profile, full)
 
 
 @router.post("/account/age-consent", response_model=ProfileResponse)
@@ -239,7 +232,7 @@ def _validated_origin(request: Request, settings: Settings) -> str:
     expected = str(settings.public_base_url).rstrip("/")
     if origin != expected:
         raise _error(status.HTTP_403_FORBIDDEN, "invalid_origin")
-    return origin
+    return expected
 
 
 def _required_auth_secret(settings: Settings) -> bytes:
@@ -249,12 +242,38 @@ def _required_auth_secret(settings: Settings) -> bytes:
     return value
 
 
-def _profile_response(profile: AccountProfile) -> ProfileResponse:
+def _profile_response(
+    profile: AccountProfile, full: ProfileView | None = None
+) -> ProfileResponse:
     values = asdict(profile)
     values.pop("user_id")
     values["selected_city_id"] = (
         None if profile.selected_city_id is None else str(profile.selected_city_id)
     )
+    if full is not None:
+        values.update(
+            city_name=full.city_name,
+            avatar_url=(
+                f"/api/profiles/{full.public_id}/avatar?v={full.version}"
+                if full.avatar_asset_id
+                else None
+            ),
+            background_url=(
+                f"/api/profiles/{full.public_id}/background?v={full.version}"
+                if full.background_asset_id
+                else None
+            ),
+            version=full.version,
+            next_name_change_at=(
+                full.next_name_change_at.isoformat()
+                if full.next_name_change_at
+                else None
+            ),
+            organizer_status=full.organizer_status,
+            successful_events=full.successful_events,
+            upcoming_count=full.upcoming_count,
+            completed_count=full.completed_count,
+        )
     return ProfileResponse.model_validate(values)
 
 

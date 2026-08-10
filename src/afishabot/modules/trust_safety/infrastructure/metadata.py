@@ -25,6 +25,7 @@ profile_reports = Table(
     Column("reason", Text, nullable=False),
     Column("comment", String(300)),
     Column("avatar_asset_id", UUID(as_uuid=True)),
+    Column("background_asset_id", UUID(as_uuid=True)),
     Column("status", Text, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("decided_at", DateTime(timezone=True)),

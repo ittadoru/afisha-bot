@@ -32,9 +32,18 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 30
+    assert len(files) == 31
     assert parents - {None} < revisions
-    assert revisions - parents == {"0030_staff_street_anchors"}
+    assert revisions - parents == {"0031_profile_backgrounds"}
+
+
+def test_profile_background_migration_updates_profiles_reports_and_media() -> None:
+    text = (VERSIONS / "0031_profile_backgrounds.py").read_text(encoding="utf-8")
+
+    assert "ALTER TABLE accounts.profiles ADD COLUMN background_asset_id" in text
+    assert "ALTER TABLE trust_safety.profile_reports " in text
+    assert '"ADD COLUMN background_asset_id uuid"' in text
+    assert "profile_background" in text
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:

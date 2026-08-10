@@ -29,6 +29,7 @@ from afishabot.modules.accounts.application.profiles import (
 )
 from afishabot.modules.media.application.image_processing import (
     AvatarImageProcessor,
+    ProfileBackgroundImageProcessor,
     UnsafeImageError,
 )
 
@@ -42,6 +43,7 @@ class OwnProfileResponse(BaseModel):
     selected_city_id: str | None
     city_name: str | None
     avatar_url: str | None
+    background_url: str | None
     version: int
     next_name_change_at: str | None
     organizer_status: str
@@ -56,6 +58,7 @@ class PublicProfileResponse(BaseModel):
     display_name: str
     bio: str | None
     avatar_url: str | None
+    background_url: str | None
     organizer_status: str
     successful_events: int
 
@@ -161,6 +164,11 @@ def own_response(profile: ProfileView) -> OwnProfileResponse:
         avatar_url=f"/api/profiles/{profile.public_id}/avatar?v={profile.version}"
         if profile.avatar_asset_id
         else None,
+        background_url=(
+            f"/api/profiles/{profile.public_id}/background?v={profile.version}"
+            if profile.background_asset_id
+            else None
+        ),
         version=profile.version,
         next_name_change_at=profile.next_name_change_at.isoformat()
         if profile.next_name_change_at
@@ -197,6 +205,11 @@ async def anonymous_public_profile(
             if profile.avatar_asset_id
             else None
         ),
+        background_url=(
+            f"/api/public/profiles/{profile.public_id}/background?v={profile.version}"
+            if profile.background_asset_id
+            else None
+        ),
         organizer_status=profile.organizer_status,
         successful_events=profile.successful_events,
         upcoming_events=[EventResponse.model_validate(item) for item in items],
@@ -223,6 +236,31 @@ async def anonymous_profile_avatar(public_id: str, request: Request) -> Response
     path = settings.media_root / key
     if not path.is_file():
         raise HTTPException(status_code=404, detail="avatar_not_found")
+    return FileResponse(
+        path, media_type="image/webp", headers={"Cache-Control": "public, max-age=300"}
+    )
+
+
+@router.get("/public/profiles/{public_id}/background")
+async def anonymous_profile_background(public_id: str, request: Request) -> Response:
+    settings, _, engine = dependencies(request)
+    async with engine.connect() as connection:
+        key = await connection.scalar(
+            text(
+                """
+                SELECT a.storage_key FROM accounts.profiles p
+                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
+                JOIN media.assets a ON a.id=p.background_asset_id AND a.state='ready'
+                WHERE p.public_id=:id
+                """
+            ),
+            {"id": public_id},
+        )
+    if key is None:
+        raise HTTPException(status_code=404, detail="background_not_found")
+    path = settings.media_root / key
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="background_not_found")
     return FileResponse(
         path, media_type="image/webp", headers={"Cache-Control": "public, max-age=300"}
     )
@@ -312,6 +350,11 @@ async def public_profile(
         avatar_url=f"/api/profiles/{profile.public_id}/avatar?v={profile.version}"
         if profile.avatar_asset_id
         else None,
+        background_url=(
+            f"/api/profiles/{profile.public_id}/background?v={profile.version}"
+            if profile.background_asset_id
+            else None
+        ),
         organizer_status=profile.organizer_status,
         successful_events=profile.successful_events,
     )
@@ -552,6 +595,160 @@ async def delete_avatar(
     return own_response(await load_profile(engine, user_id=user_id))
 
 
+@router.put("/account/profile-background", response_model=OwnProfileResponse)
+async def put_profile_background(
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> OwnProfileResponse:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    if request.headers.get("content-type", "").split(";", 1)[0] not in {
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    }:
+        raise HTTPException(status_code=415, detail="unsupported_image")
+    data = bytearray()
+    async for chunk in request.stream():
+        data.extend(chunk)
+        if len(data) > 12 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="image_too_large")
+    if not data:
+        raise HTTPException(status_code=422, detail="empty_image")
+    asset_id = uuid4()
+    source = settings.media_root / "quarantine" / f"{asset_id}.upload"
+    destination = settings.media_root / "profile-backgrounds" / f"{asset_id}.webp"
+    await to_thread.run_sync(source.parent.mkdir, 0o750, True, True)
+    await to_thread.run_sync(source.write_bytes, bytes(data))
+    try:
+        await to_thread.run_sync(
+            ProfileBackgroundImageProcessor().process, source, destination
+        )
+    except UnsafeImageError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    checksum = await to_thread.run_sync(
+        lambda: hashlib.sha256(destination.read_bytes()).hexdigest()
+    )
+    old_path: Path | None = None
+    async with engine.begin() as connection:
+        old = (
+            (
+                await connection.execute(
+                    text(
+                        """SELECT a.id,a.storage_key FROM accounts.profiles p
+                        LEFT JOIN media.assets a ON a.id=p.background_asset_id
+                        WHERE p.user_id=:user FOR UPDATE OF p"""
+                    ),
+                    {"user": user_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+        await connection.execute(
+            text(
+                """INSERT INTO media.assets
+                (id,owner_user_id,purpose,state,storage_key,mime_type,byte_size,
+                 width,height,checksum_sha256)
+                VALUES (:id,:user,'profile_background','ready',:key,'image/webp',
+                        :size,1280,720,:checksum)"""
+            ),
+            {
+                "id": asset_id,
+                "user": user_id,
+                "key": f"profile-backgrounds/{asset_id}.webp",
+                "size": destination.stat().st_size,
+                "checksum": checksum,
+            },
+        )
+        await connection.execute(
+            text(
+                """UPDATE accounts.profiles
+                SET background_asset_id=:asset,version=version+1,updated_at=now()
+                WHERE user_id=:user"""
+            ),
+            {"asset": asset_id, "user": user_id},
+        )
+        if old["id"]:
+            retained = await connection.scalar(
+                text(
+                    """SELECT 1 FROM trust_safety.profile_reports
+                    WHERE background_asset_id=:id
+                      AND status IN ('pending','reviewed')"""
+                ),
+                {"id": old["id"]},
+            )
+            if retained is None:
+                await connection.execute(
+                    text(
+                        """UPDATE media.assets SET state='deleted',updated_at=now()
+                        WHERE id=:id"""
+                    ),
+                    {"id": old["id"]},
+                )
+                old_path = settings.media_root / old["storage_key"]
+    if old_path:
+        await to_thread.run_sync(old_path.unlink, True)
+    return own_response(await load_profile(engine, user_id=user_id))
+
+
+@router.delete("/account/profile-background", response_model=OwnProfileResponse)
+async def delete_profile_background(
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> OwnProfileResponse:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    old_path: Path | None = None
+    async with engine.begin() as connection:
+        old = (
+            (
+                await connection.execute(
+                    text(
+                        """SELECT a.id,a.storage_key FROM accounts.profiles p
+                        LEFT JOIN media.assets a ON a.id=p.background_asset_id
+                        WHERE p.user_id=:user FOR UPDATE OF p"""
+                    ),
+                    {"user": user_id},
+                )
+            )
+            .mappings()
+            .one()
+        )
+        await connection.execute(
+            text(
+                """UPDATE accounts.profiles SET background_asset_id=NULL,
+                version=version+1,updated_at=now() WHERE user_id=:user"""
+            ),
+            {"user": user_id},
+        )
+        if old["id"]:
+            retained = await connection.scalar(
+                text(
+                    """SELECT 1 FROM trust_safety.profile_reports
+                    WHERE background_asset_id=:id
+                      AND status IN ('pending','reviewed')"""
+                ),
+                {"id": old["id"]},
+            )
+            if retained is None:
+                await connection.execute(
+                    text(
+                        """UPDATE media.assets SET state='deleted',updated_at=now()
+                        WHERE id=:id"""
+                    ),
+                    {"id": old["id"]},
+                )
+                old_path = settings.media_root / old["storage_key"]
+    if old_path:
+        await to_thread.run_sync(old_path.unlink, True)
+    return own_response(await load_profile(engine, user_id=user_id))
+
+
 @router.get("/profiles/{public_id}/avatar")
 async def avatar(
     public_id: str,
@@ -572,6 +769,34 @@ async def avatar(
     path = settings.media_root / key
     if not path.is_file():
         raise HTTPException(status_code=404, detail="avatar_not_found")
+    return FileResponse(
+        path, media_type="image/webp", headers={"Cache-Control": "private, max-age=300"}
+    )
+
+
+@router.get("/profiles/{public_id}/background")
+async def profile_background(
+    public_id: str,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> Response:
+    await current_user(request, token)
+    settings, _, engine = dependencies(request)
+    async with engine.connect() as connection:
+        key = await connection.scalar(
+            text(
+                """SELECT a.storage_key FROM accounts.profiles p
+                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
+                JOIN media.assets a ON a.id=p.background_asset_id AND a.state='ready'
+                WHERE p.public_id=:id"""
+            ),
+            {"id": public_id},
+        )
+    if key is None:
+        raise HTTPException(status_code=404, detail="background_not_found")
+    path = settings.media_root / key
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="background_not_found")
     return FileResponse(
         path, media_type="image/webp", headers={"Cache-Control": "private, max-age=300"}
     )

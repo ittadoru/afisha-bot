@@ -15,11 +15,12 @@ const mockProfile = {
   successful_events: 9,
   version: 3,
   avatar_url: null,
+  background_url: null,
 };
 
 const mockEvents = [
   {
-    id: "11111111-1111-4111-8111-111111111111", kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Закатная прогулка у моря", description: "Спокойная прогулка вдоль побережья и знакомство за чаем.", starts_at: "2026-08-12T16:30:00+03:00", ends_at: "2026-08-12T19:00:00+03:00", visible_address: "Родопский бульвар", participant_count: 8, capacity: 14, available_places: 6, interest_count: 16, viewer_membership: "none", viewer_is_organizer: false, photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "12061921", organizer_name: "Амина", organizer_status: "trusted", latitude: 42.976, longitude: 47.502, chat_enabled: true,
+    id: "11111111-1111-4111-8111-111111111111", kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Закатная прогулка у моря", description: "Спокойная прогулка вдоль побережья и знакомство за чаем.", starts_at: "2026-08-12T16:30:00+03:00", ends_at: "2026-08-12T19:00:00+03:00", visible_address: "Родопский бульвар", participant_count: 8, capacity: 14, available_places: 6, interest_count: 16, viewer_membership: "participating", viewer_is_organizer: false, photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "12061921", organizer_name: "Амина Абдуллаева", organizer_status: "trusted", latitude: 42.976, longitude: 47.502, chat_enabled: true,
   },
   {
     id: "22222222-2222-4222-8222-222222222222", kind: "regular", lifecycle_status: "published", category: "Туризм", category_slug: "tourism", title: "Выходные в Гунибском районе", description: "Неспешный маршрут, горный воздух и панорамы старых аулов.", starts_at: "2026-08-15T07:00:00+03:00", ends_at: "2026-08-16T18:00:00+03:00", visible_address: "Общая улица, точка после вступления", participant_count: 11, capacity: 18, available_places: 7, interest_count: 23, viewer_membership: "none", viewer_is_organizer: false, photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "12061921", organizer_name: "Амина", organizer_status: "trusted", latitude: 42.991, longitude: 47.486, chat_enabled: true,
@@ -31,6 +32,8 @@ const mockEvents = [
 
 export const handlers = [
   http.get("*/account/me", () => HttpResponse.json(mockProfile, { headers: { "X-Afisha-CSRF": "mock-csrf" } })),
+  http.put("*/account/profile-background", () => HttpResponse.json({ ...mockProfile, background_url: "/brand/dagestan-profile-hero.jpg", version: mockProfile.version + 1 })),
+  http.delete("*/account/profile-background", () => HttpResponse.json({ ...mockProfile, background_url: null, version: mockProfile.version + 1 })),
   http.get("*/geo/catalog", () => HttpResponse.json({ cities: [{ id: "makhachkala", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047, service_radius_m: 20000 }], categories: [{ id: "walks", slug: "walks", name: "Прогулки", is_special: false, organizer_selectable: true }, { id: "tourism", slug: "tourism", name: "Туризм", is_special: false, organizer_selectable: true }, { id: "creativity", slug: "creativity", name: "Творчество", is_special: false, organizer_selectable: true }] })),
   http.get("*/events", ({ request }) => {
     const view = new URL(request.url).searchParams.get("view");
