@@ -103,6 +103,8 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 
 .workspace { min-height: 100vh; min-height: 100dvh; background: #f5f1e8; }
 .loading-screen { display: grid; place-items: center; min-height: 100vh; color: var(--muted-foreground); font-weight: 700; }
+.loading-screen-text { color: var(--muted-foreground); font-weight: 700; }
+.loading-screen-description { margin-top: 8px; font-size: 14px; font-weight: 400; opacity: .75; }
 .workspace-header > div { display: flex; flex-direction: column; text-align: center; }
 .workspace-header span { color: var(--muted-foreground); font-size: .85rem; }
 .map-shell { position: relative; height: calc(100dvh - 76px); min-height: 520px; border-top: 1px solid var(--border); }

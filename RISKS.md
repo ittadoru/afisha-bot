@@ -38,3 +38,87 @@ Unresolved Critical запрещает release. Applicable High запрещае
 budget. Остаточные риски пересматриваются перед соответствующим slice и первым
 публичным выпуском.
 
+
+
+
+"""
+You are given a task to integrate an existing React component in the codebase
+
+The codebase should support:
+- shadcn project structure  
+- Tailwind CSS
+- Typescript
+
+If it doesn't, provide instructions on how to setup project via shadcn CLI, install Tailwind or Typescript.
+
+Determine the default path for components and styles. 
+If default path for components is not /components/ui, provide instructions on why it's important to create this folder
+Copy-paste this component to /components/ui folder:
+```tsx
+text-blink.tsx
+import { cn } from "@/lib/utils";
+
+type TextBlinkProps = Omit<React.ComponentProps<"span">, "children"> & {
+  children: React.ReactNode;
+  as?: React.ElementType;
+  minOpacity?: number;
+};
+
+function TextBlink({
+  children,
+  as: Component = "p",
+  className,
+  minOpacity = 0.45,
+  style,
+  ...props
+}: TextBlinkProps) {
+  return (
+    <>
+      <style>{`
+        @keyframes loading-ui-text-blink {
+          0%,
+          100% {
+            opacity: 1;
+          }
+
+          50% {
+            opacity: var(--loading-ui-text-blink-opacity);
+          }
+        }
+      `}</style>
+      <Component
+        className={cn("inline-block font-medium", className)}
+        style={
+          {
+            ...style,
+            "--loading-ui-text-blink-opacity": minOpacity,
+            animation:
+              "loading-ui-text-blink var(--duration, 2s) ease-in-out infinite",
+          } as React.CSSProperties
+        }
+        {...props}
+      >
+        {children}
+      </Component>
+    </>
+  );
+}
+
+export { TextBlink };
+
+export default TextBlink;
+
+
+demo.tsx
+import { TextBlink } from "@/components/ui/text-blink";
+
+export default function TextBlinkDemo() {
+  return (
+    <div className="flex min-h-64 w-full items-center justify-center bg-background">
+      <TextBlink className="text-4xl text-muted-foreground">Ургъула</TextBlink>
+    </div>
+  );
+}
+
+```
+"""

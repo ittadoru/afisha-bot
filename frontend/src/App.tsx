@@ -5,6 +5,7 @@ import { MiniAppAuth } from "@/auth";
 import { AdminApp } from "@/admin-app";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { appConfig } from "@/config";
 
 const MiniApp = lazy(async () => ({ default: (await import("@/components/mini-app")).MiniApp }));
@@ -28,7 +29,7 @@ function LandingOrMiniApp() {
   const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
 
   if (view === "map") {
-    return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
+    return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen text="Открываем…" />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
   }
 
   return (
@@ -74,10 +75,6 @@ function PublicEventPage({ eventId }: { eventId: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => { void fetch(`${appConfig.apiBaseUrl}/events/${eventId}`).then(async (response) => { if (!response.ok) throw new Error(); return await response.json(); }).then(setEvent).catch(() => setFailed(true)); }, [eventId]);
   if (failed) return <main className="public-event-page"><section className="public-event-card"><h1>Событие недоступно</h1><p>Возможно, оно ещё не опубликовано или было скрыто.</p><Button asChild><a href="/">На главную</a></Button></section></main>;
-  if (!event) return <LoadingScreen />;
+  if (!event) return <LoadingScreen text="Загружаем событие…" />;
   return <main className="public-event-page"><header className="site-header"><a className="brand" href="/">Афиша</a><Button asChild><a href={`/app/event/${event.id}`}>Открыть Mini App</a></Button></header><article className={`public-event-card${event.kind === "special" ? " special-event" : ""}`}><img src={event.photo_url} alt={`Фотография события «${event.title}»`} /><div><span className="category-chip">{event.kind === "special" ? "Особое · Общественное событие" : event.category}</span><h1>{event.title}</h1><p><CalendarDays /> {new Date(event.starts_at).toLocaleString("ru-RU", { timeZone: "Europe/Moscow" })}</p><p><Map /> {event.visible_address}</p>{event.lifecycle_status === "cancelled" && <p className="form-error">Событие отменено</p>}<p className="public-event-description">{event.description}</p>{event.kind === "regular" && <p><strong>Организатор:</strong> {event.organizer_name} · {event.organizer_status === "trusted" ? "доверенный" : "новый"}</p>}<Button asChild><a href={`/app/event/${event.id}`}>Открыть в приложении</a></Button></div></article></main>;
-}
-
-function LoadingScreen() {
-  return <main className="loading-screen" role="status" aria-live="polite">Открываем…</main>;
 }

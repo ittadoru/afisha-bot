@@ -1,7 +1,8 @@
-import { LoaderCircle, LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { appConfig } from "@/config";
 
 export interface AccountProfile {
@@ -38,6 +39,7 @@ const API_BASE = appConfig.apiBaseUrl;
 
 export function MiniAppAuth({ children }: { children: (props: { profile: AccountProfile; csrfToken: string; updateProfile: (profile: AccountProfile) => void; logout: () => Promise<void> }) => React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: "loading" });
+  const [pending, setPending] = useState(false);
 
   const exchangeTelegramSession = async () => {
     const initData = window.Telegram?.WebApp?.initData;
@@ -80,7 +82,8 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
   };
 
   const confirmAge = async () => {
-    if (state.status !== "age") return;
+    if (state.status !== "age" || pending) return;
+    setPending(true);
     try {
       const response = await fetch(`${API_BASE}/account/age-consent`, {
         method: "POST",
@@ -92,13 +95,20 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
       setState({ status: "ready", profile, csrfToken: state.csrfToken });
     } catch {
       setState({ status: "error" });
+    } finally {
+      setPending(false);
     }
   };
 
   const logout = async () => {
     if (state.status !== "ready" && state.status !== "age") return;
-    await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": state.csrfToken } });
-    setState({ status: "outside-telegram" });
+    setPending(true);
+    try {
+      await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": state.csrfToken } });
+      setState({ status: "outside-telegram" });
+    } finally {
+      setPending(false);
+    }
   };
 
   useEffect(() => { void authenticate(); }, []);
@@ -107,7 +117,8 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
     setState((current) => current.status === "ready" ? { ...current, profile } : current);
   };
 
-  if (state.status === "loading") return <AuthScreen icon={<LoaderCircle className="spin" />} title="Входим через Telegram" text="Проверяем безопасный вход…" />;
+  if (pending) return <LoadingScreen text="Подтверждаем…" />;
+  if (state.status === "loading") return <LoadingScreen text="Входим через Telegram" description="Проверяем безопасный вход…" />;
   if (state.status === "outside-telegram") return <AuthScreen icon={<ShieldCheck />} title="Откройте приложение через Telegram" text="Вход доступен только из Mini App. Откройте бота и нажмите кнопку приложения." />;
   if (state.status === "error") return <AuthScreen icon={<ShieldCheck />} title="Не получилось войти" text="Закройте Mini App, откройте его снова и повторите попытку." action={<Button onClick={() => void authenticate()}>Повторить</Button>} />;
   if (state.status === "age") return <AuthScreen icon={<ShieldCheck />} title="Подтвердите возраст" text="Чтобы пользоваться Афишей, вам должно быть не меньше 14 лет." action={<div className="auth-actions"><Button onClick={() => void confirmAge()}>Мне исполнилось 14 лет</Button><Button variant="outline" onClick={() => void logout()}><LogOut /> Выйти</Button></div>} />;

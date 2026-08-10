@@ -31,6 +31,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import type { AccountProfile } from "@/auth";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { TextBlink } from "@/components/ui/text-blink";
 import type { MapCity } from "@/components/event-map";
@@ -246,7 +247,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
-          <Suspense fallback={<DemoState state="loading" />}>
+          <Suspense fallback={<LoadingScreen text="Открываем…" />}>
             {section === "events" && (eventsMode === "map" ? <EventMap embedded city={selectedCity ?? undefined} onOpenEvent={openEvent} onOpenStreetGroup={openStreetGroup} onOpenList={openEventsList} /> : <EventsList city={selectedCity} onOpen={openEvent} />)}
             {section === "people" && <PeopleList city={selectedCity} csrfToken={csrfToken} onCreate={() => setSection("create")} onOpen={(id) => { setSelectedLookingPostId(id); window.history.pushState({}, "", `/app/looking/${id}`); }} />}
             {section === "create" && <CreateScreen initialKind={createKind} city={selectedCity} categories={catalog?.categories ?? []} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection(createKind === "idea" ? "people" : "events"); }} />}
@@ -383,7 +384,7 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
       </section>
       {message && <p className="inline-feedback" role="status">{message}</p>}
     </div>
-    {!post.is_author && post.status === "active" && <form className="qa-composer" onSubmit={(event) => { event.preventDefault(); void ask(); }}><label className="sr-only" htmlFor="qa-question">Ваш вопрос</label><textarea id="qa-question" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={200} placeholder="Задайте вопрос автору" /><button type="submit" aria-label="Отправить вопрос" disabled={busy || !question.trim()}><Send aria-hidden="true" /></button></form>}</> : <DemoState state="loading" />}
+    {!post.is_author && post.status === "active" && <form className="qa-composer" onSubmit={(event) => { event.preventDefault(); void ask(); }}><label className="sr-only" htmlFor="qa-question">Ваш вопрос</label><textarea id="qa-question" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={200} placeholder="Задайте вопрос автору" /><button type="submit" aria-label="Отправить вопрос" disabled={busy || !question.trim()}><Send aria-hidden="true" /></button></form>}</> : <LoadingScreen text="Загружаем идею…" />}
   </section>;
 }
 
@@ -668,7 +669,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
   const showPrimaryAction = Boolean(event?.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer || event.viewer_membership === "none" || event.viewer_membership === "participating" || event.viewer_membership === "waitlisted"));
   return <section className={`event-detail-page${event ? ` category-${event.category_slug}` : ""}`}>
     <header className="event-detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Событие</strong><span>{canChat && <button className="chat-discovery-button" type="button" aria-label="Открыть чат события" onClick={onOpenChat}><MessageCircle aria-hidden="true" /><i aria-hidden="true" /></button>}<button type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 aria-hidden="true" /></button></span></header>
-    {failed ? <DemoState state="error" onClose={onClose} /> : !event ? <DemoState state="loading" /> : <><div className="event-detail-scroll"><EventPhoto className="event-detail-hero" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><main className="event-detail-content">
+    {failed ? <DemoState state="error" onClose={onClose} /> : !event ? <LoadingScreen text="Загружаем событие…" /> : <><div className="event-detail-scroll"><EventPhoto className="event-detail-hero" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><main className="event-detail-content">
       <div className="event-detail-labels"><span className="category-chip">{event.category}</span>{event.kind === "special" && <span className="municipal-label"><Sparkles aria-hidden="true" /> Общественное</span>}<button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-label={`${event.viewer_interested ? "Убрать из интересного" : "Добавить в интересное"}. Всего ${event.interest_count ?? 0}`} aria-pressed={event.viewer_interested} disabled={busy || event.lifecycle_status !== "published"} onClick={() => void toggleInterest()}><Heart aria-hidden="true" /> {event.interest_count ?? 0}</button></div>
       <h1>{event.title}</h1>
       <div className="event-facts"><div><span><CalendarDays aria-hidden="true" /></span><p><small>Когда</small><strong>{formatEventTime(event.starts_at)}</strong><span>до {formatEventTime(event.ends_at)}</span></p></div><div><span><MapPin aria-hidden="true" /></span><p><small>Где</small><strong>{event.visible_address}</strong></p></div><div><span><Users aria-hidden="true" /></span><p><small>Участники</small><strong>{event.participant_count} собираются</strong><span>{event.capacity === null ? "Без ограничения мест" : `Свободно: ${event.available_places}`}</span></p></div></div>

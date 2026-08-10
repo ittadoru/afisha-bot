@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
+import { LoadingScreen } from "@/components/ui/loading-screen";
+
 type Staff = { login: string; role: "admin" | "moderator" };
 type Counts = {
   active_users: number;
@@ -76,7 +78,7 @@ export function AdminApp() {
     }).finally(() => setChecking(false));
   }, []);
 
-  if (checking) return <AdminStatus text="Проверяем доступ…" />;
+  if (checking) return <LoadingScreen text="Проверяем доступ…" />;
   if (!staff) {
     return <AdminLogin notice={expiredNotice} onLogin={signIn} />;
   }
@@ -110,6 +112,8 @@ function AdminLogin({ notice, onLogin }: { notice: string; onLogin: (staff: Staf
     }
   };
 
+  if (busy) return <LoadingScreen text="Входим…" />;
+
   return (
     <main className="admin-login-page">
       <section className="admin-login-card" aria-labelledby="admin-login-title">
@@ -122,7 +126,7 @@ function AdminLogin({ notice, onLogin }: { notice: string; onLogin: (staff: Staf
           <label>Пароль<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" maxLength={256} required autoFocus /></label>
           {error && <p className="admin-form-error" role="alert">{error}</p>}
           {notice && !error && <p className="admin-form-error" role="alert">{notice}</p>}
-          <button type="submit" disabled={busy}>{busy ? "Входим…" : "Войти"}</button>
+          <button type="submit" disabled={busy}>Войти</button>
         </form>
       </section>
     </main>
