@@ -46,6 +46,14 @@ export const handlers = [
     { id: "44444444-4444-4444-8444-444444444444", title: "Кто на утреннюю прогулку?", body: "Хочу пройтись по набережной до жары и после выпить кофе.", category: "Прогулки", created_at: "2026-08-10T08:20:00+03:00", like_count: 7, question_count: 2, viewer_liked: false, is_author: false, status: "active", remaining_seconds: 162000, author: { display_name: "Мурад", avatar_url: null } },
     { id: "55555555-5555-4555-8555-555555555555", title: "Собираю небольшую группу в Гуниб", body: "Без гонки и сложных подъёмов. Важнее виды, разговоры и хороший чай.", category: "Туризм", created_at: "2026-08-09T18:10:00+03:00", like_count: 12, question_count: 4, viewer_liked: true, is_author: false, status: "active", remaining_seconds: 111000, author: { display_name: "Патимат", avatar_url: null } },
   ], next_cursor: null })),
+  http.get("*/looking-posts/:postId", ({ params }) => HttpResponse.json({ id: String(params.postId), title: "Кто на утреннюю прогулку?", body: "Хочу пройтись по набережной до жары и после выпить кофе.", category: "Прогулки", created_at: "2026-08-10T08:20:00+03:00", like_count: 7, question_count: 2, viewer_liked: false, is_author: false, status: "active", remaining_seconds: 162000, author: { display_name: "Мурад", avatar_url: null } })),
+  http.get("*/looking-posts/:postId/questions", () => HttpResponse.json({ items: [{ id: "question-1", question: "Какой темп прогулки?", answer: "Спокойный, подойдёт без специальной подготовки." }], pending: [{ id: "question-2", question: "Можно присоединиться с другом?" }] })),
+  http.get("*/events/:eventId/chat", () => HttpResponse.json({ items: [
+    { id: "70000000-0000-4000-8000-000000000001", body: "Встречаемся у главного входа в парк.", created_at: "2026-08-10T09:10:00+03:00", author_display_name: "Амина", author_is_organizer: true, author_is_viewer: false },
+    { id: "70000000-0000-4000-8000-000000000002", body: "Спасибо! Возьму с собой воду.", created_at: "2026-08-10T09:13:00+03:00", author_display_name: "Вы", author_is_organizer: false, author_is_viewer: true },
+  ], has_more: false })),
+  http.post("*/events/:eventId/chat", async ({ request }) => { const body = await request.json() as { body: string }; return HttpResponse.json({ message: { id: crypto.randomUUID(), body: body.body, created_at: new Date().toISOString(), author_display_name: "Вы", author_is_organizer: false, author_is_viewer: true } }, { status: 201 }); }),
+  http.put("*/events/:eventId/chat", async ({ request }) => { const body = await request.json() as { enabled: boolean }; return HttpResponse.json({ chat_enabled: body.enabled }); }),
   http.get("*/account/notifications", () => HttpResponse.json([
     { id: "notice-1", title: "Встреча уже завтра", body: "Организатор прогулки уточнил время сбора.", importance: "normal", read_at: null },
     { id: "notice-2", title: "Нужно подтвердить участие", body: "Ответьте до 18:00, чтобы место не перешло следующему участнику.", importance: "critical", read_at: null },
@@ -61,4 +69,5 @@ export const handlers = [
       precision: "street",
     }),
   ),
+  http.get("*/geo/resolve", () => HttpResponse.json({ display_name: "Проспект Имама Шамиля, Махачкала", street: "Проспект Имама Шамиля", house_number: null, precision: "street" })),
 ];

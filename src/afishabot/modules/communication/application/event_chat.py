@@ -115,19 +115,27 @@ async def _active_episode(
 
 
 async def _message_payload(
-    connection: Any, message_id: UUID, creator_user_id: UUID
+    connection: Any,
+    message_id: UUID,
+    creator_user_id: UUID,
+    viewer_user_id: UUID,
 ) -> dict[str, Any]:
     row = (
         (
             await connection.execute(
                 text("""
         SELECT m.body, m.created_at, pr.display_name,
-               (m.author_user_id = :creator) AS is_organizer
+               (m.author_user_id = :creator) AS is_organizer,
+               (m.author_user_id = :viewer) AS is_viewer
         FROM communication.messages m
         JOIN accounts.profiles pr ON pr.user_id = m.author_user_id
         WHERE m.id = :id
     """),
-                {"id": message_id, "creator": creator_user_id},
+                {
+                    "id": message_id,
+                    "creator": creator_user_id,
+                    "viewer": viewer_user_id,
+                },
             )
         )
         .mappings()
@@ -139,6 +147,7 @@ async def _message_payload(
         "created_at": row["created_at"].isoformat(),
         "author_display_name": row["display_name"],
         "author_is_organizer": row["is_organizer"],
+        "author_is_viewer": row["is_viewer"],
     }
 
 
@@ -175,6 +184,7 @@ async def list_messages(
             "event": event_id,
             "limit": limit + 1,
             "creator": event["creator_user_id"],
+            "viewer": viewer_id,
         }
         after_clause = ""
         if after is not None:
@@ -185,7 +195,8 @@ async def list_messages(
                 await connection.execute(
                     text(f"""
             SELECT m.id, m.body, m.created_at, pr.display_name,
-               (m.author_user_id = :creator) AS is_organizer
+               (m.author_user_id = :creator) AS is_organizer,
+               (m.author_user_id = :viewer) AS is_viewer
             FROM communication.messages m
             JOIN accounts.profiles pr ON pr.user_id = m.author_user_id
             WHERE m.event_id = CAST(:event AS uuid) AND m.delete_after > now()
@@ -206,6 +217,7 @@ async def list_messages(
                 "created_at": row["created_at"].isoformat(),
                 "author_display_name": row["display_name"],
                 "author_is_organizer": row["is_organizer"],
+                "author_is_viewer": row["is_viewer"],
             }
             for row in rows[:limit]
         ]
@@ -229,7 +241,10 @@ async def send_message(
         if previous is not None:
             event = await _event_for_chat(connection, event_id)
             return await _message_payload(
-                connection, previous, event["creator_user_id"] if event else user_id
+                connection,
+                previous,
+                event["creator_user_id"] if event else user_id,
+                user_id,
             )
         event = await _event_for_chat(connection, event_id)
         if event is None:
@@ -261,7 +276,12 @@ async def send_message(
         await _remember_request(
             connection, user_id, idempotency_key, fingerprint, message_id
         )
-        return await _message_payload(connection, message_id, event["creator_user_id"])
+        return await _message_payload(
+            connection,
+            message_id,
+            event["creator_user_id"],
+            user_id,
+        )
 
 
 async def set_chat_enabled(

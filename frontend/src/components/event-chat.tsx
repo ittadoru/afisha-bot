@@ -1,8 +1,7 @@
-import { MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { appConfig } from "@/config";
-import { Button } from "@/components/ui/button";
 
 interface ChatMessage {
   id: string;
@@ -10,6 +9,7 @@ interface ChatMessage {
   created_at: string;
   author_display_name: string;
   author_is_organizer: boolean;
+  author_is_viewer: boolean;
 }
 
 interface EventChatProps {
@@ -31,8 +31,10 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
   const [busy, setBusy] = useState(false);
   const [wait, setWait] = useState(0);
   const [toggling, setToggling] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<string | null>(null);
   useEffect(() => {
     messagesRef.current = messages.length > 0 ? messages[messages.length - 1].id : null;
@@ -86,6 +88,13 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
     if (nearBottom) container.scrollTop = container.scrollHeight;
   }, [messages.length]);
 
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "0px";
+    input.style.height = `${Math.min(input.scrollHeight, 112)}px`;
+  }, [text]);
+
   const send = async () => {
     const body = text.trim();
     if (!body || busy || wait > 0) return;
@@ -132,26 +141,34 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
     }
   };
 
-  return <section className="feed page-screen chat-page">
-    <button className="text-back" type="button" onClick={onClose}>← Назад</button>
-    <header className="chat-header"><MessageCircle aria-hidden="true" /><h1>{title || "Чат события"}{chatEnabled ? "" : " (закрыт)"}</h1>{viewerIsOrganizer && <button type="button" className="chat-toggle" disabled={toggling} onClick={() => void toggle()}>{chatEnabled ? "Закрыть чат" : "Открыть чат"}</button>}</header>
+  return <section className="chat-page">
+    <header className="chat-appbar"><button type="button" aria-label="Вернуться к событию" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><span><small>Чат события</small><strong>{title || "Загружаем…"}</strong></span><div className="chat-menu-wrap">{viewerIsOrganizer ? <><button type="button" aria-label="Настройки чата" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="chat-overflow-menu"><button type="button" disabled={toggling} onClick={() => { setMenuOpen(false); void toggle(); }}>{chatEnabled ? "Закрыть чат" : "Открыть чат"}</button></div>}</> : <MessageCircle aria-hidden="true" />}</div></header>
     <div className="chat-messages" ref={scrollRef} aria-live="polite">
-      {messages.map((item) => (
-        <article className={`chat-message${item.author_is_organizer ? " organizer" : ""}`} key={item.id}>
-          <small>{item.author_is_organizer ? `${item.author_display_name} · организатор` : item.author_display_name}</small>
-          <p>{item.body}</p>
-          <time>{messageTime(item.created_at)}</time>
-        </article>
-      ))}
-      {messages.length === 0 && !error && <p className="state-hint">Сообщений пока нет. Будьте первым!</p>}
+      {messages.map((item, index) => {
+        const previous = messages[index - 1];
+        const showDay = !previous || messageDay(previous.created_at) !== messageDay(item.created_at);
+        const compact = Boolean(previous && !showDay && previous.author_display_name === item.author_display_name && previous.author_is_organizer === item.author_is_organizer);
+        return <div className="chat-message-wrap" key={item.id}>{showDay && <time className="chat-day">{messageDayLabel(item.created_at)}</time>}<article className={`chat-message${item.author_is_viewer ? " viewer" : ""}${item.author_is_organizer ? " organizer" : ""}${compact ? " compact" : ""}`}>
+          {!compact && <small>{item.author_is_viewer ? "Вы" : item.author_display_name}{item.author_is_organizer && <span>Организатор</span>}</small>}
+          <p>{item.body}</p><time>{messageTime(item.created_at)}</time>
+        </article></div>;
+      })}
+      {messages.length === 0 && !error && <div className="chat-empty"><MessageCircle aria-hidden="true" /><strong>Начните разговор</strong><p>Уточните детали встречи или просто поздоровайтесь.</p></div>}
     </div>
-    {error && <p className="form-error" role="alert">{error}</p>}
-    {chatEnabled ? (
-      <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); void send(); }}>
-        <label className="visually-hidden" htmlFor="chat-body">Сообщение</label>
-        <textarea id="chat-body" value={text} onChange={(event) => setText(event.target.value)} maxLength={500} placeholder="Напишите сообщение…" disabled={busy} />
-        <Button disabled={busy || wait > 0 || !text.trim()} onClick={() => void send()}>{busy ? "Отправляем…" : wait > 0 ? `${wait} с` : <><Send aria-hidden="true" /> Отправить</>}</Button>
-      </form>
-    ) : <p className="state-hint">Чат закрыт организатором.</p>}
+    {error && <p className="chat-error" role="alert">{error}</p>}
+    {chatEnabled ? <form className="chat-composer" onSubmit={(event) => { event.preventDefault(); void send(); }}><label className="sr-only" htmlFor="chat-body">Сообщение</label><div><textarea ref={inputRef} rows={1} id="chat-body" value={text} onChange={(event) => setText(event.target.value)} maxLength={500} placeholder="Сообщение…" disabled={busy} />{wait > 0 && <small>Можно отправить через {wait} с</small>}</div><button type="submit" aria-label="Отправить сообщение" disabled={busy || wait > 0 || !text.trim()}><Send aria-hidden="true" /></button></form> : <p className="chat-closed"><MessageCircle aria-hidden="true" />Чат закрыт организатором</p>}
   </section>;
+}
+
+function messageDay(value: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Moscow", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value));
+}
+
+function messageDayLabel(value: string): string {
+  const key = messageDay(value);
+  const today = messageDay(new Date().toISOString());
+  const yesterday = messageDay(new Date(Date.now() - 86_400_000).toISOString());
+  if (key === today) return "Сегодня";
+  if (key === yesterday) return "Вчера";
+  return new Intl.DateTimeFormat("ru-RU", { timeZone: "Europe/Moscow", day: "numeric", month: "long" }).format(new Date(value));
 }

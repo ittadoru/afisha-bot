@@ -79,9 +79,51 @@ describe("landing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
     fireEvent.click(await screen.findByRole("button", { name: "Открыть профиль" }));
     expect(await screen.findByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
+    expect(screen.queryByText("Открыть профиль")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Восьмизначный номер")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Ошибка" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Не получилось загрузить");
+  });
+
+  it("shows looking-post questions without a share action", async () => {
+    const postId = "11111111-1111-4111-8111-111111111111";
+    window.history.replaceState({}, "", `/app/looking/${postId}`);
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/account/me")) return okJson(profile);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+      if (url.endsWith("/account/notifications")) return okJson([]);
+      if (url.endsWith(`/looking-posts/${postId}/questions`)) return okJson({ items: [{ id: "q1", question: "Можно без опыта?", answer: "Да, конечно" }], pending: [] });
+      if (url.endsWith(`/looking-posts/${postId}`)) return okJson({ id: postId, title: "Прогулка утром", body: "Ищем компанию", category: "Прогулки", created_at: "2026-08-10T09:00:00+03:00", like_count: 2, question_count: 1, viewer_liked: false, is_author: false, status: "active", remaining_seconds: 3600, author: { display_name: "Амина", avatar_url: null } });
+      return okJson(profile);
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Прогулка утром" })).toBeInTheDocument();
+    expect(screen.getByText("Можно без опыта?")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Задайте вопрос автору")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Поделиться/ })).not.toBeInTheDocument();
+  });
+
+  it("keeps a single share action on event detail", async () => {
+    const eventId = "22222222-2222-4222-8222-222222222222";
+    window.history.replaceState({}, "", `/app/event/${eventId}`);
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/account/me")) return okJson(profile);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+      if (url.endsWith("/account/notifications")) return okJson([]);
+      if (url.endsWith(`/events/${eventId}`)) return okJson({ id: eventId, kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Прогулка у моря", description: "Спокойная встреча", starts_at: "2026-08-12T16:00:00+03:00", ends_at: "2026-08-12T18:00:00+03:00", visible_address: "Набережная", participant_count: 4, capacity: 10, available_places: 6, interest_count: 3, viewer_interested: false, viewer_is_organizer: false, viewer_membership: "none", photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "87654321", organizer_name: "Амина", organizer_status: "trusted", chat_enabled: true });
+      return okJson(profile);
+    }));
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "Прогулка у моря" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Поделиться событием" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /^Поделиться$/ })).not.toBeInTheDocument();
   });
 
   it("does not create a user outside Telegram", async () => {

@@ -199,7 +199,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             element.title = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.title ?? item.category ?? "Событие";
             element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${item.category}: ${item.title}`);
             element.addEventListener("click", () => item.marker_type === "street" ? callbacksRef.current.onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && callbacksRef.current.onOpenEvent?.(item.id));
-            return new MapLibreMarker({ element })
+            return new MapLibreMarker({ element, anchor: "bottom" })
               .setLngLat([item.longitude, item.latitude]).addTo(map);
           });
         })
@@ -249,10 +249,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
         <section className="map-shell" aria-label="Карта событий">
           <div ref={containerRef} className="map-canvas" />
           {selecting && <span className="fixed-location-marker" aria-label="Центр выбранного места" role="img">●</span>}
-          {selecting && <aside className="map-address selection-address" aria-live="polite">
-            <MapPin aria-hidden="true" />
-            <div><strong>Выбранное место</strong><span>{address}</span></div>
-          </aside>}
+          {selecting && <p className="sr-only" aria-live="polite">{address}</p>}
           {markersLoading && <TextBlink as="div" className="map-loading-text" role="status" aria-live="polite">Собираем события…</TextBlink>}
           {empty && <div className="map-empty-chip">Пока тихо — создайте первое событие</div>}
         </section>
