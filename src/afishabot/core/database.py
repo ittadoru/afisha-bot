@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-EXPECTED_MIGRATION_HEAD = "0030_staff_street_anchors"
+EXPECTED_MIGRATION_HEAD = "0031_profile_backgrounds"
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:

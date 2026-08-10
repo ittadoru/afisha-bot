@@ -1,6 +1,8 @@
 import ast
 from pathlib import Path
 
+from afishabot.core.database import EXPECTED_MIGRATION_HEAD
+
 VERSIONS = Path("migrations/versions")
 EXPECTED_SCHEMAS = {
     "accounts",
@@ -35,6 +37,7 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     assert len(files) == 31
     assert parents - {None} < revisions
     assert revisions - parents == {"0031_profile_backgrounds"}
+    assert EXPECTED_MIGRATION_HEAD in revisions - parents
 
 
 def test_profile_background_migration_updates_profiles_reports_and_media() -> None:
