@@ -31,7 +31,7 @@ function TextBlink({
         }
       `}</style>
       <Component
-        className={cn("inline-block font-medium", className)}
+        className={cn("text-blink inline-block font-medium", className)}
         style={
           {
             ...style,

@@ -117,8 +117,8 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
     setState((current) => current.status === "ready" ? { ...current, profile } : current);
   };
 
-  if (pending) return <LoadingScreen text="Подтверждаем…" />;
-  if (state.status === "loading") return <LoadingScreen text="Входим через Telegram" description="Проверяем безопасный вход…" />;
+  if (pending) return <LoadingScreen />;
+  if (state.status === "loading") return <LoadingScreen />;
   if (state.status === "outside-telegram") return <AuthScreen icon={<ShieldCheck />} title="Откройте приложение через Telegram" text="Вход доступен только из Mini App. Откройте бота и нажмите кнопку приложения." />;
   if (state.status === "error") return <AuthScreen icon={<ShieldCheck />} title="Не получилось войти" text="Закройте Mini App, откройте его снова и повторите попытку." action={<Button onClick={() => void authenticate()}>Повторить</Button>} />;
   if (state.status === "age") return <AuthScreen icon={<ShieldCheck />} title="Подтвердите возраст" text="Чтобы пользоваться Афишей, вам должно быть не меньше 14 лет." action={<div className="auth-actions"><Button onClick={() => void confirmAge()}>Мне исполнилось 14 лет</Button><Button variant="outline" onClick={() => void logout()}><LogOut /> Выйти</Button></div>} />;

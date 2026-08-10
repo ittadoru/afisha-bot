@@ -2,6 +2,7 @@ import { ArrowLeft, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { appConfig } from "@/config";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface ChatMessage {
   id: string;
@@ -33,6 +34,8 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
   const [toggling, setToggling] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState("");
+  const [eventLoaded, setEventLoaded] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<string | null>(null);
@@ -42,6 +45,9 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
 
   useEffect(() => {
     let active = true;
+    setEventLoaded(false);
+    setMessagesLoaded(false);
+    setMessages([]);
     void fetch(`${appConfig.apiBaseUrl}/events/${eventId}`, { credentials: "include" })
       .then(async (response) => {
         if (!response.ok) throw new Error();
@@ -53,20 +59,25 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
         setChatEnabled(event.chat_enabled);
         setViewerIsOrganizer(event.viewer_is_organizer);
       })
-      .catch(() => { if (active) setError("Не получилось загрузить чат."); });
+      .catch(() => { if (active) setError("Не получилось загрузить чат."); })
+      .finally(() => { if (active) setEventLoaded(true); });
     return () => { active = false; };
   }, [eventId]);
 
   const load = useCallback(async () => {
     const last = messagesRef.current;
-    const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/chat${last ? `?after=${last}` : ""}`, { credentials: "include" });
-    if (!response.ok) return;
-    const data = await response.json() as { items: ChatMessage[] };
-    setMessages((current) => {
-      const known = new Set(current.map((item) => item.id));
-      const fresh = data.items.filter((item) => !known.has(item.id));
-      return fresh.length ? [...current, ...fresh] : current;
-    });
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/chat${last ? `?after=${last}` : ""}`, { credentials: "include" });
+      if (!response.ok) return;
+      const data = await response.json() as { items: ChatMessage[] };
+      setMessages((current) => {
+        const known = new Set(current.map((item) => item.id));
+        const fresh = data.items.filter((item) => !known.has(item.id));
+        return fresh.length ? [...current, ...fresh] : current;
+      });
+    } finally {
+      setMessagesLoaded(true);
+    }
   }, [eventId]);
 
   useEffect(() => {
@@ -141,8 +152,10 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
     }
   };
 
+  if (!eventLoaded || !messagesLoaded) return <section className="chat-page"><LoadingScreen variant="section" /></section>;
+
   return <section className="chat-page">
-    <header className="chat-appbar"><button type="button" aria-label="Вернуться к событию" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><span><small>Чат события</small><strong>{title || "Загружаем…"}</strong></span><div className="chat-menu-wrap">{viewerIsOrganizer ? <><button type="button" aria-label="Настройки чата" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="chat-overflow-menu"><button type="button" disabled={toggling} onClick={() => { setMenuOpen(false); void toggle(); }}>{chatEnabled ? "Закрыть чат" : "Открыть чат"}</button></div>}</> : <MessageCircle aria-hidden="true" />}</div></header>
+    <header className="chat-appbar"><button type="button" aria-label="Вернуться к событию" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><span><small>Чат события</small><strong>{title || "Чат события"}</strong></span><div className="chat-menu-wrap">{viewerIsOrganizer ? <><button type="button" aria-label="Настройки чата" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="chat-overflow-menu"><button type="button" disabled={toggling} onClick={() => { setMenuOpen(false); void toggle(); }}>{chatEnabled ? "Закрыть чат" : "Открыть чат"}</button></div>}</> : <MessageCircle aria-hidden="true" />}</div></header>
     <div className="chat-messages" ref={scrollRef} aria-live="polite">
       {messages.map((item, index) => {
         const previous = messages[index - 1];

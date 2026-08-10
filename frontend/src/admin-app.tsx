@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
-import { LoadingScreen } from "@/components/ui/loading-screen";
-
 type Staff = { login: string; role: "admin" | "moderator" };
 type Counts = {
   active_users: number;
@@ -78,7 +76,7 @@ export function AdminApp() {
     }).finally(() => setChecking(false));
   }, []);
 
-  if (checking) return <LoadingScreen text="Проверяем доступ…" />;
+  if (checking) return <AdminFullScreenStatus text="Проверяем доступ…" />;
   if (!staff) {
     return <AdminLogin notice={expiredNotice} onLogin={signIn} />;
   }
@@ -112,7 +110,7 @@ function AdminLogin({ notice, onLogin }: { notice: string; onLogin: (staff: Staf
     }
   };
 
-  if (busy) return <LoadingScreen text="Входим…" />;
+  if (busy) return <AdminFullScreenStatus text="Входим…" />;
 
   return (
     <main className="admin-login-page">
@@ -465,6 +463,7 @@ function Audit({ onCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => 
 }
 
 function AdminStatus({ text }: { text: string }) { return <main className="admin-status" role="status"><span /><p>{text}</p></main>; }
+function AdminFullScreenStatus({ text }: { text: string }) { return <main className="admin-status" role="status" aria-live="polite"><span /><p>{text}</p></main>; }
 function AdminEmpty({ title, text }: { title: string; text: string }) { return <div className="admin-empty"><History /><h2>{title}</h2><p>{text}</p></div>; }
 function actionLabel(action: string) { return ({ "staff.bootstrap": "Создан первый администратор", "staff.login_bootstrap": "Подготовлен вход", "staff.login": "Вход в панель", "staff.logout": "Выход из панели" } as Record<string, string>)[action] ?? action; }
 function resultLabel(result: AuditEntry["result"]) { return result === "success" ? "Успешно" : result === "blocked" ? "Заблокировано" : "Отказ"; }

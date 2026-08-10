@@ -53,6 +53,15 @@ describe("landing", () => {
     expect(screen.getByRole("link", { name: "Открыть карту" })).toHaveAttribute("href", "/app");
   });
 
+  it("shows the universal loader while Mini App authentication is pending", async () => {
+    window.history.replaceState({}, "", "/app");
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => undefined)));
+
+    render(<App />);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Ургъула…");
+  });
+
   it("opens the map directly at /app", async () => {
     window.history.replaceState({}, "", "/app");
 

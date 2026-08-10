@@ -6,10 +6,16 @@
     <meta name="theme-color" content="#f8f4ea" />
     <meta name="description" content="Afisha — карта бесплатных событий и встреч в городах Дагестана." />
     <title>Afisha — есть куда пойти</title>
+    <style>
+      @keyframes afisha-boot-blink { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+      #boot-loader { display: grid; place-items: center; min-height: 100dvh; color: #5d6c68; background: #f7f3ea; font: 700 clamp(1.25rem, 5vw, 1.85rem)/1.2 Manrope, ui-sans-serif, system-ui, sans-serif; }
+      #boot-loader span { animation: afisha-boot-blink 2s ease-in-out infinite; }
+      @media (prefers-reduced-motion: reduce) { #boot-loader span { animation: none; } }
+    </style>
     <script src="https://telegram.org/js/telegram-web-app.js?63"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="boot-loader" role="status" aria-live="polite" aria-busy="true"><span>Ургъула…</span></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

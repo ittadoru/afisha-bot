@@ -10,7 +10,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
-import { TextBlink } from "@/components/ui/text-blink";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 interface EventMapProps {
   onBack?: () => void;
@@ -250,7 +250,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           <div ref={containerRef} className="map-canvas" />
           {selecting && <span className="fixed-location-marker" aria-label="Центр выбранного места" role="img">●</span>}
           {selecting && <p className="sr-only" aria-live="polite">{address}</p>}
-          {markersLoading && <TextBlink as="div" className="map-loading-text" role="status" aria-live="polite">Собираем события…</TextBlink>}
+          {markersLoading && <LoadingScreen variant="overlay" />}
           {empty && <div className="map-empty-chip">Пока тихо — создайте первое событие</div>}
         </section>
       )}

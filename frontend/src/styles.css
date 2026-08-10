@@ -102,9 +102,11 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .benefit-icon svg { width: 22px; }
 
 .workspace { min-height: 100vh; min-height: 100dvh; background: #f5f1e8; }
-.loading-screen { display: grid; place-items: center; min-height: 100vh; color: var(--muted-foreground); font-weight: 700; }
-.loading-screen-text { color: var(--muted-foreground); font-weight: 700; }
-.loading-screen-description { margin-top: 8px; font-size: 14px; font-weight: 400; opacity: .75; }
+.loading-screen { display: grid; place-items: center; width: 100%; color: var(--muted-foreground); font-weight: 700; text-align: center; }
+.loading-screen--screen { min-height: var(--app-height, 100dvh); padding: var(--mini-safe-top) max(var(--tg-safe-right), env(safe-area-inset-right)) max(var(--tg-safe-bottom), env(safe-area-inset-bottom)) max(var(--tg-safe-left), env(safe-area-inset-left)); }
+.loading-screen--section { min-height: 220px; padding: 24px; }
+.loading-screen--overlay { position: absolute; inset: 0; z-index: 8; min-height: 0; pointer-events: none; }
+.loading-screen-text { color: var(--muted-foreground); font-size: clamp(1.25rem, 5vw, 1.85rem); font-weight: 700; }
 .workspace-header > div { display: flex; flex-direction: column; text-align: center; }
 .workspace-header span { color: var(--muted-foreground); font-size: .85rem; }
 .map-shell { position: relative; height: calc(100dvh - 76px); min-height: 520px; border-top: 1px solid var(--border); }
@@ -1040,7 +1042,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .text-blink, .map-loading-text { animation: none; opacity: 1; }
+  .text-blink, .map-loading-text { animation: none !important; opacity: 1; }
 }
 
 /* Mini App refinement — natural 50 / 20 / 10 / 10 / 10 system */
