@@ -166,6 +166,10 @@ services:
   worker:
     <<: *app
     profiles: ["jobs"]
+    networks:
+      - edge_net
+      - app_net
+      - data_net
     command:
       [
         "/app/.venv/bin/celery",
