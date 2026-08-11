@@ -21,6 +21,8 @@ export interface AccountProfile {
   successful_events?: number;
   upcoming_count?: number;
   completed_count?: number;
+  media_restricted_until?: string | null;
+  text_restricted_until?: string | null;
 }
 
 interface SessionResponse {

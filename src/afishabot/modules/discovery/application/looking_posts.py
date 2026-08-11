@@ -87,7 +87,7 @@ async def looking_post_feed(
                    COALESCE((SELECT count(*) FROM discovery.looking_post_likes l
                       WHERE l.looking_post_id=p.id AND l.active AND l.user_id<>p.author_user_id), 0) AS like_count,
                    COALESCE((SELECT count(*) FROM discovery.looking_post_questions q
-                      WHERE q.looking_post_id=p.id AND q.answer IS NOT NULL), 0) AS question_count,
+                      WHERE q.looking_post_id=p.id AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL), 0) AS question_count,
                    EXISTS(SELECT 1 FROM discovery.looking_post_likes l
                       WHERE l.looking_post_id=p.id AND l.user_id=:viewer AND l.active) AS viewer_liked
             FROM discovery.looking_posts p
@@ -119,7 +119,7 @@ async def looking_post_detail(engine: AsyncEngine, *, post_id: UUID, viewer_id: 
               COALESCE((SELECT count(*) FROM discovery.looking_post_likes l
                 WHERE l.looking_post_id=p.id AND l.active AND l.user_id<>p.author_user_id), 0) AS like_count,
               COALESCE((SELECT count(*) FROM discovery.looking_post_questions q
-                WHERE q.looking_post_id=p.id AND q.answer IS NOT NULL), 0) AS question_count,
+                WHERE q.looking_post_id=p.id AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL), 0) AS question_count,
               EXISTS(SELECT 1 FROM discovery.looking_post_likes l
                 WHERE l.looking_post_id=p.id AND l.user_id=:viewer AND l.active) AS viewer_liked
             FROM discovery.looking_posts p JOIN discovery.cities c ON c.id=p.city_id
@@ -160,7 +160,7 @@ async def questions_for_viewer(
                  pr.public_id,pr.display_name,pr.avatar_asset_id
           FROM discovery.looking_post_questions q
           JOIN accounts.profiles pr ON pr.user_id=q.asker_user_id
-          WHERE q.looking_post_id=:post AND q.answer IS NOT NULL
+          WHERE q.looking_post_id=:post AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL
           ORDER BY q.answered_at,q.id
         """), {"post": post_id})).mappings().all()
         own = (await connection.execute(text("SELECT id,question,created_at FROM discovery.looking_post_questions WHERE looking_post_id=:post AND asker_user_id=:user AND answer IS NULL"), {"post": post_id, "user": viewer_id})).mappings().all()

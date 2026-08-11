@@ -48,6 +48,7 @@ async def test_photo_report_snapshots_avatar_and_background_assets() -> None:
         comment=None,
     )
 
-    parameters = connection.execute.await_args.args[1]
+    parameters = connection.execute.await_args_list[0].args[1]
     assert parameters["avatar"] == avatar_id
     assert parameters["background"] == background_id
+    assert connection.execute.await_count == 4

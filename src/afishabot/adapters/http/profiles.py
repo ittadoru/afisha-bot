@@ -20,6 +20,7 @@ from afishabot.modules.accounts.application.profiles import (
     ProfileConflict,
     ProfileError,
     ProfileNotFound,
+    ProfileRestricted,
     ProfileView,
     account_events,
     create_report,
@@ -54,6 +55,8 @@ class OwnProfileResponse(BaseModel):
     upcoming_count: int
     completed_count: int
     age_confirmed: bool = True
+    media_restricted_until: str | None = None
+    text_restricted_until: str | None = None
 
 
 class PublicProfileResponse(BaseModel):
@@ -197,6 +200,53 @@ def own_response(profile: ProfileView) -> OwnProfileResponse:
     )
 
 
+async def own_response_with_restrictions(
+    engine: AsyncEngine, profile: ProfileView
+) -> OwnProfileResponse:
+    async with engine.connect() as connection:
+        rows = (
+            (
+                await connection.execute(
+                    text("""
+                    SELECT direction,max(ends_at) AS ends_at
+                    FROM trust_safety.profile_restrictions
+                    WHERE user_id=:user AND ends_at>now() GROUP BY direction
+                    """),
+                    {"user": profile.user_id},
+                )
+            )
+            .mappings()
+            .all()
+        )
+    restrictions = {row["direction"]: row["ends_at"] for row in rows}
+    response = own_response(profile)
+    response.media_restricted_until = (
+        restrictions["profile_media"].isoformat()
+        if restrictions.get("profile_media") else None
+    )
+    response.text_restricted_until = (
+        restrictions["profile_text"].isoformat()
+        if restrictions.get("profile_text") else None
+    )
+    return response
+
+
+async def require_profile_media_allowed(engine: AsyncEngine, user_id: UUID) -> None:
+    async with engine.connect() as connection:
+        restricted_until = await connection.scalar(
+            text("""
+            SELECT max(ends_at) FROM trust_safety.profile_restrictions
+            WHERE user_id=:user AND direction='profile_media' AND ends_at>now()
+            """),
+            {"user": user_id},
+        )
+    if restricted_until is not None:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "profile_media_restricted", "restricted_until": restricted_until.isoformat()},
+        )
+
+
 async def _avatar_asset_paths(
     connection: AsyncConnection, *, asset_id: UUID, media_root: Path
 ) -> list[Path]:
@@ -321,8 +371,8 @@ async def get_own_profile(
     request: Request, token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None
 ) -> OwnProfileResponse:
     _, _, engine = dependencies(request)
-    return own_response(
-        await load_profile(engine, user_id=await current_user(request, token))
+    return await own_response_with_restrictions(
+        engine, await load_profile(engine, user_id=await current_user(request, token))
     )
 
 
@@ -344,11 +394,16 @@ async def patch_profile(
             selected_city_id=body.selected_city_id,
             expected_version=body.version,
         )
+    except ProfileRestricted as error:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": error.code, "restricted_until": error.restricted_until.isoformat()},
+        ) from error
     except ProfileConflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ProfileError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return own_response(profile)
+    return await own_response_with_restrictions(engine, profile)
 
 
 @router.patch("/account/profile/city", response_model=OwnProfileResponse)
@@ -371,7 +426,7 @@ async def patch_profile_city(
         raise HTTPException(status_code=409, detail=str(error)) from error
     except ProfileError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
-    return own_response(profile)
+    return await own_response_with_restrictions(engine, profile)
 
 
 @router.get("/profiles/{public_id}", response_model=PublicProfileResponse)
@@ -676,6 +731,7 @@ async def put_avatar(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    await require_profile_media_allowed(engine, user_id)
     if request.headers.get("content-type", "").split(";", 1)[0] not in {
         "image/jpeg",
         "image/png",
@@ -775,7 +831,7 @@ async def put_avatar(
                 )
     for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
-    return own_response(await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
 
 
 @router.delete("/account/avatar", response_model=OwnProfileResponse)
@@ -787,6 +843,7 @@ async def delete_avatar(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    await require_profile_media_allowed(engine, user_id)
     old_paths: list[Path] = []
     async with engine.begin() as connection:
         old = (
@@ -826,7 +883,7 @@ async def delete_avatar(
                 )
     for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
-    return own_response(await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
 
 
 @router.put("/account/profile-background", response_model=OwnProfileResponse)
@@ -838,6 +895,7 @@ async def put_profile_background(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    await require_profile_media_allowed(engine, user_id)
     if request.headers.get("content-type", "").split(";", 1)[0] not in {
         "image/jpeg",
         "image/png",
@@ -925,7 +983,7 @@ async def put_profile_background(
                 old_path = settings.media_root / old["storage_key"]
     if old_path:
         await to_thread.run_sync(old_path.unlink, True)
-    return own_response(await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
 
 
 @router.delete("/account/profile-background", response_model=OwnProfileResponse)
@@ -937,6 +995,7 @@ async def delete_profile_background(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    await require_profile_media_allowed(engine, user_id)
     old_path: Path | None = None
     async with engine.begin() as connection:
         old = (
@@ -980,7 +1039,7 @@ async def delete_profile_background(
                 old_path = settings.media_root / old["storage_key"]
     if old_path:
         await to_thread.run_sync(old_path.unlink, True)
-    return own_response(await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
 
 
 @router.get("/profiles/{public_id}/avatar")

@@ -1,7 +1,8 @@
 """User-facing reports and safe moderation case projections."""
 # ruff: noqa: E501
 
-from datetime import UTC, datetime, timedelta
+import json
+from datetime import UTC, datetime
 from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 
@@ -30,6 +31,7 @@ class ReportBody(BaseModel):
     subject_id: str = Field(min_length=1, max_length=64)
     reason_code: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
     explanation: str | None = Field(default=None, max_length=500)
+    subject_component: Literal["avatar", "background", "bio", "display_name"] | None = None
 
 
 class AppealBody(BaseModel):
@@ -65,7 +67,7 @@ async def _resolve_subject(
     statements = {
         "event": "SELECT id,creator_user_id AS owner,event_scope='community' AS community FROM events.events WHERE id=:id AND lifecycle_status<>'hidden'",
         "looking_post": "SELECT id,author_user_id AS owner,false AS community FROM discovery.looking_posts WHERE id=:id AND status<>'hidden'",
-        "q_and_a_answer": "SELECT q.id,p.author_user_id AS owner,false AS community FROM discovery.looking_post_questions q JOIN discovery.looking_posts p ON p.id=q.looking_post_id WHERE q.id=:id AND q.answer IS NOT NULL",
+        "q_and_a_answer": "SELECT q.id,p.author_user_id AS owner,false AS community FROM discovery.looking_post_questions q JOIN discovery.looking_posts p ON p.id=q.looking_post_id WHERE q.id=:id AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL",
         "attendance": "SELECT ep.id,e.creator_user_id AS owner,false AS community FROM events.participation_episodes ep JOIN events.events e ON e.id=ep.event_id WHERE ep.id=:id",
     }
     row = (
@@ -142,12 +144,30 @@ async def create_report(
                 "case_public_id": duplicate["public_id"],
                 "status": duplicate["status"],
             }
+        component = body.subject_component
+        if body.subject_type != "profile" and component is not None:
+            raise HTTPException(status_code=422, detail="subject_component_not_allowed")
+        if body.subject_type == "profile" and component is None:
+            component = {
+                "photo": "avatar", "display_name": "display_name", "bio": "bio"
+            }.get(body.reason_code)
+        evidence: dict[str, Any] | None = None
+        if body.subject_type == "profile" and component:
+            field = {
+                "avatar": "avatar_asset_id", "background": "background_asset_id",
+                "bio": "bio", "display_name": "display_name",
+            }[component]
+            value = await connection.scalar(
+                text(f"SELECT {field} FROM accounts.profiles WHERE user_id=:id"),
+                {"id": subject["id"]},
+            )
+            evidence = {"component": component, "value": str(value) if value is not None else None}
         case_id, report_id, public_id = uuid4(), uuid4(), _public_id()
         await connection.execute(
             text("""
           INSERT INTO trust_safety.moderation_cases
-            (id,public_id,subject_type,subject_id,subject_owner_user_id)
-          VALUES (:id,:public,:type,:subject,:owner)
+            (id,public_id,subject_type,subject_id,subject_owner_user_id,subject_component)
+          VALUES (:id,:public,:type,:subject,:owner,:component)
         """),
             {
                 "id": case_id,
@@ -155,13 +175,14 @@ async def create_report(
                 "type": body.subject_type,
                 "subject": subject["id"],
                 "owner": subject["owner"],
+                "component": component,
             },
         )
         await connection.execute(
             text("""
           INSERT INTO trust_safety.reports
-            (id,case_id,reporter_user_id,reason_code,explanation,idempotency_key)
-          VALUES (:id,:case,:reporter,:reason,:explanation,:key)
+            (id,case_id,reporter_user_id,reason_code,explanation,idempotency_key,evidence_snapshot)
+          VALUES (:id,:case,:reporter,:reason,:explanation,:key,CAST(:evidence AS jsonb))
         """),
             {
                 "id": report_id,
@@ -170,6 +191,7 @@ async def create_report(
                 "reason": body.reason_code,
                 "explanation": body.explanation,
                 "key": idempotency_key,
+                "evidence": json.dumps(evidence) if evidence else None,
             },
         )
         await connection.execute(
@@ -190,8 +212,11 @@ async def cases_feed(
 ) -> dict[str, object]:
     user_id = await current_user(request, token)
     _, _, engine = dependencies(request)
+    open_appeal = "EXISTS (SELECT 1 FROM trust_safety.appeals a WHERE a.case_id=c.id AND a.status IN ('submitted','reviewing'))"
     condition = (
-        "c.status='resolved'" if status == "resolved" else "c.status<>'resolved'"
+        f"c.status='resolved' AND NOT {open_appeal}"
+        if status == "resolved"
+        else f"(c.status<>'resolved' OR {open_appeal})"
     )
     async with engine.connect() as connection:
         rows = (
@@ -230,7 +255,7 @@ async def case_detail(
             (
                 await connection.execute(
                     text("""
-          SELECT DISTINCT c.id,c.public_id,c.subject_type,c.status,c.created_at,c.resolved_at,
+          SELECT DISTINCT c.id,c.public_id,c.subject_type,c.status,c.created_at,c.resolved_at,c.appeal_deadline,
             EXISTS(SELECT 1 FROM trust_safety.reports r2 WHERE r2.case_id=c.id AND r2.reporter_user_id=:user) AS is_reporter,
             c.subject_owner_user_id=:user AS is_subject_owner
           FROM trust_safety.moderation_cases c LEFT JOIN trust_safety.reports r ON r.case_id=c.id
@@ -262,8 +287,8 @@ async def case_detail(
     result["timeline"] = [dict(row) for row in timeline]
     result["can_appeal"] = bool(
         case["is_subject_owner"]
-        and case["resolved_at"]
-        and datetime.now(UTC) <= case["resolved_at"] + timedelta(days=3)
+        and case["appeal_deadline"]
+        and datetime.now(UTC) <= case["appeal_deadline"]
     )
     return result
 
@@ -284,7 +309,7 @@ async def appeal_case(
             (
                 await connection.execute(
                     text("""
-          SELECT id,resolved_at FROM trust_safety.moderation_cases
+          SELECT id,resolved_at,appeal_deadline FROM trust_safety.moderation_cases
           WHERE public_id=:public AND subject_owner_user_id=:user AND status='resolved' FOR UPDATE
         """),
                     {"public": case_public_id, "user": user_id},
@@ -295,9 +320,7 @@ async def appeal_case(
         )
         if case is None:
             raise HTTPException(status_code=404, detail="case_not_found")
-        if case["resolved_at"] is None or datetime.now(UTC) > case[
-            "resolved_at"
-        ] + timedelta(days=3):
+        if case["appeal_deadline"] is None or datetime.now(UTC) > case["appeal_deadline"]:
             raise HTTPException(status_code=409, detail="appeal_window_closed")
         exists = await connection.scalar(
             text(

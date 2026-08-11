@@ -25,6 +25,13 @@ class ProfileConflict(ProfileError):
     pass
 
 
+class ProfileRestricted(ProfileError):
+    def __init__(self, code: str, restricted_until: datetime) -> None:
+        super().__init__(code)
+        self.code = code
+        self.restricted_until = restricted_until
+
+
 @dataclass(frozen=True, slots=True)
 class ProfileView:
     user_id: UUID
@@ -164,6 +171,15 @@ async def update_profile(
     name = normalize_display_name(display_name)
     about = normalize_bio(bio)
     async with engine.begin() as connection:
+        restricted_until = await connection.scalar(
+            text("""
+            SELECT max(ends_at) FROM trust_safety.profile_restrictions
+            WHERE user_id=:id AND direction='profile_text' AND ends_at>now()
+            """),
+            {"id": user_id},
+        )
+        if restricted_until is not None:
+            raise ProfileRestricted("profile_text_restricted", restricted_until)
         row = (
             (
                 await connection.execute(
@@ -255,6 +271,7 @@ async def create_report(
         raise ProfileError("cannot_report_self")
     try:
         async with engine.begin() as connection:
+            case_id = uuid4()
             await connection.execute(
                 text(
                     """INSERT INTO trust_safety.profile_reports
@@ -264,7 +281,7 @@ async def create_report(
                     (:id,:reporter,:subject,:reason,:comment,:avatar,:background)"""
                 ),
                 {
-                    "id": uuid4(),
+                    "id": case_id,
                     "reporter": reporter_id,
                     "subject": subject.user_id,
                     "reason": reason,
@@ -272,6 +289,53 @@ async def create_report(
                     "avatar": subject.avatar_asset_id,
                     "background": subject.background_asset_id,
                 },
+            )
+            component = {
+                "photo": "avatar",
+                "display_name": "display_name",
+                "bio": "bio",
+            }.get(reason)
+            evidence_value = {
+                "avatar": subject.avatar_asset_id,
+                "display_name": subject.display_name,
+                "bio": subject.bio,
+            }.get(component or "")
+            await connection.execute(
+                text("""
+                INSERT INTO trust_safety.moderation_cases
+                  (id,public_id,subject_type,subject_id,subject_owner_user_id,
+                   subject_component,status)
+                VALUES (:id,:public,'profile',:subject,:subject,:component,'received')
+                """),
+                {
+                    "id": case_id,
+                    "public": f"PV-{case_id.hex[:8].upper()}",
+                    "subject": subject.user_id,
+                    "component": component,
+                },
+            )
+            await connection.execute(
+                text("""
+                INSERT INTO trust_safety.reports
+                  (id,case_id,reporter_user_id,reason_code,explanation,
+                   idempotency_key,evidence_snapshot)
+                VALUES (:id,:case,:reporter,:reason,:note,:key,
+                  jsonb_build_object('component',:component,'value',:evidence))
+                """),
+                {
+                    "id": uuid4(), "case": case_id, "reporter": reporter_id,
+                    "reason": reason, "note": note, "key": uuid4(),
+                    "component": component,
+                    "evidence": str(evidence_value) if evidence_value is not None else None,
+                },
+            )
+            await connection.execute(
+                text("""
+                INSERT INTO trust_safety.case_timeline_entries
+                  (id,case_id,event_type,public_label)
+                VALUES (:id,:case,'received','Обращение получено')
+                """),
+                {"id": uuid4(), "case": case_id},
             )
     except IntegrityError as error:
         raise ProfileConflict("report_already_open") from error

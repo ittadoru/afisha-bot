@@ -15,6 +15,11 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 
 from afishabot.adapters.tasks.celery_app import estimate_storage_savings_task
 from afishabot.core.config import Settings
+from afishabot.modules.discovery.application.street_anchors import (
+    StreetAnchorError,
+    create_staff_street_anchor_in_transaction,
+    street_key,
+)
 from afishabot.modules.events.application.manage_event import (
     CancelReason,
     EventManagementConflict,
@@ -30,6 +35,16 @@ from afishabot.modules.media.application.storage_analysis import (
 from afishabot.modules.media.application.storage_analysis import (
     latest as latest_storage_analysis,
 )
+from afishabot.modules.trust_safety.application.case_moderation import (
+    CaseModerationError,
+    decide_appeal,
+    decide_case,
+    moderation_counts,
+    moderation_queue,
+)
+from afishabot.modules.trust_safety.application.case_moderation import (
+    case_detail as moderation_case_detail,
+)
 from afishabot.modules.trust_safety.application.event_moderation import (
     ModerationConflict,
     ModerationNotFound,
@@ -37,11 +52,6 @@ from afishabot.modules.trust_safety.application.event_moderation import (
     decide_review,
     review_detail,
     review_queue,
-)
-from afishabot.modules.discovery.application.street_anchors import (
-    StreetAnchorError,
-    create_staff_street_anchor_in_transaction,
-    street_key,
 )
 from afishabot.modules.trust_safety.application.staff_admin import (
     AdminAuthBlocked,
@@ -128,6 +138,23 @@ class ImageAnalysisResponse(BaseModel):
 
 class ImageEstimateQueuedResponse(BaseModel):
     job_id: UUID
+
+
+class CaseDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["dismiss", "hide_content"]
+    subject_component: Literal["avatar", "background", "bio", "display_name"] | None = None
+    staff_note: str = Field(min_length=2, max_length=1000)
+    expected_version: int = Field(ge=1)
+
+
+class AppealDecisionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["upheld", "reversed"]
+    staff_note: str = Field(min_length=2, max_length=1000)
+    expected_version: int = Field(ge=1)
     status: Literal["queued"] = "queued"
 
 
@@ -484,6 +511,122 @@ async def audit(
         items=items,
         next_before=items[-1].created_at if len(items) == 50 else None,
     )
+
+
+@router.get("/moderation/counts")
+async def get_moderation_counts(
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, int]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    return await moderation_counts(engine)
+
+
+@router.get("/moderation/cases")
+async def get_moderation_cases(
+    request: Request,
+    queue: Literal["reports", "appeals"],
+    status: Literal["open"] = "open",
+    cursor: datetime | None = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    del status
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    rows = await moderation_queue(
+        engine, queue=queue, limit=limit + 1, before=cursor
+    )
+    items = rows[:limit]
+    next_cursor = None
+    if len(rows) > limit and items:
+        value = items[-1]["appeal_created_at"] or items[-1]["created_at"]
+        next_cursor = value.isoformat()
+    return {"items": items, "next_cursor": next_cursor}
+
+
+@router.get("/moderation/cases/{case_public_id}")
+async def get_moderation_case_detail(
+    case_public_id: str,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> dict[str, object]:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    try:
+        return await moderation_case_detail(engine, case_public_id)
+    except CaseModerationError as error:
+        raise _error(404, str(error)) from error
+
+
+@router.post("/moderation/cases/{case_public_id}/decision", status_code=204)
+async def post_moderation_case_decision(
+    case_public_id: str,
+    body: CaseDecisionRequest,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
+) -> None:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    if idempotency_key is None:
+        raise _error(400, "idempotency_key_required")
+    identity = await load_staff_mutation_session(
+        engine, token=session_token, csrf_token=csrf_token,
+        auth_secret=_required_secret(settings)
+    )
+    if identity is None:
+        raise _error(401, "admin_session_required")
+    try:
+        await decide_case(
+            engine, public_id=case_public_id, actor_staff_id=identity.id,
+            decision=body.decision, component=body.subject_component,
+            staff_note=body.staff_note, expected_version=body.expected_version,
+            idempotency_key=idempotency_key,
+        )
+    except CaseModerationError as error:
+        code = str(error)
+        raise _error(409 if code == "case_version_conflict" else 422, code) from error
+
+
+@router.post("/moderation/cases/{case_public_id}/appeal-decision", status_code=204)
+async def post_moderation_appeal_decision(
+    case_public_id: str,
+    body: AppealDecisionRequest,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+    idempotency_key: Annotated[UUID | None, Header(alias="Idempotency-Key")] = None,
+) -> None:
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings, require_origin=True)
+    if session_token is None or csrf_token is None:
+        raise _error(401, "admin_session_required")
+    if idempotency_key is None:
+        raise _error(400, "idempotency_key_required")
+    identity = await load_staff_mutation_session(
+        engine, token=session_token, csrf_token=csrf_token,
+        auth_secret=_required_secret(settings)
+    )
+    if identity is None:
+        raise _error(401, "admin_session_required")
+    try:
+        await decide_appeal(
+            engine, public_id=case_public_id, actor_staff_id=identity.id,
+            decision=body.decision, staff_note=body.staff_note,
+            expected_version=body.expected_version,
+            idempotency_key=idempotency_key,
+        )
+    except CaseModerationError as error:
+        code = str(error)
+        raise _error(409 if code == "case_version_conflict" else 422, code) from error
 
 
 @router.get("/events/reviews")

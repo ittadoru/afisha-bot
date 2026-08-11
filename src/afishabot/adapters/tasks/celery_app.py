@@ -10,6 +10,10 @@ from afishabot.modules.communication.application.telegram_dispatch import (
 from afishabot.modules.discovery.application.looking_posts import expire_looking_posts
 from afishabot.modules.events.application.manage_event import finish_due_events
 from afishabot.modules.media.application.storage_analysis import estimate_savings
+from afishabot.modules.trust_safety.application.case_moderation import (
+    confirm_due_violations,
+    purge_expired_evidence,
+)
 
 
 def create_celery_app(settings: Settings | None = None) -> Celery:
@@ -28,6 +32,14 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
             "dispatch-telegram-notifications": {
                 "task": "afishabot.communication.dispatch_tg",
                 "schedule": 30.0,
+            },
+            "confirm-profile-violations": {
+                "task": "afishabot.trust_safety.confirm_profile_violations",
+                "schedule": 60.0,
+            },
+            "purge-expired-moderation-evidence": {
+                "task": "afishabot.trust_safety.purge_expired_evidence",
+                "schedule": 86400.0,
             },
         },
         broker_connection_retry_on_startup=True,
@@ -74,6 +86,31 @@ def dispatch_tg_notifications_task() -> int:
         engine = create_database_engine(Settings().database_dsn())
         try:
             return await dispatch_telegram_notifications(engine)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+@celery_app.task(name="afishabot.trust_safety.confirm_profile_violations")
+def confirm_profile_violations_task() -> int:
+    async def run() -> int:
+        engine = create_database_engine(Settings().database_dsn())
+        try:
+            return await confirm_due_violations(engine)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+@celery_app.task(name="afishabot.trust_safety.purge_expired_evidence")
+def purge_expired_evidence_task() -> int:
+    async def run() -> int:
+        settings = Settings()
+        engine = create_database_engine(settings.database_dsn())
+        try:
+            return await purge_expired_evidence(engine, settings.media_root)
         finally:
             await engine.dispose()
 

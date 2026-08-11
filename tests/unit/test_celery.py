@@ -26,5 +26,13 @@ def test_celery_has_no_results_and_only_approved_schedule(settings: Settings) ->
             "task": "afishabot.communication.dispatch_tg",
             "schedule": 30.0,
         },
+        "confirm-profile-violations": {
+            "task": "afishabot.trust_safety.confirm_profile_violations",
+            "schedule": 60.0,
+        },
+        "purge-expired-moderation-evidence": {
+            "task": "afishabot.trust_safety.purge_expired_evidence",
+            "schedule": 86400.0,
+        },
     }
     assert configuration["task_ignore_result"] is True

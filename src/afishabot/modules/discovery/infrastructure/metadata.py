@@ -63,6 +63,7 @@ looking_post_questions = Table(
     Column("question", String(200), nullable=False),
     Column("answer", String(300)),
     Column("answered_at", DateTime(timezone=True)),
+    Column("answer_hidden_at", DateTime(timezone=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("delete_after", DateTime(timezone=True)),
 )

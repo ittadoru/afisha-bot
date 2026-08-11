@@ -11,6 +11,9 @@ import {
   MapPinned,
   UserCog,
   Users,
+  Flag,
+  Gavel,
+  X,
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
@@ -41,6 +44,10 @@ type SystemMetrics = { collected_at: string; disk: { size_bytes: number; used_by
 type ImageBreakdown = { name: string; file_count: number; total_bytes: number; percent?: number };
 type ImageEstimate = { quality: number; sample_file_count: number; sample_bytes: number; sample_saved_bytes: number; sample_saved_percent: number; eligible_bytes: number; estimated_saved_bytes: number };
 type ImageAnalysis = { collected_at: string; source: "database"; file_count: number; total_bytes: number; permanent_file_count: number; permanent_bytes: number; temporary_file_count: number; temporary_bytes: number; formats: ImageBreakdown[]; purposes: ImageBreakdown[]; directories: ImageBreakdown[]; estimate_status: "idle" | "queued" | "running" | "completed" | "failed"; estimate_job_id: string | null; estimate_collected_at: string | null; estimate: ImageEstimate | null };
+type ModerationQueue = "events" | "reports" | "appeals";
+type ModerationCounts = { events: number; reports: number; appeals: number };
+type ModerationCase = { public_id: string; subject_type: string; subject_component: string | null; priority: string; version: number; created_at: string; updated_at: string; reason_code: string | null; appeal_created_at: string | null; appeal_status: string | null };
+type ModerationCaseDetail = ModerationCase & { status: string; explanation: string | null; evidence_snapshot: Record<string, unknown> | null; subject: Record<string, unknown> | null; previous_violations: number; timeline: Array<{ event_type: string; public_label: string; created_at: string }>; decisions: Array<{ decision_type: string; subject_component: string | null; staff_note: string; actor: string; created_at: string }>; appeal: { status: string; explanation: string; created_at: string } | null };
 
 const csrfHeader = "X-Afisha-Admin-CSRF";
 
@@ -133,7 +140,15 @@ function AdminLogin({ notice, onLogin }: { notice: string; onLogin: (staff: Staf
 }
 
 function AdminShell({ staff, csrf, onCsrf, renewCsrf, onExpire, onLogout }: { staff: Staff; csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; onLogout: () => void }) {
-  const [view, setView] = useState<View>("dashboard");
+  const requestedView = new URLSearchParams(window.location.search).get("view") as View | null;
+  const [view, setViewState] = useState<View>(requestedView && ["dashboard", "moderation", "streets", "special", "audit"].includes(requestedView) ? requestedView : "dashboard");
+  const setView = (next: View) => {
+    setViewState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", next);
+    if (next !== "moderation") url.searchParams.delete("queue");
+    window.history.replaceState(null, "", url);
+  };
 
   const logout = async () => {
     try { await api("/auth/logout", { method: "POST", headers: { [csrfHeader]: csrf } }); }
@@ -385,7 +400,26 @@ const rejectionReasons = [
   ["invalid_place_or_time", "Неверное место или время"], ["duplicate_or_spam", "Дубликат или спам"],
 ] as const;
 
-function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void }) {
+function Moderation(props: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void }) {
+  const requested = new URLSearchParams(window.location.search).get("queue") as ModerationQueue | null;
+  const [queue, setQueueState] = useState<ModerationQueue>(requested && ["events", "reports", "appeals"].includes(requested) ? requested : "events");
+  const [counts, setCounts] = useState<ModerationCounts>({ events: 0, reports: 0, appeals: 0 });
+  const loadCounts = useCallback(async () => {
+    try { setCounts((await api<ModerationCounts>("/moderation/counts")).data); }
+    catch (error) { if (error instanceof AdminApiError && error.status === 401) props.onExpire(); }
+  }, [props.onExpire]);
+  useEffect(() => { void loadCounts(); }, [loadCounts]);
+  const setQueue = (next: ModerationQueue) => {
+    setQueueState(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set("view", "moderation");
+    url.searchParams.set("queue", next);
+    window.history.replaceState(null, "", url);
+  };
+  return <section className="admin-moderation"><header className="admin-page-header"><div><p>Очереди безопасности и качества</p><h1>Модерация</h1></div></header><div className="admin-tabs" role="tablist" aria-label="Очереди модерации">{(["events", "reports", "appeals"] as const).map((item) => <button key={item} type="button" role="tab" aria-selected={queue === item} className={queue === item ? "active" : ""} onClick={() => setQueue(item)}>{item === "events" ? <ClipboardCheck /> : item === "reports" ? <Flag /> : <Gavel />}<span>{item === "events" ? "События" : item === "reports" ? "Жалобы" : "Апелляции"}</span><b>{counts[item]}</b></button>)}</div>{queue === "events" ? <EventModeration {...props} onChanged={loadCounts} /> : <CaseModeration queue={queue} {...props} onChanged={loadCounts} />}</section>;
+}
+
+function EventModeration({ csrf, onCsrf, renewCsrf, onExpire, onChanged }: { csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; onChanged: () => Promise<void> }) {
   const [items, setItems] = useState<Review[] | null>(null);
   const [selected, setSelected] = useState<ReviewDetail | null>(null);
   const [failed, setFailed] = useState(false);
@@ -423,16 +457,66 @@ function Moderation({ csrf, onCsrf, renewCsrf, onExpire }: { csrf: string; onCsr
       let result: { data: undefined; response: Response };
       try { result = await request(csrf); }
       catch (error) { if (!(error instanceof AdminApiError) || error.status !== 401) throw error; result = await request(await renewCsrf()); }
-      onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await load();
+      onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await load(); await onChanged();
       setDecisionMessage(action === "approve" ? "Событие одобрено и опубликовано." : "Событие отклонено, автор получит причину.");
     } catch (error) { if (error instanceof AdminApiError && error.status === 401) onExpire(); else setDecisionError(moderationErrorMessage(error)); }
     finally { setBusy(null); }
   };
-  return <section><header className="admin-page-header"><div><p>Проверка пользовательских событий</p><h1>Модерация</h1></div>{items && <span className="admin-live">{items.length} ожидают</span>}</header>{decisionMessage && <p className="success-message" role="status">{decisionMessage}</p>}
+  return <section className="admin-queue-panel">{decisionMessage && <p className="success-message" role="status">{decisionMessage}</p>}
     {failed ? <AdminEmpty title="Очередь недоступна" text="Обновите страницу и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !items.length ? <AdminEmpty title="Очередь пуста" text="Новых событий на проверке нет." /> : <div className="admin-table-wrap"><table><thead><tr><th>Событие</th><th>Автор</th><th>Город</th><th>Начало</th><th /></tr></thead><tbody>{items.map((item) => <tr key={item.id}><td>{item.title}</td><td>{item.display_name}</td><td>{item.city}</td><td>{new Date(item.starts_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" disabled={busy !== null} onClick={() => void open(item)}>Проверить</button></td></tr>)}</tbody></table></div>}
     {selected && <div className="admin-modal-backdrop" role="presentation"><section className="admin-review" role="dialog" aria-modal="true" aria-label="Проверка события"><button className="admin-close" onClick={() => setSelected(null)} aria-label="Закрыть">×</button><p>Событие от {selected.display_name} · ID {selected.public_id}</p><h2>{selected.title}</h2><img src={selected.photo_url} alt="Фото события" /><dl><div><dt>Категория</dt><dd>{selected.category}</dd></div><div><dt>Город</dt><dd>{selected.city}</dd></div><div><dt>Время</dt><dd>{new Date(selected.starts_at).toLocaleString("ru-RU")} — {new Date(selected.ends_at).toLocaleString("ru-RU")}</dd></div><div><dt>Адрес карты</dt><dd>{selected.normalized_address}</dd></div>{selected.organizer_street && <div><dt>Улица организатора</dt><dd>{selected.organizer_street}</dd></div>}{selected.organizer_place && <div><dt>Дом, место или ориентир</dt><dd>{selected.organizer_place}</dd></div>}{selected.organizer_address && <div><dt>Адрес для карточки</dt><dd>{selected.organizer_address}</dd></div>}<div><dt>Видимость</dt><dd>{visibilityLabel(selected.address_visibility)}</dd></div><div><dt>Лимит</dt><dd>{selected.capacity ?? "Без ограничения"}</dd></div></dl><h3>Описание</h3><p className="admin-review-description">{selected.description}</p>{selected.address_visibility !== "exact_public" && <fieldset className="admin-anchor-choice"><legend>Общая метка улицы</legend><p className="admin-muted">Точная точка события видна только модераторам. Публичной станет приблизительная точка улицы.</p><label><input type="radio" checked={!newAnchor} onChange={() => setNewAnchor(false)} /> Выбрать существующую</label><select value={anchorId} disabled={newAnchor} onChange={(event) => setAnchorId(event.target.value)}><option value="">Выберите улицу</option>{anchors.map((anchor) => <option value={anchor.id} key={anchor.id}>{anchor.display_name} · {anchor.active_event_count} активных</option>)}</select><label><input type="radio" checked={newAnchor} onChange={() => setNewAnchor(true)} /> Создать новую</label>{newAnchor && <div className="admin-anchor-fields"><label>Название улицы<input value={anchorName} maxLength={200} onChange={(event) => setAnchorName(event.target.value)} /></label><label>Широта примерной точки<input value={anchorLatitude} inputMode="decimal" onChange={(event) => setAnchorLatitude(event.target.value)} /></label><label>Долгота примерной точки<input value={anchorLongitude} inputMode="decimal" onChange={(event) => setAnchorLongitude(event.target.value)} /></label><small>Поставьте приблизительную точку улицы; она не должна совпадать с точным местом события.</small></div>}</fieldset>}{decisionError && <p className="admin-form-error" role="alert">{decisionError}</p>}<div className="admin-review-actions"><button className="admin-approve" disabled={busy !== null} onClick={() => void decide("approve")}>{busy === "approve" ? "Одобряем…" : "Одобрить"}</button><div className="admin-reject-group"><select value={reason} disabled={busy !== null} onChange={(event) => setReason(event.target.value as typeof reason)} aria-label="Причина отклонения">{rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><button className="admin-reject" disabled={busy !== null} onClick={() => void decide("reject")}>{busy === "reject" ? "Отклоняем…" : "Отклонить"}</button></div></div></section></div>}
   </section>;
 }
+
+function CaseModeration({ queue, csrf, onCsrf, renewCsrf, onExpire, onChanged }: { queue: "reports" | "appeals"; csrf: string; onCsrf: (value: string) => void; renewCsrf: () => Promise<string>; onExpire: () => void; onChanged: () => Promise<void> }) {
+  const [items, setItems] = useState<ModerationCase[] | null>(null);
+  const [selected, setSelected] = useState<ModerationCaseDetail | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [note, setNote] = useState("");
+  const [component, setComponent] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setItems(null); setFailed(false);
+    try { setItems((await api<{ items: ModerationCase[] }>(`/moderation/cases?queue=${queue}&status=open`)).data.items); }
+    catch (reason) { if (reason instanceof AdminApiError && reason.status === 401) onExpire(); else { setItems([]); setFailed(true); } }
+  }, [onExpire, queue]);
+  useEffect(() => { void load(); setSelected(null); }, [load]);
+  useEffect(() => {
+    if (!selected) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape" && !busy) setSelected(null); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [busy, selected]);
+  const open = async (item: ModerationCase) => {
+    setError(""); setNote(""); setComponent(item.subject_component ?? "");
+    try { setSelected((await api<ModerationCaseDetail>(`/moderation/cases/${item.public_id}`)).data); }
+    catch { setError("Не удалось открыть обращение."); }
+  };
+  const submit = async (decision: "dismiss" | "hide_content" | "upheld" | "reversed") => {
+    if (!selected || !note.trim()) return;
+    if (decision === "hide_content" && selected.subject_type === "profile" && !component) { setError("Выберите часть профиля, которую нужно скрыть."); return; }
+    setBusy(true); setError("");
+    const endpoint = queue === "appeals" ? "appeal-decision" : "decision";
+    const payload = queue === "appeals" ? { decision, staff_note: note.trim(), expected_version: selected.version } : { decision, subject_component: component || null, staff_note: note.trim(), expected_version: selected.version };
+    const request = async (token: string) => api(`/moderation/cases/${selected.public_id}/${endpoint}`, { method: "POST", headers: { "Content-Type": "application/json", [csrfHeader]: token, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(payload) });
+    try {
+      let result;
+      try { result = await request(csrf); } catch (reason) { if (!(reason instanceof AdminApiError) || reason.status !== 401) throw reason; result = await request(await renewCsrf()); }
+      onCsrf(result.response.headers.get(csrfHeader) ?? ""); setSelected(null); await Promise.all([load(), onChanged()]);
+    } catch (reason) { setError(reason instanceof AdminApiError && reason.status === 409 ? "Обращение уже изменилось. Обновите очередь." : "Не удалось сохранить решение."); }
+    finally { setBusy(false); }
+  };
+  const filtered = (items ?? []).filter((item) => (typeFilter === "all" || item.subject_type === typeFilter) && (priorityFilter === "all" || item.priority === priorityFilter));
+  return <section className="admin-queue-panel"><div className="admin-filters"><label>Объект<select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="all">Все</option><option value="event">События</option><option value="profile">Профили</option><option value="looking_post">Идеи</option><option value="q_and_a_answer">Ответы</option></select></label><label>Приоритет<select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option value="all">Любой</option><option value="critical">Критический</option><option value="high">Высокий</option><option value="normal">Обычный</option></select></label><button className="admin-table-action" type="button" onClick={() => void load()}>Обновить</button></div>{failed ? <AdminEmpty title="Очередь недоступна" text="Проверьте соединение и попробуйте снова." /> : items === null ? <AdminStatus text="Загружаем очередь…" /> : !filtered.length ? <AdminEmpty title="Очередь пуста" text={queue === "reports" ? "Новых жалоб нет." : "Апелляций на рассмотрении нет."} /> : <div className="admin-table-wrap"><table><thead><tr><th>Номер</th><th>Объект</th><th>Причина</th><th>Приоритет</th><th>Ожидает с</th><th /></tr></thead><tbody>{filtered.map((item) => <tr key={item.public_id}><td><strong>{item.public_id}</strong></td><td>{subjectLabel(item.subject_type)}</td><td>{reasonLabel(item.reason_code)}</td><td><span className={`admin-priority ${item.priority}`}>{priorityLabel(item.priority)}</span></td><td>{new Date(item.appeal_created_at ?? item.created_at).toLocaleString("ru-RU")}</td><td><button className="admin-table-action" onClick={() => void open(item)}>Открыть</button></td></tr>)}</tbody></table></div>}{error && !selected && <p className="admin-form-error" role="alert">{error}</p>}{selected && <div className="admin-drawer-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) setSelected(null); }}><aside className="admin-case-drawer" role="dialog" aria-modal="true" aria-labelledby="case-title"><button className="admin-close" type="button" disabled={busy} onClick={() => setSelected(null)} aria-label="Закрыть"><X /></button><p className="admin-kicker">{subjectLabel(selected.subject_type)} · {priorityLabel(selected.priority)}</p><h2 id="case-title">{selected.public_id}</h2><dl><div><dt>Причина</dt><dd>{reasonLabel(selected.reason_code)}</dd></div><div><dt>Компонент</dt><dd>{componentLabel(selected.subject_component) || "Не определён"}</dd></div><div><dt>Предыдущие нарушения</dt><dd>{selected.previous_violations}</dd></div></dl>{selected.explanation && <section><h3>Пояснение пользователя</h3><p className="admin-case-text">{selected.explanation}</p></section>}<section><h3>Безопасная проекция объекта</h3><pre className="admin-case-snapshot">{JSON.stringify(selected.subject ?? selected.evidence_snapshot ?? {}, null, 2)}</pre></section>{selected.appeal && <section><h3>Апелляция</h3><p className="admin-case-text">{selected.appeal.explanation}</p></section>}<section><h3>История</h3><ol className="admin-case-timeline">{selected.timeline.map((entry) => <li key={`${entry.event_type}-${entry.created_at}`}><span /><div><strong>{entry.public_label}</strong><small>{new Date(entry.created_at).toLocaleString("ru-RU")}</small></div></li>)}</ol></section><label className="admin-case-note">Внутренняя заметка<textarea autoFocus maxLength={1000} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Обоснование решения — не показывается пользователю" /></label>{queue === "reports" && selected.subject_type === "profile" && <label className="admin-case-note">Часть профиля<select value={component} onChange={(event) => setComponent(event.target.value)}><option value="">Выберите</option><option value="avatar">Аватар</option><option value="background">Фон</option><option value="bio">Описание</option><option value="display_name">Имя</option></select></label>}{error && <p className="admin-form-error" role="alert">{error}</p>}<div className="admin-case-actions">{queue === "reports" ? <><button className="admin-ghost-decision" disabled={busy || !note.trim()} onClick={() => void submit("dismiss")}>Отклонить жалобу</button><button className="admin-danger-decision" disabled={busy || !note.trim()} onClick={() => void submit("hide_content")}>Скрыть контент</button></> : <><button className="admin-ghost-decision" disabled={busy || !note.trim()} onClick={() => void submit("reversed")}>Отменить решение</button><button className="admin-approve" disabled={busy || !note.trim()} onClick={() => void submit("upheld")}>Оставить в силе</button></>}</div></aside></div>}</section>;
+}
+
+function subjectLabel(value: string) { return ({ event: "Событие", profile: "Профиль", looking_post: "Идея", q_and_a_answer: "Ответ", attendance: "Посещение" } as Record<string, string>)[value] ?? value; }
+function componentLabel(value: string | null) { return ({ avatar: "Аватар", background: "Фон", bio: "Описание", display_name: "Имя" } as Record<string, string>)[value ?? ""] ?? ""; }
+function priorityLabel(value: string) { return ({ critical: "Критический", high: "Высокий", normal: "Обычный" } as Record<string, string>)[value] ?? value; }
+function reasonLabel(value: string | null) { return ({ photo: "Фотография", display_name: "Имя", bio: "Описание", safety_risk: "Угроза безопасности", misleading: "Вводящие в заблуждение данные", spam_or_commerce: "Спам или коммерция", inappropriate_content: "Недопустимый контент", other: "Другое" } as Record<string, string>)[value ?? ""] ?? value ?? "Не указана"; }
 
 function Streets({ csrf, onExpire }: { csrf: string; onExpire: () => void }) {
   const [cities, setCities] = useState<CityOption[]>([]); const [cityId, setCityId] = useState("");
