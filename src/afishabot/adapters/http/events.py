@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated, Literal, cast
@@ -20,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import text
 
 from afishabot.adapters.http.auth import CSRF_HEADER, SESSION_COOKIE
+from afishabot.adapters.http.middleware import REQUEST_ID
 from afishabot.adapters.http.profiles import (
     auth_secret,
     current_user,
@@ -71,7 +73,27 @@ from afishabot.modules.events.application.public_discovery import (
     event_photo_key,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+def _event_creation_http_error(
+    *,
+    stage: str,
+    reason: str,
+    city_id: UUID,
+    status_code: int = status.HTTP_422_UNPROCESSABLE_CONTENT,
+) -> HTTPException:
+    extra = {
+        "stage": stage,
+        "reason": reason,
+        "city_id": str(city_id),
+    }
+    request_id = REQUEST_ID.get()
+    if request_id is not None:
+        extra["request_id"] = request_id
+    logger.warning("event_creation_rejected", extra=extra)
+    return HTTPException(status_code=status_code, detail=reason)
 
 
 class CreateEventRequest(BaseModel):
@@ -206,9 +228,10 @@ async def submit_event(
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
     if not body.address_confirmed:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="address_confirmation_required",
+        raise _event_creation_http_error(
+            stage="request_validation",
+            reason="address_confirmation_required",
+            city_id=body.city_id,
         )
     serialized = json.dumps(
         body.model_dump(mode="json"),
@@ -225,7 +248,12 @@ async def submit_event(
             request_fingerprint=fingerprint,
         )
     except EventCreationConflict as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+        raise _event_creation_http_error(
+            stage="idempotency_lookup",
+            reason=str(error),
+            city_id=body.city_id,
+            status_code=status.HTTP_409_CONFLICT,
+        ) from error
     if previous is not None:
         return CreateEventResponse(
             event_id=previous.event_id,
@@ -253,9 +281,17 @@ async def submit_event(
             },
         )
     if inside_service_area is None:
-        raise HTTPException(status_code=422, detail="city_not_available")
+        raise _event_creation_http_error(
+            stage="service_area",
+            reason="city_not_available",
+            city_id=body.city_id,
+        )
     if not inside_service_area:
-        raise HTTPException(status_code=422, detail="point_outside_city_area")
+        raise _event_creation_http_error(
+            stage="service_area",
+            reason="point_outside_city_area",
+            city_id=body.city_id,
+        )
 
     geocoder = cast(NominatimReverseGeocoder, request.app.state.reverse_geocoder)
     try:
@@ -265,14 +301,17 @@ async def submit_event(
             locale="ru",
         )
     except ReverseGeocodingNotFound as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="address_not_found",
+        raise _event_creation_http_error(
+            stage="reverse_geocoding",
+            reason="address_not_found",
+            city_id=body.city_id,
         ) from error
     except (ReverseGeocodingUnavailable, ReverseGeocodingMalformed) as error:
-        raise HTTPException(
+        raise _event_creation_http_error(
+            stage="reverse_geocoding",
+            reason="address_unavailable",
+            city_id=body.city_id,
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="address_unavailable",
         ) from error
 
     organizer_address = f"{body.address_place}, {body.address_street}"
@@ -301,9 +340,18 @@ async def submit_event(
             ),
         )
     except EventCreationConflict as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
+        raise _event_creation_http_error(
+            stage="create_event",
+            reason=str(error),
+            city_id=body.city_id,
+            status_code=status.HTTP_409_CONFLICT,
+        ) from error
     except EventCreationError as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
+        raise _event_creation_http_error(
+            stage="create_event",
+            reason=str(error),
+            city_id=body.city_id,
+        ) from error
     return CreateEventResponse(
         event_id=created.event_id,
         status=created.publication_status,
