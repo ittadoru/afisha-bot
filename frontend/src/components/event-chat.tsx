@@ -71,26 +71,56 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
     return () => { active = false; };
   }, [eventId]);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     const last = messagesRef.current;
     try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/chat${last ? `?after=${last}` : ""}`, { credentials: "include" });
-      if (!response.ok) return;
+      const response = await fetch(`${appConfig.apiBaseUrl}/events/${eventId}/chat${last ? `?after=${last}` : ""}`, { credentials: "include", signal });
+      if (!response.ok) return false;
       const data = await response.json() as { items: ChatMessage[] };
       setMessages((current) => {
         const known = new Set(current.map((item) => item.id));
         const fresh = data.items.filter((item) => !known.has(item.id));
         return fresh.length ? [...current, ...fresh] : current;
       });
+      return true;
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError") return false;
+      return false;
     } finally {
       setMessagesLoaded(true);
     }
   }, [eventId]);
 
   useEffect(() => {
-    void load();
-    const interval = window.setInterval(() => { void load(); }, 5000);
-    return () => window.clearInterval(interval);
+    let stopped = false;
+    let timer: number | undefined;
+    let failures = 0;
+    let controller: AbortController | undefined;
+    const schedule = (delay: number) => {
+      window.clearTimeout(timer);
+      if (!stopped && !document.hidden) timer = window.setTimeout(() => { void poll(); }, delay);
+    };
+    const poll = async () => {
+      if (stopped || document.hidden) return;
+      controller = new AbortController();
+      const ok = await load(controller.signal);
+      if (stopped || document.hidden) return;
+      failures = ok ? 0 : Math.min(failures + 1, 3);
+      schedule([5000, 10000, 20000, 30000][failures]);
+    };
+    const onVisibility = () => {
+      window.clearTimeout(timer);
+      if (document.hidden) controller?.abort();
+      else void poll();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    void poll();
+    return () => {
+      stopped = true;
+      window.clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
   }, [load]);
 
   useEffect(() => {

@@ -41,11 +41,11 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import type { MapCity } from "@/components/event-map";
-import { EventCreation } from "@/components/event-creation";
-import { EventChat } from "@/components/event-chat";
-import { EventManagement } from "@/components/event-management";
 
 const EventMap = lazy(async () => ({ default: (await import("@/components/event-map")).EventMap }));
+const EventCreation = lazy(async () => ({ default: (await import("@/components/event-creation")).EventCreation }));
+const EventChat = lazy(async () => ({ default: (await import("@/components/event-chat")).EventChat }));
+const EventManagement = lazy(async () => ({ default: (await import("@/components/event-management")).EventManagement }));
 
 type Section = "events" | "people" | "create" | "notifications" | "profile";
 type EventsMode = "map" | "list";
@@ -73,7 +73,7 @@ type PublicEvent = {
   viewer_is_organizer?: boolean;
   viewer_membership?: "none" | "participating" | "waitlisted" | "excluded";
   queue_position?: number | null;
-  photo_url: string; organizer_public_id: string | null;
+  photo_url: string; photo_card_url?: string; photo_thumbnail_url?: string; organizer_public_id: string | null;
   organizer_name: string | null; organizer_status: string | null;
   cancellation_reason_code?: string | null; latitude?: number | null; longitude?: number | null;
   chat_enabled?: boolean;
@@ -372,16 +372,27 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
 
 }
 
-function EventPhoto({ src, className, alt = "" }: { src: string; className?: string; alt?: string }) {
+function EventPhoto({ src, cardSrc, thumbnailSrc, className, alt = "", priority = false }: { src: string; cardSrc?: string; thumbnailSrc?: string; className?: string; alt?: string; priority?: boolean }) {
   const [failed, setFailed] = useState(false);
   if (failed) return <span className={`${className ?? ""} image-placeholder`} role="img" aria-label="Фотография недоступна"><ImageOff aria-hidden="true" /></span>;
-  return <img className={className} src={src} alt={alt} onError={() => setFailed(true)} />;
+  return <img className={className} src={thumbnailSrc ?? cardSrc ?? src} srcSet={cardSrc ? `${cardSrc} 640w, ${src} 1200w` : undefined} sizes={cardSrc ? "(max-width: 700px) 100vw, 640px" : undefined} width={1200} height={900} loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" alt={alt} onError={() => setFailed(true)} />;
+}
+
+function ProfileBackground({ profile, label }: { profile: AccountProfile; label: string }) {
+  if (!profile.background_url) return <div className="profile-hero default-background" role="img" aria-label="Стандартный фон профиля" />;
+  return <div className="profile-hero custom-background" role="img" aria-label={label}><img src={profile.background_medium_url ?? profile.background_url} srcSet={`${profile.background_medium_url ?? profile.background_url} 768w, ${profile.background_url} 1280w`} sizes="100vw" width={1280} height={720} loading="eager" decoding="async" alt="" /></div>;
 }
 
 function HomeTopBar({ profile, eventsMode, showViewSwitch, unread, onModeChange, onProfile, onNotifications }: { profile: AccountProfile; eventsMode: EventsMode; showViewSwitch: boolean; unread: number; onModeChange: (mode: EventsMode) => void; onProfile: () => void; onNotifications: () => void }) {
   return <header className="home-top-bar" aria-label="Навигация главного экрана">
     <button className="floating-round-control avatar-control" type="button" aria-label="Открыть профиль" onClick={onProfile}>
-      {profile.avatar_url ? <img src={profile.avatar_url} alt="" /> : <span>{profile.display_name[0]}</span>}
+      <UserAvatar
+        name={profile.display_name}
+        thumbnailUrl={profile.avatar_thumbnail_url}
+        fallbackUrl={profile.avatar_url}
+        size={52}
+        lazy={false}
+      />
     </button>
     {showViewSwitch ? <div className="floating-segment view-segment" role="group" aria-label="Вид событий">
       <button type="button" aria-pressed={eventsMode === "map"} onClick={() => onModeChange("map")}><Map aria-hidden="true" />Карта</button>
@@ -431,11 +442,11 @@ function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: strin
   return <section className="feed home-events-list" aria-label="Список событий">
     <p className="section-kicker">Афиша · {city?.name}</p><h1>События рядом</h1>
     <button type="button" className={`featured-event category-${featured.category_slug}`} onClick={() => onOpen(featured.id)}>
-      <EventPhoto className="featured-event-photo" src={featured.photo_url} alt={`Фотография события «${featured.title}»`} />
+      <EventPhoto className="featured-event-photo" src={featured.photo_url} cardSrc={featured.photo_card_url} alt={`Фотография события «${featured.title}»`} priority />
       <span className="featured-event-shade" aria-hidden="true" />
       <span className="featured-event-content"><span className="category-chip">{featured.category}</span>{featured.kind === "special" && <small><Sparkles aria-hidden="true" /> Общественное</small>}<strong>{featured.title}</strong><span><CalendarDays aria-hidden="true" /> {formatEventTime(featured.starts_at)}</span><span><MapPin aria-hidden="true" /> {featured.visible_address}</span></span>
     </button>
-    {grouped.map(([label, events]) => <section className="event-date-group" key={label}><h2>{label}</h2><div>{events.map((event) => <button type="button" className={`editorial-event-row category-${event.category_slug}`} key={event.id} onClick={() => onOpen(event.id)}><EventPhoto className="event-row-photo" src={event.photo_url} alt="" /><span className="event-row-copy"><small><span className="category-dot" aria-hidden="true" />{event.category}{event.kind === "special" ? " · Общественное" : ""}</small><strong>{event.title}</strong><span>{formatEventClock(event.starts_at)} · {event.visible_address}</span><span><Users aria-hidden="true" /> {event.participant_count} собираются</span></span><ChevronRight aria-hidden="true" /></button>)}</div></section>)}
+    {grouped.map(([label, events]) => <section className="event-date-group" key={label}><h2>{label}</h2><div>{events.map((event) => <button type="button" className={`editorial-event-row category-${event.category_slug}`} key={event.id} onClick={() => onOpen(event.id)}><EventPhoto className="event-row-photo" src={event.photo_url} thumbnailSrc={event.photo_thumbnail_url} alt="" /><span className="event-row-copy"><small><span className="category-dot" aria-hidden="true" />{event.category}{event.kind === "special" ? " · Общественное" : ""}</small><strong>{event.title}</strong><span>{formatEventClock(event.starts_at)} · {event.visible_address}</span><span><Users aria-hidden="true" /> {event.participant_count} собираются</span></span><ChevronRight aria-hidden="true" /></button>)}</div></section>)}
   </section>;
 }
 
@@ -620,7 +631,6 @@ function Profile({
 }: { profile: AccountProfile; city: MapCity | null; onChooseCity: () => void; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void; registerBack: (back: (() => void) | null) => void }) {
   const navigate = useNavigate();
   const profileLocation = useLocation();
-  const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
   const [editing, setEditing] = useState(false);
   const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
   const [message, setMessage] = useState("");
@@ -661,10 +671,10 @@ function Profile({
   if (editing) return <ProfileEditor profile={profile} csrfToken={csrfToken} onUpdate={onUpdate} onDone={() => { setEditing(false); setMessage("Профиль сохранён"); }} />;
   if (eventMode) return <AccountEvents state={eventMode} csrfToken={csrfToken} />;
   return <section className="profile-screen premium-profile">
-    <div className={`profile-hero${profile.background_url ? " custom-background" : " default-background"}`} style={profile.background_url ? { backgroundImage: `linear-gradient(to top, rgb(18 43 50 / .34), transparent 56%), url(${profile.background_url})` } : undefined} role="img" aria-label={profile.background_url ? "Ваш фон профиля" : "Стандартный фон профиля"} />
+    <ProfileBackground profile={profile} label="Ваш фон профиля" />
     <div className="profile-content">
       <div className="profile-identity">
-        {profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Ваш аватар" /> : <span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span>}
+        <UserAvatar name={profile.display_name} thumbnailUrl={profile.avatar_url} size={84} lazy={false} className="profile-avatar profile-photo" />
         <div><p className="section-kicker">Ваш профиль</p><h1>{profile.display_name}</h1><p><button className="copy-id" type="button" aria-label={`Скопировать ID ${profile.public_id}`} onClick={() => void navigator.clipboard.writeText(profile.public_id)}>ID {profile.public_id}</button> · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div>
       </div>
       <div className="profile-stats" aria-label="Статистика профиля"><div><strong>{profile.upcoming_count ?? 0}</strong><span>будущих</span></div><div><strong>{profile.completed_count ?? 0}</strong><span>завершено</span></div><div><strong>{profile.successful_events ?? 0}</strong><span>успешных</span></div></div>
@@ -747,7 +757,7 @@ function ProfileEditor({ profile, csrfToken, onUpdate, onDone }: { profile: Acco
       {mediaRestricted && <p className="form-error" role="status">Изменение фотографий недоступно до {mediaRestricted.toLocaleDateString("ru-RU")}.</p>}
       <div className="profile-media-editor" aria-label="Фотографии профиля">
         <MediaEditorRow label="Фотография" name={profile.display_name} previewUrl={profile.avatar_thumbnail_url} fallbackUrl={profile.avatar_url} busy={avatarBusy} disabled={Boolean(mediaRestricted)} onFile={(file) => void changeMedia("avatar", file)} onDelete={profile.avatar_url ? () => setDeleteTarget("avatar") : undefined} />
-        <MediaEditorRow label="Фон профиля" name={profile.display_name} previewUrl={profile.background_url} busy={backgroundBusy} disabled={Boolean(mediaRestricted)} background onFile={(file) => void changeMedia("background", file)} onDelete={profile.background_url ? () => setDeleteTarget("background") : undefined} />
+        <MediaEditorRow label="Фон профиля" name={profile.display_name} previewUrl={profile.background_thumbnail_url ?? profile.background_url} busy={backgroundBusy} disabled={Boolean(mediaRestricted)} background onFile={(file) => void changeMedia("background", file)} onDelete={profile.background_url ? () => setDeleteTarget("background") : undefined} />
       </div>
       {textRestricted && <p className="form-error" role="status">Изменение имени и описания недоступно до {textRestricted.toLocaleDateString("ru-RU")}.</p>}
       <div className="profile-editor"><label>Псевдоним<input disabled={Boolean(textRestricted)} value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /><small>{name.length}/32</small></label><label>О себе<textarea disabled={Boolean(textRestricted)} value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} placeholder="Расскажите немного о себе" /><small>{bio.length}/150</small></label></div>
@@ -778,7 +788,7 @@ function PublicProfile({ profile, csrfToken }: { profile: AccountProfile; csrfTo
   useEffect(() => { void Promise.all([fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=upcoming&limit=20`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10`, { credentials: "include" })]).then(async ([future, history]) => { if (future.ok) setUpcoming(((await future.json()) as { items: ProfileEvent[] }).items); if (history.ok) { const data = await history.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted(data.items); setNextCompleted(data.next_offset); } }); }, [profile.public_id]);
   const loadMore = async () => { if (nextCompleted === null) return; const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10&offset=${nextCompleted}`, { credentials: "include" }); if (response.ok) { const data = await response.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted((items) => [...items, ...data.items]); setNextCompleted(data.next_offset); } };
   const report = async () => { const component = reason === "avatar" || reason === "background" || reason === "display_name" || reason === "bio" ? reason : null; const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ subject_type: "profile", subject_id: profile.public_id, subject_component: component, reason_code: reason === "avatar" || reason === "background" ? "photo" : reason, explanation: comment || null }) }); if (response.ok) setSent(true); };
-  return <section className="profile-screen premium-profile public-profile-screen"><div className={`profile-hero${profile.background_url ? " custom-background" : " default-background"}`} style={profile.background_url ? { backgroundImage: `linear-gradient(to top, rgb(18 43 50 / .34), transparent 56%), url(${profile.background_url})` } : undefined} role="img" aria-label={profile.background_url ? `Фон профиля ${profile.display_name}` : "Стандартный фон профиля"}><span className="ornament-divider" aria-hidden="true" /></div><div className="profile-content"><div className="profile-identity">{profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Аватар пользователя" /> : <span className="profile-avatar">{profile.display_name[0]}</span>}<div><p className="section-kicker">Публичный профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id} · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><p className="profile-bio">{profile.bio || "Описание не заполнено"}</p><h2 className="group-title">Будущие события</h2>{upcoming.length ? upcoming.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.starts_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">Опубликованных событий пока нет.</p>}<h2 className="group-title">Завершённые события</h2>{completed.length ? completed.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.ends_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">История пока пуста.</p>}{nextCompleted !== null && <Button variant="outline" onClick={() => void loadMore()}>Загрузить ещё</Button>}<h2 className="group-title">Пожаловаться на профиль</h2>{sent ? <p className="success-message">Жалоба отправлена</p> : <div className="profile-editor public-report-form"><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="avatar">Аватар</option><option value="background">Фон профиля</option><option value="display_name">Псевдоним</option><option value="bio">Описание</option><option value="other">Другое</option></select></label>{reason === "other" && <label>Комментарий<textarea maxLength={300} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Опишите причину" /></label>}<Button disabled={reason === "other" && !comment.trim()} onClick={() => void report()}>Отправить жалобу</Button></div>}</div></section>;
+  return <section className="profile-screen premium-profile public-profile-screen"><ProfileBackground profile={profile} label={`Фон профиля ${profile.display_name}`} /><div className="profile-content"><div className="profile-identity"><UserAvatar name={profile.display_name} thumbnailUrl={profile.avatar_url} size={84} lazy={false} className="profile-avatar profile-photo" /><div><p className="section-kicker">Публичный профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id} · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><p className="profile-bio">{profile.bio || "Описание не заполнено"}</p><h2 className="group-title">Будущие события</h2>{upcoming.length ? upcoming.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.starts_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">Опубликованных событий пока нет.</p>}<h2 className="group-title">Завершённые события</h2>{completed.length ? completed.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.ends_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">История пока пуста.</p>}{nextCompleted !== null && <Button variant="outline" onClick={() => void loadMore()}>Загрузить ещё</Button>}<h2 className="group-title">Пожаловаться на профиль</h2>{sent ? <p className="success-message">Жалоба отправлена</p> : <div className="profile-editor public-report-form"><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="avatar">Аватар</option><option value="background">Фон профиля</option><option value="display_name">Псевдоним</option><option value="bio">Описание</option><option value="other">Другое</option></select></label>{reason === "other" && <label>Комментарий<textarea maxLength={300} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Опишите причину" /></label>}<Button disabled={reason === "other" && !comment.trim()} onClick={() => void report()}>Отправить жалобу</Button></div>}</div></section>;
 }
 
 function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; street: string }; onClose: () => void; onOpen: (id: string) => void }) {
@@ -790,7 +800,7 @@ function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; 
       return await response.json() as PublicEvent;
     })).then((events) => setItems(events.filter((item): item is PublicEvent => item !== null)));
   }, [group.ids]);
-  return <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}><SheetContent className="street-group-sheet"><p className="section-kicker">Общая улица</p><SheetTitle>{group.street}</SheetTitle><SheetDescription>Метка не показывает примерное место конкретного события.</SheetDescription>{items === null ? <LoadingScreen variant="section" /> : items.map((item) => <button className="street-group-event" type="button" key={item.id} onClick={() => onOpen(item.id)}><EventPhoto src={item.photo_url} alt="" /><span><strong>{item.title}</strong><small>{formatEventTime(item.starts_at)} · {item.category}</small></span><ChevronRight aria-hidden="true" /></button>)}</SheetContent></Sheet>;
+  return <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}><SheetContent className="street-group-sheet"><p className="section-kicker">Общая улица</p><SheetTitle>{group.street}</SheetTitle><SheetDescription>Метка не показывает примерное место конкретного события.</SheetDescription>{items === null ? <LoadingScreen variant="section" /> : items.map((item) => <button className="street-group-event" type="button" key={item.id} onClick={() => onOpen(item.id)}><EventPhoto src={item.photo_url} thumbnailSrc={item.photo_thumbnail_url} alt="" /><span><strong>{item.title}</strong><small>{formatEventTime(item.starts_at)} · {item.category}</small></span><ChevronRight aria-hidden="true" /></button>)}</SheetContent></Sheet>;
 }
 
 function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: string; csrfToken: string; onClose: () => void; onOpenChat: () => void }) {
@@ -865,7 +875,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
   const showPrimaryAction = Boolean(event?.kind === "regular" && event.lifecycle_status === "published" && (event.viewer_is_organizer || event.viewer_membership === "none" || event.viewer_membership === "participating" || event.viewer_membership === "waitlisted"));
   return <section className={`event-detail-page${event ? ` category-${event.category_slug}` : ""}`}>
     <header className="event-detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Событие</strong><span>{canChat && <button className="chat-discovery-button" type="button" aria-label="Открыть чат события" onClick={onOpenChat}><MessageCircle aria-hidden="true" /><i aria-hidden="true" /></button>}<button type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 aria-hidden="true" /></button></span></header>
-    {failed ? <DemoState state="error" onClose={onClose} /> : !event ? <LoadingScreen variant="section" /> : <><div className="event-detail-scroll"><EventPhoto className="event-detail-hero" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><main className="event-detail-content">
+    {failed ? <DemoState state="error" onClose={onClose} /> : !event ? <LoadingScreen variant="section" /> : <><div className="event-detail-scroll"><EventPhoto className="event-detail-hero" src={event.photo_url} cardSrc={event.photo_card_url} alt={`Фотография события «${event.title}»`} priority /><main className="event-detail-content">
       <div className="event-detail-labels"><span className="category-chip">{event.category}</span>{(event.event_scope === "community" || event.kind === "special") && <span className="municipal-label"><Sparkles aria-hidden="true" /> Общественное</span>}{event.event_scope !== "community" && event.kind !== "special" && <button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-label={`${event.viewer_interested ? "Убрать из интересного" : "Добавить в интересное"}. Всего ${event.interest_count ?? 0}`} aria-pressed={event.viewer_interested} disabled={busy || event.lifecycle_status !== "published"} onClick={() => void toggleInterest()}><Heart aria-hidden="true" /> {event.interest_count ?? 0}</button>}</div>
       <h1>{event.title}</h1>
       <div className="event-facts"><div><span><CalendarDays aria-hidden="true" /></span><p><small>Когда</small><strong>{formatEventTime(event.starts_at)}</strong><span>до {formatEventTime(event.ends_at)}</span></p></div><div><span><MapPin aria-hidden="true" /></span><p><small>Где</small><strong>{event.visible_address}</strong></p></div><div><span><Users aria-hidden="true" /></span><p><small>Участники</small><strong>{event.participant_count} собираются</strong><span>{event.capacity === null ? "Без ограничения мест" : `Свободно: ${event.available_places}`}</span></p></div></div>

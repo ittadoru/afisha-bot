@@ -51,6 +51,7 @@ class ProfileResponse(BaseModel):
     age_confirmed: bool
     city_name: str | None = None
     avatar_url: str | None = None
+    avatar_thumbnail_url: str | None = None
     background_url: str | None = None
     version: int = 1
     next_name_change_at: str | None = None
@@ -231,12 +232,16 @@ async def onboarding(
     except ValueError as error:
         code = str(error)
         raise _error(
-            status.HTTP_409_CONFLICT if code == "stale_profile" else status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_409_CONFLICT
+            if code == "stale_profile"
+            else status.HTTP_422_UNPROCESSABLE_ENTITY,
             code,
         ) from error
     if profile is None:
         raise _error(status.HTTP_401_UNAUTHORIZED, "invalid_session_or_csrf")
-    return _profile_response(profile, await load_profile(engine, user_id=profile.user_id))
+    return _profile_response(
+        profile, await load_profile(engine, user_id=profile.user_id)
+    )
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -296,6 +301,11 @@ def _profile_response(
             city_name=full.city_name,
             avatar_url=(
                 f"/api/profiles/{full.public_id}/avatar?v={full.version}"
+                if full.avatar_asset_id
+                else None
+            ),
+            avatar_thumbnail_url=(
+                f"/api/profiles/{full.public_id}/avatar?size=64&v={full.version}"
                 if full.avatar_asset_id
                 else None
             ),

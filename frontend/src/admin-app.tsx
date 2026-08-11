@@ -15,6 +15,7 @@ import {
   Gavel,
   X,
 } from "lucide-react";
+import "@/admin.css";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 
 type Staff = { login: string; role: "admin" | "moderator" };

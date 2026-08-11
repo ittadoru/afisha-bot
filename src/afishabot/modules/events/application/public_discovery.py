@@ -26,10 +26,11 @@ async def _event_list(
 ) -> list[dict[str, Any]]:
     async with engine.connect() as connection:
         rows = (
-            await connection.execute(
-                text(
-                    """
-                    SELECT e.id,e.kind,e.event_scope,cat.slug AS category_slug,
+            (
+                await connection.execute(
+                    text(
+                        """
+                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,cat.slug AS category_slug,
                            cat.name AS category,r.title,r.description,
                            r.starts_at,r.ends_at,
                            COALESCE(r.organizer_street,r.street_name) AS street_name,
@@ -72,10 +73,13 @@ async def _event_list(
                     ORDER BY (e.kind='special') DESC,r.starts_at,e.id
                     LIMIT 200
                     """
-                ),
-                {"city": city_id, "viewer": viewer_id},
+                    ),
+                    {"city": city_id, "viewer": viewer_id},
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
     return [_with_photo(dict(row)) for row in rows]
 
 
@@ -84,9 +88,10 @@ async def _event_map(
 ) -> list[dict[str, Any]]:
     async with engine.connect() as connection:
         exact = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT 'event' AS marker_type,e.id,e.kind,e.event_scope,
                            cat.slug AS category_slug,cat.name AS category,
                            r.title,r.starts_at,
@@ -108,14 +113,18 @@ async def _event_map(
                             AND p.status='active')))
                     ORDER BY (e.kind='special') DESC,r.starts_at,e.id
                     """
-                ),
-                {"city": city_id, "viewer": viewer_id},
+                    ),
+                    {"city": city_id, "viewer": viewer_id},
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         streets = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT 'street' AS marker_type,NULL::uuid AS id,
                            'regular'::text AS kind,NULL::text AS category_slug,
                            NULL::text AS category,NULL::text AS title,
@@ -140,10 +149,13 @@ async def _event_map(
                     GROUP BY a.id,a.display_name,a.anchor
                     ORDER BY min(r.starts_at),a.id
                     """
-                ),
-                {"city": city_id, "viewer": viewer_id},
+                    ),
+                    {"city": city_id, "viewer": viewer_id},
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
     return [dict(row) for row in [*exact, *streets]]
 
 
@@ -152,10 +164,11 @@ async def event_detail(
 ) -> dict[str, Any]:
     async with engine.connect() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
-                    SELECT e.id,e.kind,e.event_scope,e.lifecycle_status,
+            (
+                await connection.execute(
+                    text(
+                        """
+                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,e.lifecycle_status,
                            e.cancellation_reason_code,e.capacity,
                            cat.slug AS category_slug,cat.name AS category,
                            city.name AS city,r.title,r.description,
@@ -263,39 +276,60 @@ async def event_detail(
                     WHERE e.id=:event
                       AND e.lifecycle_status IN ('published','finished','cancelled')
                     """
-                ),
-                {"event": event_id, "viewer": viewer_id},
+                    ),
+                    {"event": event_id, "viewer": viewer_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
     if row is None:
         raise PublicEventNotFound
     return _with_photo(dict(row))
 
 
-async def event_photo_key(engine: AsyncEngine, event_id: UUID) -> str:
+async def event_photo_key(
+    engine: AsyncEngine, event_id: UUID, *, size: int = 1200
+) -> str:
     async with engine.connect() as connection:
-        key = await connection.scalar(
-            text(
-                """
-                SELECT a.storage_key
+        row = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                SELECT a.storage_key AS source_key,
+                       COALESCE(v.storage_key,larger.storage_key) AS variant_key
                 FROM events.events e
                 JOIN events.event_photos ep
                   ON ep.revision_id=e.approved_revision_id AND ep.position=1
                 JOIN media.assets a ON a.id=ep.media_asset_id AND a.state='ready'
+                LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
+                  AND v.variant_key=:variant
+                LEFT JOIN media.asset_variants larger ON larger.source_asset_id=a.id
+                  AND larger.variant_key=CASE WHEN :size=320 THEN 'event_640' END
                 WHERE e.id=:event
                   AND e.lifecycle_status IN ('published','finished','cancelled')
                 """
-            ),
-            {"event": event_id},
+                    ),
+            {"event": event_id, "variant": f"event_{size}", "size": size},
+                )
+            )
+            .mappings()
+            .one_or_none()
         )
-    if key is None:
+    if row is None:
         raise PublicEventNotFound
-    return key
+    return row["variant_key"] or row["source_key"]
 
 
 def _with_photo(row: dict[str, Any]) -> dict[str, Any]:
-    row["photo_url"] = f"/api/events/{row['id']}/photo"
+    version = row.pop("approved_revision_id", None) or row["id"]
+    row["photo_thumbnail_url"] = f"/api/events/{row['id']}/photo?size=320&v={version}"
+    row["photo_card_url"] = f"/api/events/{row['id']}/photo?size=640&v={version}"
+    row["photo_url"] = f"/api/events/{row['id']}/photo?size=1200&v={version}"
     capacity = row.get("capacity")
     participants = int(row.get("participant_count") or 0)
-    row["available_places"] = None if capacity is None else max(0, capacity - participants)
+    row["available_places"] = (
+        None if capacity is None else max(0, capacity - participants)
+    )
     return row

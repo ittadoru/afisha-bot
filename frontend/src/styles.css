@@ -763,6 +763,19 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
 
+/* Off-screen feed sections skip layout/paint work while retaining scroll size. */
+.event-date-group,
+.people-card,
+.case-card,
+.notification-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 220px;
+}
+
+.event-date-group {
+  contain-intrinsic-size: 420px;
+}
+
 /* Premium Dagestan mobile shell */
 :root {
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
@@ -859,6 +872,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .floating-round-control:active, .create-fab:active { transform: scale(.94); }
 .floating-round-control svg { width: 21px; height: 21px; stroke-width: 1.9; }
 .avatar-control { overflow: hidden; color: #fff; background: var(--primary); font-weight: 850; }
+.avatar-control .user-avatar { width: 100% !important; height: 100% !important; }
 .avatar-control img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-control > span { display: grid; place-items: center; width: 100%; height: 100%; }
 .notification-badge { position: absolute; top: -3px; right: -3px; display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border: 2px solid var(--background); border-radius: 99px; color: #fff; background: var(--terracotta); font-size: 10px; font-weight: 900; }
@@ -1564,6 +1578,12 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   aspect-ratio: 16 / 9;
   background-position: center;
   background-size: cover;
+}
+.profile-hero > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .profile-hero.default-background {

@@ -152,3 +152,9 @@ Celery/Redis не определяют права или state.
 Stage 1 — один Compose VPS с private data networks и local protected media.
 G6 не открывает production traffic. Первый выпуск требует все девять G5
 slices, clean exact-commit VPS gate, restore drill и отдельное подтверждение.
+# Performance and media delivery
+
+- The map remains the default authenticated screen and its code starts loading only after auth/bootstrap succeeds.
+- Event and profile images expose additive responsive URLs with fallback to the valid source while variants are backfilled.
+- Long lists use cursor pages and an explicit “Показать ещё” action.
+- Feature hooks own server-state loading today. A future TanStack Query migration is performed feature-by-feature and removes the replaced custom cache path.

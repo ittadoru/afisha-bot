@@ -56,6 +56,17 @@ class EventImageProcessor:
     def process(
         self, source: Path, destination: Path, crop: NormalizedCrop | None = None
     ) -> Path:
+        self.process_variants(source, destination, None, None, crop)
+        return destination
+
+    def process_variants(
+        self,
+        source: Path,
+        destination_1200: Path,
+        destination_640: Path | None,
+        destination_320: Path | None,
+        crop: NormalizedCrop | None = None,
+    ) -> tuple[Path, Path | None, Path | None]:
         if crop is not None:
             crop.validate()
         if not source.is_file() or source.is_symlink():
@@ -100,20 +111,46 @@ class EventImageProcessor:
                 crop="centre",
             )
 
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
-            try:
-                image.webpsave(str(temporary), Q=82, effort=5, strip=True)
-                os.replace(temporary, destination)
-            finally:
-                temporary.unlink(missing_ok=True)
+            outputs = ((destination_1200, image, 82),)
+            if destination_640 is not None:
+                outputs += (
+                    (
+                        destination_640,
+                        image.thumbnail_image(640, height=480, size="force"),
+                        80,
+                    ),
+                )
+            if destination_320 is not None:
+                outputs += (
+                    (
+                        destination_320,
+                        image.thumbnail_image(320, height=240, size="force"),
+                        76,
+                    ),
+                )
+            for destination, variant, quality in outputs:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                temporary = destination.with_name(
+                    f".{destination.name}.{uuid4().hex}.tmp"
+                )
+                try:
+                    variant.webpsave(str(temporary), Q=quality, effort=5, strip=True)
+                    os.replace(temporary, destination)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            if destination_640 is not None or destination_320 is not None:
+                validate_webp_variant(destination_1200, width=1200, height=900)
+                if destination_640 is not None:
+                    validate_webp_variant(destination_640, width=640, height=480)
+                if destination_320 is not None:
+                    validate_webp_variant(destination_320, width=320, height=240)
         except UnsafeImageError:
             raise
         except Exception as exc:
             raise UnsafeImageError("image_decode_or_encode_failed") from exc
         finally:
             source.unlink(missing_ok=True)
-        return destination
+        return destination_1200, destination_640, destination_320
 
 
 class AvatarImageProcessor:
@@ -220,10 +257,41 @@ def validate_avatar_variant(path: Path, *, expected_size: int) -> None:
         raise UnsafeImageError("avatar_variant_invalid") from exc
 
 
+def validate_webp_variant(path: Path, *, width: int, height: int) -> None:
+    """Re-open a generated WebP and verify its exact dimensions."""
+    if not path.is_file() or path.is_symlink() or path.stat().st_size <= 0:
+        raise UnsafeImageError("image_variant_missing")
+    try:
+        import pyvips
+
+        image = cast(
+            Any,
+            pyvips.Image.new_from_file(  # pyright: ignore[reportUnknownMemberType]
+                str(path), access="sequential", fail_on="warning"
+            ),
+        )
+        if image.width != width or image.height != height:
+            raise UnsafeImageError("image_variant_dimensions_invalid")
+    except UnsafeImageError:
+        raise
+    except Exception as exc:
+        raise UnsafeImageError("image_variant_invalid") from exc
+
+
 class ProfileBackgroundImageProcessor:
     """Create a metadata-free, center-cropped 16:9 WebP profile background."""
 
     def process(self, source: Path, destination: Path) -> Path:
+        self.process_variants(source, destination, None, None)
+        return destination
+
+    def process_variants(
+        self,
+        source: Path,
+        destination_1280: Path,
+        destination_768: Path | None,
+        destination_320: Path | None,
+    ) -> tuple[Path, Path | None, Path | None]:
         limits = ImageLimits(
             max_file_bytes=12 * 1024 * 1024,
             max_pixels=40_000_000,
@@ -265,17 +333,43 @@ class ProfileBackgroundImageProcessor:
                 size="force",
                 crop="centre",
             )
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
-            try:
-                image.webpsave(str(temporary), Q=82, effort=5, strip=True)
-                os.replace(temporary, destination)
-            finally:
-                temporary.unlink(missing_ok=True)
+            outputs = ((destination_1280, image, 82),)
+            if destination_768 is not None:
+                outputs += (
+                    (
+                        destination_768,
+                        image.thumbnail_image(768, height=432, size="force"),
+                        80,
+                    ),
+                )
+            if destination_320 is not None:
+                outputs += (
+                    (
+                        destination_320,
+                        image.thumbnail_image(320, height=180, size="force"),
+                        76,
+                    ),
+                )
+            for destination, variant, quality in outputs:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                temporary = destination.with_name(
+                    f".{destination.name}.{uuid4().hex}.tmp"
+                )
+                try:
+                    variant.webpsave(str(temporary), Q=quality, effort=5, strip=True)
+                    os.replace(temporary, destination)
+                finally:
+                    temporary.unlink(missing_ok=True)
+            if destination_768 is not None or destination_320 is not None:
+                validate_webp_variant(destination_1280, width=1280, height=720)
+                if destination_768 is not None:
+                    validate_webp_variant(destination_768, width=768, height=432)
+                if destination_320 is not None:
+                    validate_webp_variant(destination_320, width=320, height=180)
         except UnsafeImageError:
             raise
         except Exception as exc:
             raise UnsafeImageError("image_decode_or_encode_failed") from exc
         finally:
             source.unlink(missing_ok=True)
-        return destination
+        return destination_1280, destination_768, destination_320

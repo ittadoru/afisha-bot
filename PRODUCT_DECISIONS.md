@@ -308,3 +308,9 @@
   только перед первым публичным выпуском; Ruff, Pyright strict, pip-audit и
   secret scan остаются в гейте всегда.
 - Репутация (`PD-009`, G4-06) этими упрощениями не изменяется.
+# Performance delivery decisions
+
+- Server state currently uses feature hooks and an in-memory cache; TanStack Query is a documented future migration, not a parallel runtime.
+- Chat uses visibility-aware smart polling, not SSE or WebSocket.
+- Published media uses versioned immutable variants: avatars 64/256, events 320/640/1200, backgrounds 320/768/1280.
+- Private API data is not persisted in browser storage or an offline cache.

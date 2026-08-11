@@ -1,6 +1,7 @@
 import hashlib
 import json
 from datetime import UTC, datetime
+from enum import IntEnum
 from pathlib import Path
 from typing import Annotated, Literal, cast
 from uuid import UUID
@@ -71,6 +72,12 @@ from afishabot.modules.events.application.public_discovery import (
 )
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+class EventPhotoSize(IntEnum):
+    THUMBNAIL = 320
+    CARD = 640
+    FULL = 1200
 
 
 class CreateEventRequest(BaseModel):
@@ -318,17 +325,23 @@ async def published_event_detail(
 
 
 @router.get("/{event_id}/photo")
-async def published_event_photo(event_id: UUID, request: Request) -> Response:
+async def published_event_photo(
+    event_id: UUID,
+    request: Request,
+    size: Annotated[EventPhotoSize, Query()] = EventPhotoSize.FULL,
+) -> Response:
     settings, _, engine = dependencies(request)
     try:
-        storage_key = await event_photo_key(engine, event_id)
+        storage_key = await event_photo_key(engine, event_id, size=int(size))
     except PublicEventNotFound as error:
         raise HTTPException(status_code=404, detail="photo_not_found") from error
     path = Path(settings.media_root) / storage_key
     if not path.is_file():
         raise HTTPException(status_code=404, detail="photo_not_found")
     return FileResponse(
-        path, media_type="image/webp", headers={"Cache-Control": "public, max-age=300"}
+        path,
+        media_type="image/webp",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
 
 

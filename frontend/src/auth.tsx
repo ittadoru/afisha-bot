@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { appConfig } from "@/config";
+import { clearQueryCache } from "@/lib/query-cache";
 
 export interface AccountProfile {
   public_id: string;
@@ -15,6 +16,8 @@ export interface AccountProfile {
   avatar_url?: string | null;
   avatar_thumbnail_url?: string | null;
   background_url?: string | null;
+  background_thumbnail_url?: string | null;
+  background_medium_url?: string | null;
   version?: number;
   next_name_change_at?: string | null;
   organizer_status?: "new" | "trusted";
@@ -89,6 +92,7 @@ export function MiniAppAuth({ children }: { children: (props: { profile: Account
     setPending(true);
     try {
       await fetch(`${API_BASE}/auth/logout`, { method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": state.csrfToken } });
+      clearQueryCache();
       setState({ status: "outside-telegram" });
     } finally {
       setPending(false);

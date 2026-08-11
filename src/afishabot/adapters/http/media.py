@@ -71,16 +71,30 @@ async def upload_event_photo(
     asset_id = uuid4()
     source = settings.media_root / "quarantine" / f"{asset_id}.upload"
     destination = event_photo_path(settings.media_root, asset_id)
+    card = destination.with_name(f"{asset_id}.640.webp")
+    thumbnail = destination.with_name(f"{asset_id}.320.webp")
     await to_thread.run_sync(source.parent.mkdir, 0o750, True, True)
     await to_thread.run_sync(source.write_bytes, bytes(data))
     try:
-        crop = (
-            NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
-            if None not in (crop_x, crop_y, crop_width, crop_height)
-            else None
+        crop = None
+        if (
+            crop_x is not None
+            and crop_y is not None
+            and crop_width is not None
+            and crop_height is not None
+        ):
+            crop = NormalizedCrop(crop_x, crop_y, crop_width, crop_height)
+        await to_thread.run_sync(
+            EventImageProcessor().process_variants,
+            source,
+            destination,
+            card,
+            thumbnail,
+            crop,
         )
-        await to_thread.run_sync(EventImageProcessor().process, source, destination, crop)
     except UnsafeImageError as error:
+        for path in (destination, card, thumbnail):
+            await to_thread.run_sync(path.unlink, True)
         logger.warning(
             "event_photo_rejected user=%s reason=%s "
             "crop_x=%s crop_y=%s crop_width=%s crop_height=%s",
@@ -96,14 +110,21 @@ async def upload_event_photo(
     checksum = await to_thread.run_sync(
         lambda: hashlib.sha256(destination.read_bytes()).hexdigest()
     )
+    card_checksum = await to_thread.run_sync(
+        lambda: hashlib.sha256(card.read_bytes()).hexdigest()
+    )
+    thumbnail_checksum = await to_thread.run_sync(
+        lambda: hashlib.sha256(thumbnail.read_bytes()).hexdigest()
+    )
     expiry = expires_at()
     old_paths: list[Path] = []
     try:
         async with engine.begin() as connection:
             previous = (
-                await connection.execute(
-                    text(
-                        """
+                (
+                    await connection.execute(
+                        text(
+                            """
                         SELECT a.id, a.storage_key
                         FROM media.assets a
                         WHERE a.owner_user_id = :user
@@ -115,10 +136,13 @@ async def upload_event_photo(
                           )
                         FOR UPDATE
                         """
-                    ),
-                    {"user": user_id},
+                        ),
+                        {"user": user_id},
+                    )
                 )
-            ).mappings().all()
+                .mappings()
+                .all()
+            )
             await connection.execute(
                 text(
                     """
@@ -139,7 +163,51 @@ async def upload_event_photo(
                     "delete_after": expiry,
                 },
             )
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO media.asset_variants
+                      (id,source_asset_id,variant_key,storage_key,mime_type,
+                       width,height,byte_size,checksum_sha256)
+                    VALUES
+                      (:card_id,:asset,'event_640',:card_key,'image/webp',
+                       640,480,:card_size,:card_checksum),
+                      (:thumb_id,:asset,'event_320',:thumb_key,'image/webp',
+                       320,240,:thumb_size,:thumb_checksum)
+                    """
+                ),
+                {
+                    "card_id": uuid4(),
+                    "thumb_id": uuid4(),
+                    "asset": asset_id,
+                    "card_key": f"event-staging/{asset_id}.640.webp",
+                    "thumb_key": f"event-staging/{asset_id}.320.webp",
+                    "card_size": card.stat().st_size,
+                    "thumb_size": thumbnail.stat().st_size,
+                    "card_checksum": card_checksum,
+                    "thumb_checksum": thumbnail_checksum,
+                },
+            )
             for previous_asset in previous:
+                keys = (
+                    (
+                        await connection.execute(
+                            text(
+                                """SELECT storage_key FROM media.assets WHERE id=:id
+                                UNION SELECT storage_key FROM media.asset_variants
+                                WHERE source_asset_id=:id"""
+                            ),
+                            {"id": previous_asset["id"]},
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                old_paths.extend(settings.media_root / key for key in set(keys))
+                await connection.execute(
+                    text("DELETE FROM media.asset_variants WHERE source_asset_id=:id"),
+                    {"id": previous_asset["id"]},
+                )
                 await connection.execute(
                     text(
                         "UPDATE media.assets SET state='deleted', updated_at=now() "
@@ -147,11 +215,10 @@ async def upload_event_photo(
                     ),
                     {"id": previous_asset["id"]},
                 )
-                old_paths.append(
-                    event_photo_path(settings.media_root, previous_asset["id"])
-                )
     except Exception:
         await to_thread.run_sync(destination.unlink, True)
+        await to_thread.run_sync(card.unlink, True)
+        await to_thread.run_sync(thumbnail.unlink, True)
         raise
 
     for old_path in old_paths:
@@ -202,7 +269,26 @@ async def delete_event_photo(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
+    paths: list[Path] = []
     async with engine.begin() as connection:
+        keys = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT storage_key FROM media.assets WHERE id=:id
+                        UNION
+                        SELECT storage_key FROM media.asset_variants
+                        WHERE source_asset_id=:id
+                        """
+                    ),
+                    {"id": upload_id},
+                )
+            )
+            .scalars()
+            .all()
+        )
+        paths = [settings.media_root / key for key in set(keys)]
         deleted = await connection.scalar(
             text(
                 """
@@ -218,7 +304,12 @@ async def delete_event_photo(
             ),
             {"id": upload_id, "user": user_id},
         )
-    if deleted is None:
-        raise HTTPException(status_code=404, detail="event_photo_not_found")
-    await to_thread.run_sync(event_photo_path(settings.media_root, upload_id).unlink, True)
+        if deleted is None:
+            raise HTTPException(status_code=404, detail="event_photo_not_found")
+        await connection.execute(
+            text("DELETE FROM media.asset_variants WHERE source_asset_id=:id"),
+            {"id": upload_id},
+        )
+    for path in paths:
+        await to_thread.run_sync(path.unlink, True)
     return Response(status_code=204)

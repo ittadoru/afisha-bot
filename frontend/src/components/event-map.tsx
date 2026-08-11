@@ -1,23 +1,10 @@
 import {
   ArrowLeft,
-  BriefcaseBusiness,
   Camera,
-  Car,
-  Coffee,
-  Dumbbell,
-  Footprints,
-  Gamepad2,
-  GraduationCap,
-  HandHeart,
   List,
-  Mountain,
-  Palette,
-  PartyPopper,
   RefreshCw,
-  Shapes,
-  Users,
-  type LucideIcon,
 } from "lucide-react";
+import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AttributionControl,
   Map as MapLibreMap,
@@ -27,7 +14,6 @@ import {
   type Marker,
 } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
-import { createRoot, type Root } from "react-dom/client";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/ui/loading-screen";
@@ -83,7 +69,6 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const publicMarkersRef = useRef<Marker[]>([]);
-  const markerRootsRef = useRef<Root[]>([]);
   const callbacksRef = useRef({ onLocationChange, onOpenEvent, onOpenStreetGroup });
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -196,8 +181,6 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       setMarkersLoading(true);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
-      markerRootsRef.current.forEach((root) => root.unmount());
-      markerRootsRef.current = [];
       void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include", signal: eventsController.signal })
         .then(async (response) => {
           if (!response.ok) throw new Error();
@@ -219,10 +202,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             if (item.marker_type === "street") {
               markerLabel.textContent = String(item.event_count ?? 0);
             } else {
-              const CategoryIcon = categoryIcon(item.category_slug);
-              const iconRoot = createRoot(markerLabel);
-              iconRoot.render(<CategoryIcon aria-hidden="true" />);
-              markerRootsRef.current.push(iconRoot);
+              markerLabel.textContent = categoryGlyph(item.category_slug);
             }
             markerContent.append(markerLabel);
             element.append(markerContent);
@@ -252,8 +232,6 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       window.clearTimeout(initialLoadTimer);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
-      markerRootsRef.current.forEach((root) => root.unmount());
-      markerRootsRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -290,20 +268,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   );
 }
 
-function categoryIcon(slug: string | null): LucideIcon {
+function categoryGlyph(slug: string | null): string {
   return ({
-    sport: Dumbbell,
-    games: Gamepad2,
-    meetups: Users,
-    cafe: Coffee,
-    tourism: Mountain,
-    education: GraduationCap,
-    creativity: Palette,
-    cars: Car,
-    volunteering: HandHeart,
-    work: BriefcaseBusiness,
-    entertainment: PartyPopper,
-    walks: Footprints,
-    other: Shapes,
-  } as Record<string, LucideIcon>)[slug ?? ""] ?? Shapes;
+    sport: "⚽", games: "◆", meetups: "●", cafe: "☕", tourism: "▲",
+    education: "✎", creativity: "✦", cars: "▰", volunteering: "♥",
+    work: "■", entertainment: "★", walks: "↟", other: "◇",
+  } as Record<string, string>)[slug ?? ""] ?? "◇";
 }
