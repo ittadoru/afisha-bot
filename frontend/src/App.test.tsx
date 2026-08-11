@@ -183,6 +183,8 @@ describe("landing", () => {
       if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
       if (url.endsWith("/account/notifications")) return okJson([]);
       if (url.endsWith(`/events/${eventId}`)) return okJson({ id: eventId, kind: "regular", lifecycle_status: "published", category: "Прогулки", category_slug: "walks", title: "Прогулка у моря", description: "Спокойная встреча", starts_at: "2026-08-12T16:00:00+03:00", ends_at: "2026-08-12T18:00:00+03:00", visible_address: "Набережная", participant_count: 4, capacity: 10, available_places: 6, interest_count: 3, viewer_interested: false, viewer_is_organizer: false, viewer_membership: "participating", photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: "87654321", organizer_name: "Амина", organizer_status: "trusted", chat_enabled: true });
+      if (url.includes("/profiles/87654321/events")) return okJson({ items: [], next_offset: null });
+      if (url.endsWith("/profiles/87654321")) return okJson({ ...profile, public_id: "87654321", display_name: "Амина" });
       return okJson(profile);
     }));
 
@@ -194,6 +196,9 @@ describe("landing", () => {
     expect(screen.queryByRole("button", { name: /^Поделиться$/ })).not.toBeInTheDocument();
     const chat = screen.getByRole("button", { name: "Открыть чат события" });
     expect(chat.querySelector("i")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Организатор.*Амина/ }));
+    expect(await screen.findByText("Публичный профиль")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Амина" })).toBeInTheDocument();
   });
 
   it("opens a chat author profile and returns to the chat", async () => {
@@ -204,7 +209,10 @@ describe("landing", () => {
       if (url.endsWith("/account/me")) return okJson(profile);
       if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
       if (url.endsWith("/account/notifications")) return okJson([]);
-      if (url.endsWith(`/events/${eventId}/chat`)) return okJson({ items: [{ id: "m1", body: "Встречаемся у входа", created_at: "2026-08-10T12:00:00+03:00", author_display_name: "Мурад", author_public_id: "87654321", author_avatar_thumbnail_url: "/api/profiles/87654321/avatar?size=64", author_is_organizer: false, author_is_viewer: false }] });
+      if (url.endsWith(`/events/${eventId}/chat`)) return okJson({ items: [
+        { id: "m1", body: "Встречаемся у входа", created_at: "2026-08-10T12:00:00+03:00", author_display_name: "Мурад", author_public_id: "87654321", author_avatar_thumbnail_url: "/api/profiles/87654321/avatar?size=64", author_is_organizer: false, author_is_viewer: false },
+        { id: "m2", body: "Буду вовремя", created_at: "2026-08-10T12:01:00+03:00", author_display_name: "Мурад", author_public_id: "87654321", author_avatar_thumbnail_url: "/api/profiles/87654321/avatar?size=64", author_is_organizer: false, author_is_viewer: false },
+      ] });
       if (url.endsWith(`/events/${eventId}`)) return okJson({ title: "Прогулка", chat_enabled: true, viewer_is_organizer: false });
       if (url.includes("/profiles/87654321/events")) return okJson({ items: [], next_offset: null });
       if (url.endsWith("/profiles/87654321")) return okJson({ ...profile, public_id: "87654321", display_name: "Мурад" });
@@ -212,7 +220,8 @@ describe("landing", () => {
     }));
 
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "Открыть профиль Мурад" }));
+    expect(await screen.findAllByRole("button", { name: "Открыть профиль Мурад" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Открыть профиль Мурад" }));
     expect(await screen.findByRole("heading", { name: "Мурад" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
     expect(await screen.findByText("Встречаемся у входа")).toBeInTheDocument();

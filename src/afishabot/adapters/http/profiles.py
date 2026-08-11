@@ -267,6 +267,44 @@ async def _avatar_asset_paths(
     return [media_root / key for key in set(keys)]
 
 
+async def _avatar_path(
+    connection: AsyncConnection,
+    *,
+    public_id: str,
+    size: int,
+    media_root: Path,
+) -> Path | None:
+    """Resolve an avatar variant and safely fall back to the 256px source file."""
+    row = (
+        (
+            await connection.execute(
+                text(
+                    """
+                    SELECT a.storage_key AS source_key,v.storage_key AS variant_key
+                    FROM accounts.profiles p
+                    JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
+                    JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
+                    LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
+                      AND v.variant_key=:variant
+                    WHERE p.public_id=:id
+                    """
+                ),
+                {"id": public_id, "variant": f"avatar_{size}"},
+            )
+        )
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        return None
+    for key in (row["variant_key"], row["source_key"]):
+        if key:
+            candidate = media_root / key
+            if candidate.is_file():
+                return candidate
+    return None
+
+
 @router.get(
     "/public/profiles/{public_id}", response_model=AnonymousPublicProfileResponse
 )
@@ -316,23 +354,13 @@ async def anonymous_profile_avatar(
 ) -> Response:
     settings, _, engine = dependencies(request)
     async with engine.connect() as connection:
-        key = await connection.scalar(
-            text(
-                """
-                SELECT COALESCE(v.storage_key,a.storage_key) FROM accounts.profiles p
-                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
-                JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
-                LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
-                  AND v.variant_key=:variant
-                WHERE p.public_id=:id
-                """
-            ),
-            {"id": public_id, "variant": f"avatar_{size}"},
+        path = await _avatar_path(
+            connection,
+            public_id=public_id,
+            size=size,
+            media_root=settings.media_root,
         )
-    if key is None:
-        raise HTTPException(status_code=404, detail="avatar_not_found")
-    path = settings.media_root / key
-    if not path.is_file():
+    if path is None:
         raise HTTPException(status_code=404, detail="avatar_not_found")
     return FileResponse(
         path,
@@ -1052,22 +1080,13 @@ async def avatar(
     await current_user(request, token)
     settings, _, engine = dependencies(request)
     async with engine.connect() as connection:
-        key = await connection.scalar(
-            text(
-                """SELECT COALESCE(v.storage_key,a.storage_key)
-                FROM accounts.profiles p
-                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
-                JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
-                LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
-                  AND v.variant_key=:variant
-                WHERE p.public_id=:id"""
-            ),
-            {"id": public_id, "variant": f"avatar_{size}"},
+        path = await _avatar_path(
+            connection,
+            public_id=public_id,
+            size=size,
+            media_root=settings.media_root,
         )
-    if key is None:
-        raise HTTPException(status_code=404, detail="avatar_not_found")
-    path = settings.media_root / key
-    if not path.is_file():
+    if path is None:
         raise HTTPException(status_code=404, detail="avatar_not_found")
     return FileResponse(
         path,

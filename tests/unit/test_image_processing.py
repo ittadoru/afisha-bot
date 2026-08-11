@@ -6,6 +6,7 @@ from typing import ClassVar, Self
 import pytest
 
 from afishabot.modules.media.application.image_processing import (
+    AvatarImageProcessor,
     EventImageProcessor,
     ImageLimits,
     NormalizedCrop,
@@ -98,6 +99,26 @@ def test_image_processor_creates_safe_derivative(
 
     assert result == destination
     assert destination.read_bytes() == b"webp"
+    assert not source.exists()
+
+
+def test_avatar_processor_always_creates_256_and_64_variants(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    install_fake_pyvips(monkeypatch)
+    source = tmp_path / "quarantine" / "avatar.jpg"
+    destination = tmp_path / "avatars" / "avatar.webp"
+    thumbnail = tmp_path / "avatars" / "avatar.64.webp"
+    source.parent.mkdir()
+    source.write_bytes(b"image")
+
+    result = AvatarImageProcessor().process_variants(
+        source, destination, thumbnail
+    )
+
+    assert result == (destination, thumbnail)
+    assert destination.read_bytes() == b"webp"
+    assert thumbnail.read_bytes() == b"webp"
     assert not source.exists()
 
 

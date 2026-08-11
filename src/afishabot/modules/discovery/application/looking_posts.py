@@ -83,7 +83,7 @@ async def looking_post_feed(
         rows = (await connection.execute(text(f"""
             WITH feed AS (
               SELECT p.id,p.author_user_id,p.title,p.body,p.status,p.created_at,p.expires_at,
-                   c.name AS city,cat.name AS category,pr.public_id,pr.display_name,pr.avatar_asset_id,
+                   c.name AS city,cat.name AS category,pr.public_id,pr.display_name,pr.avatar_asset_id,pr.version AS profile_version,
                    COALESCE((SELECT count(*) FROM discovery.looking_post_likes l
                       WHERE l.looking_post_id=p.id AND l.active AND l.user_id<>p.author_user_id), 0) AS like_count,
                    COALESCE((SELECT count(*) FROM discovery.looking_post_questions q
@@ -108,14 +108,16 @@ def _feed_item(row: Any, viewer_id: UUID | None) -> dict[str, Any]:
     author = row["author_user_id"] == viewer_id
     effective_status = "expired" if row["status"] == "active" and row["expires_at"] <= datetime.now(UTC) else row["status"]
     remaining = max(0, int((row["expires_at"] - datetime.now(UTC)).total_seconds()))
-    return {"id": row["id"], "title": row["title"], "body": row["body"], "status": effective_status, "display_status": effective_status, "remaining_seconds": remaining if effective_status == "active" else 0, "created_at": row["created_at"], "expires_at": row["expires_at"], "city": row["city"], "category": row["category"], "like_count": int(row["like_count"] or 0), "question_count": int(row["question_count"] or 0), "viewer_liked": bool(row["viewer_liked"]) if viewer_id else False, "is_author": author, "author": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None, "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None}}
+    thumbnail = f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}" if row["avatar_asset_id"] else None
+    full_avatar = f"/api/profiles/{row['public_id']}/avatar?size=256&v={row['profile_version']}" if row["avatar_asset_id"] else None
+    return {"id": row["id"], "title": row["title"], "body": row["body"], "status": effective_status, "display_status": effective_status, "remaining_seconds": remaining if effective_status == "active" else 0, "created_at": row["created_at"], "expires_at": row["expires_at"], "city": row["city"], "category": row["category"], "like_count": int(row["like_count"] or 0), "question_count": int(row["question_count"] or 0), "viewer_liked": bool(row["viewer_liked"]) if viewer_id else False, "is_author": author, "author": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_url": full_avatar, "avatar_thumbnail_url": thumbnail}}
 
 
 async def looking_post_detail(engine: AsyncEngine, *, post_id: UUID, viewer_id: UUID | None) -> dict[str, Any]:
     async with engine.connect() as connection:
         row = (await connection.execute(text("""
             SELECT p.id,p.author_user_id,p.title,p.body,p.status,p.created_at,p.expires_at,
-              c.name AS city,cat.name AS category,pr.public_id,pr.display_name,pr.avatar_asset_id,
+              c.name AS city,cat.name AS category,pr.public_id,pr.display_name,pr.avatar_asset_id,pr.version AS profile_version,
               COALESCE((SELECT count(*) FROM discovery.looking_post_likes l
                 WHERE l.looking_post_id=p.id AND l.active AND l.user_id<>p.author_user_id), 0) AS like_count,
               COALESCE((SELECT count(*) FROM discovery.looking_post_questions q
@@ -157,7 +159,7 @@ async def questions_for_viewer(
             raise LookingPostNotFound
         public = (await connection.execute(text("""
           SELECT q.id,q.question,q.answer,q.answered_at,q.created_at,
-                 pr.public_id,pr.display_name,pr.avatar_asset_id
+                 pr.public_id,pr.display_name,pr.avatar_asset_id,pr.version AS profile_version
           FROM discovery.looking_post_questions q
           JOIN accounts.profiles pr ON pr.user_id=q.asker_user_id
           WHERE q.looking_post_id=:post AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL
@@ -167,17 +169,17 @@ async def questions_for_viewer(
         pending: list[dict[str, Any]] = [dict(row) for row in own]
         if post["author_user_id"] == viewer_id:
             author_rows = (await connection.execute(text("""
-              SELECT q.id,q.question,q.created_at,pr.public_id,pr.display_name,pr.avatar_asset_id FROM discovery.looking_post_questions q
+              SELECT q.id,q.question,q.created_at,pr.public_id,pr.display_name,pr.avatar_asset_id,pr.version AS profile_version FROM discovery.looking_post_questions q
               JOIN accounts.profiles pr ON pr.user_id=q.asker_user_id WHERE q.looking_post_id=:post AND q.answer IS NULL ORDER BY q.created_at,q.id
             """), {"post": post_id})).mappings().all()
-            pending = [{**dict(row), "asker": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None}} for row in author_rows]
+            pending = [{**dict(row), "asker": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}" if row["avatar_asset_id"] else None}} for row in author_rows]
     public_items = [
         {
             "id": row["id"], "question": row["question"], "answer": row["answer"],
             "answered_at": row["answered_at"], "created_at": row["created_at"],
             "asker": {
                 "public_id": row["public_id"], "display_name": row["display_name"],
-                "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None,
+                "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}" if row["avatar_asset_id"] else None,
             },
         }
         for row in public

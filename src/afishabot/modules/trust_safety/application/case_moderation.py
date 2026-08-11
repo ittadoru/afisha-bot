@@ -58,8 +58,14 @@ async def moderation_queue(
     limit: int,
     before: datetime | None = None,
 ) -> list[dict[str, Any]]:
+    cursor_clause = ""
+    parameters: dict[str, Any] = {"limit": limit}
+    if before is not None:
+        cursor_column = "a.created_at" if queue == "appeals" else "c.created_at"
+        cursor_clause = f" AND {cursor_column}<:before"
+        parameters["before"] = before
     if queue == "appeals":
-        statement = """
+        statement = f"""
           SELECT c.public_id,c.subject_type,c.subject_component,c.priority,c.version,
                  c.created_at,c.updated_at,r.reason_code,a.created_at AS appeal_created_at,
                  a.status AS appeal_status
@@ -69,12 +75,11 @@ async def moderation_queue(
             SELECT reason_code FROM trust_safety.reports
             WHERE case_id=c.id ORDER BY created_at LIMIT 1
           ) r ON true
-          WHERE a.status IN ('submitted','reviewing')
-            AND (:before IS NULL OR a.created_at<:before)
+          WHERE a.status IN ('submitted','reviewing'){cursor_clause}
           ORDER BY a.created_at,c.id LIMIT :limit
         """
     else:
-        statement = """
+        statement = f"""
           SELECT c.public_id,c.subject_type,c.subject_component,c.priority,c.version,
                  c.created_at,c.updated_at,r.reason_code,NULL::timestamptz AS appeal_created_at,
                  NULL::varchar AS appeal_status
@@ -83,7 +88,7 @@ async def moderation_queue(
             SELECT reason_code FROM trust_safety.reports
             WHERE case_id=c.id ORDER BY created_at LIMIT 1
           ) r ON true
-          WHERE c.status<>'resolved' AND (:before IS NULL OR c.created_at<:before)
+          WHERE c.status<>'resolved'{cursor_clause}
           ORDER BY CASE c.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
                    c.created_at,c.id LIMIT :limit
         """
@@ -91,7 +96,7 @@ async def moderation_queue(
         rows = (
             (
                 await connection.execute(
-                    text(statement), {"before": before, "limit": limit}
+                    text(statement), parameters
                 )
             )
             .mappings()

@@ -126,7 +126,7 @@ async def _message_payload(
             await connection.execute(
                 text("""
         SELECT m.body, m.created_at, pr.public_id, pr.display_name,
-               pr.avatar_asset_id,
+               pr.avatar_asset_id, pr.version AS profile_version,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
         FROM communication.messages m
@@ -150,7 +150,7 @@ async def _message_payload(
         "author_display_name": row["display_name"],
         "author_public_id": row.get("public_id", ""),
         "author_avatar_thumbnail_url": (
-            f"/api/profiles/{row['public_id']}/avatar?size=64"
+            f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}"
             if row.get("avatar_asset_id") and row.get("public_id") else None
         ),
         "author_is_organizer": row["is_organizer"],
@@ -206,7 +206,7 @@ async def list_messages(
                 await connection.execute(
                     text(f"""
             SELECT m.id, m.body, m.created_at, pr.public_id, pr.display_name,
-               pr.avatar_asset_id,
+               pr.avatar_asset_id, pr.version AS profile_version,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
             FROM communication.messages m
@@ -230,7 +230,7 @@ async def list_messages(
                 "author_display_name": row["display_name"],
                 "author_public_id": row["public_id"],
                 "author_avatar_thumbnail_url": (
-                    f"/api/profiles/{row['public_id']}/avatar?size=64"
+                    f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}"
                     if row["avatar_asset_id"] else None
                 ),
                 "author_is_organizer": row["is_organizer"],
