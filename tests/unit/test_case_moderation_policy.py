@@ -5,8 +5,35 @@ import pytest
 
 from afishabot.modules.trust_safety.application.case_moderation import (
     _direction,
+    _subject_projection,
     moderation_queue,
 )
+
+
+class _ProjectionResult:
+    def mappings(self) -> "_ProjectionResult":
+        return self
+
+    def one_or_none(self) -> dict[str, str]:
+        return {"title": "Прогулка", "status": "published"}
+
+
+class _ProjectionConnection:
+    def __init__(self) -> None:
+        self.statement = ""
+
+    async def __aenter__(self) -> "_ProjectionConnection":
+        return self
+
+    async def __aexit__(self, *_args: object) -> None:
+        return None
+
+    def begin_nested(self) -> "_ProjectionConnection":
+        return self
+
+    async def execute(self, statement: object, _parameters: object) -> _ProjectionResult:
+        self.statement = str(statement)
+        return _ProjectionResult()
 
 
 class _QueueResult:
@@ -84,3 +111,17 @@ async def test_appeal_queue_uses_typed_datetime_only_when_provided() -> None:
 
     assert "a.created_at<:before" in engine.connection.statement
     assert engine.connection.parameters == {"limit": 20, "before": before}
+
+
+@pytest.mark.asyncio
+async def test_event_case_projection_reads_title_from_revision() -> None:
+    connection = _ProjectionConnection()
+
+    result = await _subject_projection(  # type: ignore[arg-type]
+        connection,
+        {"subject_type": "event", "subject_id": "event-id"},
+    )
+
+    assert result == {"title": "Прогулка", "status": "published"}
+    assert "events.event_revisions" in connection.statement
+    assert "COALESCE(e.approved_revision_id,e.current_revision_id)" in connection.statement

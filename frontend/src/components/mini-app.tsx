@@ -39,6 +39,7 @@ import { AlertDialog } from "@/components/ui/alert-dialog";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import type { MapCity } from "@/components/event-map";
 import { EventCreation } from "@/components/event-creation";
 import { EventChat } from "@/components/event-chat";
@@ -377,14 +378,6 @@ function EventPhoto({ src, className, alt = "" }: { src: string; className?: str
   return <img className={className} src={src} alt={alt} onError={() => setFailed(true)} />;
 }
 
-function UserAvatar({ name, thumbnailUrl, fallbackUrl, className = "demo-avatar", size = 40, lazy = true }: { name: string; thumbnailUrl?: string | null; fallbackUrl?: string | null; className?: string; size?: number; lazy?: boolean }) {
-  const preferred = thumbnailUrl ?? fallbackUrl ?? null;
-  const [src, setSrc] = useState(preferred);
-  useEffect(() => setSrc(preferred), [preferred]);
-  if (!src) return <span className={className} aria-hidden="true">{name[0] ?? "?"}</span>;
-  return <img className={className} src={src} width={size} height={size} loading={lazy ? "lazy" : "eager"} decoding="async" alt="" onError={() => setSrc(src !== fallbackUrl && fallbackUrl ? fallbackUrl : null)} />;
-}
-
 function HomeTopBar({ profile, eventsMode, showViewSwitch, unread, onModeChange, onProfile, onNotifications }: { profile: AccountProfile; eventsMode: EventsMode; showViewSwitch: boolean; unread: number; onModeChange: (mode: EventsMode) => void; onProfile: () => void; onNotifications: () => void }) {
   return <header className="home-top-bar" aria-label="Навигация главного экрана">
     <button className="floating-round-control avatar-control" type="button" aria-label="Открыть профиль" onClick={onProfile}>
@@ -483,7 +476,7 @@ function CompactListState({ title, action, onAction }: { title: string; action: 
 function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrfToken: string; onClose: () => void }) {
   const navigate = useNavigate();
   const location = useLocation();
-  type Question = { id: string; question: string; answer?: string; asker?: { public_id: string; display_name: string; avatar_thumbnail_url: string | null } };
+  type Question = { id: string; question: string; answer?: string; asker?: { public_id: string; display_name: string; avatar_thumbnail_url: string | null; avatar_url?: string | null } };
   const [post, setPost] = useState<LookingPost | null>(null); const [questions, setQuestions] = useState<Question[]>([]); const [pending, setPending] = useState<Question[]>([]); const [question, setQuestion] = useState(""); const [answers, setAnswers] = useState<Record<string, string>>({}); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [menuOpen, setMenuOpen] = useState(false); const askKey = useRef<string | null>(null); const answerKeys = useRef<Record<string, string>>({});
   const [viewerCanAsk, setViewerCanAsk] = useState(false);
   const [askBlockReason, setAskBlockReason] = useState<string | null>(null);
@@ -508,8 +501,8 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
   </section>;
 }
 
-function QuestionAuthor({ asker, onOpen }: { asker: { display_name: string; avatar_thumbnail_url: string | null }; onOpen: () => void }) {
-  return <button type="button" className="qa-author" onClick={onOpen} aria-label={`Открыть профиль ${asker.display_name}`}><UserAvatar name={asker.display_name} thumbnailUrl={asker.avatar_thumbnail_url} className="qa-author-avatar" size={36} /><strong>{asker.display_name}</strong></button>;
+function QuestionAuthor({ asker, onOpen }: { asker: { display_name: string; avatar_thumbnail_url: string | null; avatar_url?: string | null }; onOpen: () => void }) {
+  return <button type="button" className="qa-author" onClick={onOpen} aria-label={`Открыть профиль ${asker.display_name}`}><UserAvatar name={asker.display_name} thumbnailUrl={asker.avatar_thumbnail_url} fallbackUrl={asker.avatar_url} className="qa-author-avatar" size={36} /><strong>{asker.display_name}</strong></button>;
 }
 
 function CreateScreen({ initialKind, city, categories, catalogLoading, catalogFailed, csrfToken, organizerStatus, onDirtyChange, registerDiscard, onChooseCity, onDone }: { initialKind: "event" | "idea"; city: MapCity | null; categories: Category[]; catalogLoading: boolean; catalogFailed: boolean; csrfToken: string; organizerStatus: "new" | "trusted"; onDirtyChange: (dirty: boolean) => void; registerDiscard: (discard: (() => Promise<void>) | null) => void; onChooseCity: () => void; onDone: () => void }) {
@@ -723,11 +716,26 @@ function ProfileEditor({ profile, csrfToken, onUpdate, onDone }: { profile: Acco
     }
   };
   const mediaBusy = avatarBusy || backgroundBusy;
-  return <section className="adaptive-form-page profile-editor-screen"><div className="adaptive-form-scroll scroll-focus-container"><form id="profile-editor-form" className="demo-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><p className="section-kicker">Профиль</p><h1>Редактировать профиль</h1>{mediaRestricted && <p className="form-error" role="status">Изменение фотографий недоступно до {mediaRestricted.toLocaleDateString("ru-RU")}.</p>}<div className="profile-media-editor" aria-label="Фотографии профиля"><MediaEditorRow label="Фотография" previewUrl={profile.avatar_thumbnail_url ?? profile.avatar_url} busy={avatarBusy} disabled={Boolean(mediaRestricted)} onFile={(file) => void changeMedia("avatar", file)} onDelete={profile.avatar_url ? () => setDeleteTarget("avatar") : undefined} /><MediaEditorRow label="Фон профиля" previewUrl={profile.background_url} busy={backgroundBusy} disabled={Boolean(mediaRestricted)} background onFile={(file) => void changeMedia("background", file)} onDelete={profile.background_url ? () => setDeleteTarget("background") : undefined} /></div>{textRestricted && <p className="form-error" role="status">Изменение имени и описания недоступно до {textRestricted.toLocaleDateString("ru-RU")}.</p>}<div className="profile-editor"><label>Псевдоним<input disabled={Boolean(textRestricted)} value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /><small>{name.length}/32</small></label><label>О себе<textarea disabled={Boolean(textRestricted)} value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} placeholder="Расскажите немного о себе" /><small>{bio.length}/150</small></label></div>{message && <p className="form-error" role="alert">{message}</p>}</form></div><footer className="form-sticky-actions"><Button form="profile-editor-form" type="submit" disabled={saving || mediaBusy || Boolean(textRestricted) || !name.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</Button></footer><AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !mediaBusy) setDeleteTarget(null); }} title={deleteTarget === "avatar" ? "Удалить фотографию?" : "Вернуть стандартный фон?"} description="Изображение и его уменьшенные копии будут удалены. Это действие нельзя отменить." busy={mediaBusy} onConfirm={() => void deleteMedia()} /></section>;
+  return <section className="adaptive-form-page profile-editor-screen">
+    <div className="adaptive-form-scroll scroll-focus-container"><form id="profile-editor-form" className="demo-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
+      <p className="section-kicker">Профиль</p><h1>Редактировать профиль</h1>
+      {mediaRestricted && <p className="form-error" role="status">Изменение фотографий недоступно до {mediaRestricted.toLocaleDateString("ru-RU")}.</p>}
+      <div className="profile-media-editor" aria-label="Фотографии профиля">
+        <MediaEditorRow label="Фотография" name={profile.display_name} previewUrl={profile.avatar_thumbnail_url} fallbackUrl={profile.avatar_url} busy={avatarBusy} disabled={Boolean(mediaRestricted)} onFile={(file) => void changeMedia("avatar", file)} onDelete={profile.avatar_url ? () => setDeleteTarget("avatar") : undefined} />
+        <MediaEditorRow label="Фон профиля" name={profile.display_name} previewUrl={profile.background_url} busy={backgroundBusy} disabled={Boolean(mediaRestricted)} background onFile={(file) => void changeMedia("background", file)} onDelete={profile.background_url ? () => setDeleteTarget("background") : undefined} />
+      </div>
+      {textRestricted && <p className="form-error" role="status">Изменение имени и описания недоступно до {textRestricted.toLocaleDateString("ru-RU")}.</p>}
+      <div className="profile-editor"><label>Псевдоним<input disabled={Boolean(textRestricted)} value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /><small>{name.length}/32</small></label><label>О себе<textarea disabled={Boolean(textRestricted)} value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} placeholder="Расскажите немного о себе" /><small>{bio.length}/150</small></label></div>
+      {message && <p className="form-error" role="alert">{message}</p>}
+    </form></div>
+    <footer className="form-sticky-actions"><Button form="profile-editor-form" type="submit" disabled={saving || mediaBusy || Boolean(textRestricted) || !name.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</Button></footer>
+    <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !mediaBusy) setDeleteTarget(null); }} title={deleteTarget === "avatar" ? "Удалить фотографию?" : "Вернуть стандартный фон?"} description="Изображение и его уменьшенные копии будут удалены. Это действие нельзя отменить." busy={mediaBusy} onConfirm={() => void deleteMedia()} />
+  </section>;
 }
 
-function MediaEditorRow({ label, previewUrl, busy, disabled = false, background = false, onFile, onDelete }: { label: string; previewUrl?: string | null; busy: boolean; disabled?: boolean; background?: boolean; onFile: (file: File) => void; onDelete?: () => void }) {
-  return <div className="profile-media-row"><label className="profile-media-action" aria-disabled={disabled}><span className={`profile-media-preview${background ? " background" : ""}`}>{previewUrl ? <img src={previewUrl} width={background ? 96 : 48} height={48} decoding="async" alt="" /> : <ImageOff aria-hidden="true" />}</span><span><small>{label}</small><strong>{disabled ? "Временно недоступно" : busy ? "Обрабатываем…" : previewUrl ? "Заменить" : "Добавить"}</strong></span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || disabled} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) onFile(file); }} /></label>{onDelete && <button className="profile-media-delete" type="button" disabled={busy || disabled} onClick={onDelete} aria-label={`Удалить: ${label.toLowerCase()}`}><Trash2 aria-hidden="true" /></button>}</div>;
+function MediaEditorRow({ label, name, previewUrl, fallbackUrl, busy, disabled = false, background = false, onFile, onDelete }: { label: string; name: string; previewUrl?: string | null; fallbackUrl?: string | null; busy: boolean; disabled?: boolean; background?: boolean; onFile: (file: File) => void; onDelete?: () => void }) {
+  const hasImage = Boolean(previewUrl || fallbackUrl);
+  return <div className="profile-media-row"><label className="profile-media-action" aria-disabled={disabled}><span className={`profile-media-preview${background ? " background" : ""}`}>{background ? (previewUrl ? <img src={previewUrl} width={96} height={48} decoding="async" alt="" /> : <ImageOff aria-hidden="true" />) : <UserAvatar name={name} thumbnailUrl={previewUrl} fallbackUrl={fallbackUrl} className="profile-media-avatar" size={48} lazy={false} />}</span><span><small>{label}</small><strong>{disabled ? "Временно недоступно" : busy ? "Обрабатываем…" : hasImage ? "Заменить" : "Добавить"}</strong></span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || disabled} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) onFile(file); }} /></label>{onDelete && <button className="profile-media-delete" type="button" disabled={busy || disabled} onClick={onDelete} aria-label={`Удалить: ${label.toLowerCase()}`}><Trash2 aria-hidden="true" /></button>}</div>;
 }
 
 

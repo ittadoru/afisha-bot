@@ -12,18 +12,18 @@ from afishabot.modules.accounts.application.profiles import (
 
 
 class _AvatarResult:
-    def __init__(self, row: dict[str, str | None]) -> None:
+    def __init__(self, row: dict[str, Any]) -> None:
         self.row = row
 
     def mappings(self) -> "_AvatarResult":
         return self
 
-    def one_or_none(self) -> dict[str, str | None]:
+    def one_or_none(self) -> dict[str, Any]:
         return self.row
 
 
 class _AvatarConnection:
-    def __init__(self, row: dict[str, str | None]) -> None:
+    def __init__(self, row: dict[str, Any]) -> None:
         self.row = row
 
     async def execute(self, *_args: Any, **_kwargs: Any) -> _AvatarResult:
@@ -52,11 +52,15 @@ async def test_avatar_path_falls_back_when_thumbnail_row_points_to_missing_file(
 ) -> None:
     source = tmp_path / "avatars" / "source.webp"
     source.parent.mkdir()
-    source.write_bytes(b"full")
+    source.write_bytes(b"RIFF\x04\x00\x00\x00WEBPsource")
     connection = _AvatarConnection(
         {
             "source_key": "avatars/source.webp",
+            "source_size": source.stat().st_size,
+            "source_checksum": None,
             "variant_key": "avatars/missing.64.webp",
+            "variant_size": 123,
+            "variant_checksum": None,
         }
     )
 

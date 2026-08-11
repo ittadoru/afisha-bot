@@ -53,10 +53,15 @@ class FakeImageFactory:
 
     @classmethod
     def new_from_file(cls, filename: str, **kwargs: object) -> FakeVipsImage:
-        del filename, kwargs
+        del kwargs
         image = FakeVipsImage()
-        image.width = cls.width
-        image.height = cls.height
+        if filename.endswith(".64.webp"):
+            image.width = image.height = 64
+        elif filename.endswith(".webp"):
+            image.width = image.height = 256
+        else:
+            image.width = cls.width
+            image.height = cls.height
         return image
 
 

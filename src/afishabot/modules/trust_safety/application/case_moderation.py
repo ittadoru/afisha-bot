@@ -9,6 +9,7 @@ from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 QueueName = Literal["reports", "appeals"]
@@ -93,15 +94,7 @@ async def moderation_queue(
                    c.created_at,c.id LIMIT :limit
         """
     async with engine.connect() as connection:
-        rows = (
-            (
-                await connection.execute(
-                    text(statement), parameters
-                )
-            )
-            .mappings()
-            .all()
-        )
+        rows = (await connection.execute(text(statement), parameters)).mappings().all()
     return [dict(row) for row in rows]
 
 
@@ -203,7 +196,13 @@ async def _subject_projection(
 ) -> dict[str, Any] | None:
     subject_type, subject_id = case["subject_type"], case["subject_id"]
     statements = {
-        "event": "SELECT title,lifecycle_status AS status FROM events.events WHERE id=:id",
+        "event": """
+            SELECT r.title,e.lifecycle_status AS status
+            FROM events.events e
+            LEFT JOIN events.event_revisions r
+              ON r.id=COALESCE(e.approved_revision_id,e.current_revision_id)
+            WHERE e.id=:id
+        """,
         "looking_post": "SELECT title,status FROM discovery.looking_posts WHERE id=:id",
         "q_and_a_answer": "SELECT answer,answer_hidden_at IS NOT NULL AS hidden FROM discovery.looking_post_questions WHERE id=:id",
         "profile": "SELECT public_id,display_name,bio,avatar_asset_id IS NOT NULL AS has_avatar,background_asset_id IS NOT NULL AS has_background FROM accounts.profiles WHERE user_id=:id",
@@ -211,11 +210,17 @@ async def _subject_projection(
     statement = statements.get(subject_type)
     if statement is None:
         return {"type": subject_type, "available": False}
-    row = (
-        (await connection.execute(text(statement), {"id": subject_id}))
-        .mappings()
-        .one_or_none()
-    )
+    try:
+        async with connection.begin_nested():
+            row = (
+                (await connection.execute(text(statement), {"id": subject_id}))
+                .mappings()
+                .one_or_none()
+            )
+    except SQLAlchemyError:
+        # A stale/deleted subject must not make the immutable case history
+        # unavailable to staff. The captured evidence remains the fallback.
+        return None
     return dict(row) if row else None
 
 
@@ -232,7 +237,9 @@ async def decide_case(
 ) -> None:
     async with engine.begin() as connection:
         duplicate = await connection.scalar(
-            text("SELECT id FROM trust_safety.case_decisions WHERE idempotency_key=:key"),
+            text(
+                "SELECT id FROM trust_safety.case_decisions WHERE idempotency_key=:key"
+            ),
             {"key": idempotency_key},
         )
         if duplicate:
@@ -258,7 +265,9 @@ async def decide_case(
         if decision == "hide_content":
             await _hide_subject(connection, dict(case), chosen)
         now = datetime.now(UTC)
-        appeal_deadline = now + timedelta(days=3) if decision == "hide_content" else None
+        appeal_deadline = (
+            now + timedelta(days=3) if decision == "hide_content" else None
+        )
         await connection.execute(
             text("""
             INSERT INTO trust_safety.case_decisions
@@ -266,9 +275,16 @@ async def decide_case(
                idempotency_key,case_version)
             VALUES (:id,:case,:actor,:decision,:component,:note,:key,:version)
             """),
-            {"id": uuid4(), "case": case["id"], "actor": actor_staff_id,
-             "decision": decision, "component": chosen, "note": staff_note,
-             "key": idempotency_key, "version": expected_version},
+            {
+                "id": uuid4(),
+                "case": case["id"],
+                "actor": actor_staff_id,
+                "decision": decision,
+                "component": chosen,
+                "note": staff_note,
+                "key": idempotency_key,
+                "version": expected_version,
+            },
         )
         await connection.execute(
             text("""
@@ -276,7 +292,12 @@ async def decide_case(
               appeal_deadline=:deadline,subject_component=COALESCE(:component,subject_component),
               version=version+1,updated_at=:now WHERE id=:id
             """),
-            {"now": now, "deadline": appeal_deadline, "component": chosen, "id": case["id"]},
+            {
+                "now": now,
+                "deadline": appeal_deadline,
+                "component": chosen,
+                "id": case["id"],
+            },
         )
         await connection.execute(
             text("""
@@ -290,7 +311,11 @@ async def decide_case(
                 "id": case["id"],
             },
         )
-        label = "Нарушение подтверждено" if decision == "hide_content" else "Жалоба отклонена"
+        label = (
+            "Нарушение подтверждено"
+            if decision == "hide_content"
+            else "Жалоба отклонена"
+        )
         await _timeline(connection, case["id"], "resolved", label)
         direction = _direction(chosen) if case["subject_type"] == "profile" else None
         if decision == "hide_content" and direction:
@@ -300,11 +325,18 @@ async def decide_case(
                   (id,case_id,user_id,direction,confirm_after)
                 VALUES (:id,:case,:user,:direction,:after)
                 """),
-                {"id": uuid4(), "case": case["id"], "user": case["subject_owner_user_id"],
-                 "direction": direction, "after": appeal_deadline},
+                {
+                    "id": uuid4(),
+                    "case": case["id"],
+                    "user": case["subject_owner_user_id"],
+                    "direction": direction,
+                    "after": appeal_deadline,
+                },
             )
         if decision == "hide_content":
-            await _notify_owner(connection, dict(case), chosen, public_id, appeal_deadline)
+            await _notify_owner(
+                connection, dict(case), chosen, public_id, appeal_deadline
+            )
         await _audit(connection, actor_staff_id, "case.decision", public_id, decision)
 
 
@@ -313,19 +345,44 @@ async def _hide_subject(
 ) -> None:
     subject_type = case["subject_type"]
     if subject_type == "event":
-        await connection.execute(text("UPDATE events.events SET lifecycle_status='hidden',updated_at=now() WHERE id=:id"), {"id": case["subject_id"]})
+        await connection.execute(
+            text(
+                "UPDATE events.events SET lifecycle_status='hidden',updated_at=now() WHERE id=:id"
+            ),
+            {"id": case["subject_id"]},
+        )
     elif subject_type == "looking_post":
-        await connection.execute(text("UPDATE discovery.looking_posts SET status='hidden',updated_at=now() WHERE id=:id"), {"id": case["subject_id"]})
+        await connection.execute(
+            text(
+                "UPDATE discovery.looking_posts SET status='hidden',updated_at=now() WHERE id=:id"
+            ),
+            {"id": case["subject_id"]},
+        )
     elif subject_type == "q_and_a_answer":
-        await connection.execute(text("UPDATE discovery.looking_post_questions SET answer_hidden_at=now() WHERE id=:id"), {"id": case["subject_id"]})
+        await connection.execute(
+            text(
+                "UPDATE discovery.looking_post_questions SET answer_hidden_at=now() WHERE id=:id"
+            ),
+            {"id": case["subject_id"]},
+        )
     elif subject_type == "profile":
         if component not in {"avatar", "background", "bio", "display_name"}:
             raise CaseModerationError("profile_component_required")
         if component == "avatar":
-            await connection.execute(text("UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT avatar_asset_id FROM accounts.profiles WHERE user_id=:id)"), {"id": case["subject_id"]})
+            await connection.execute(
+                text(
+                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT avatar_asset_id FROM accounts.profiles WHERE user_id=:id)"
+                ),
+                {"id": case["subject_id"]},
+            )
             statement = "UPDATE accounts.profiles SET avatar_asset_id=NULL,version=version+1,updated_at=now() WHERE user_id=:id"
         elif component == "background":
-            await connection.execute(text("UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT background_asset_id FROM accounts.profiles WHERE user_id=:id)"), {"id": case["subject_id"]})
+            await connection.execute(
+                text(
+                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT background_asset_id FROM accounts.profiles WHERE user_id=:id)"
+                ),
+                {"id": case["subject_id"]},
+            )
             statement = "UPDATE accounts.profiles SET background_asset_id=NULL,version=version+1,updated_at=now() WHERE user_id=:id"
         elif component == "bio":
             statement = "UPDATE accounts.profiles SET bio=NULL,version=version+1,updated_at=now() WHERE user_id=:id"
@@ -347,7 +404,12 @@ async def decide_appeal(
     idempotency_key: UUID,
 ) -> None:
     async with engine.begin() as connection:
-        if await connection.scalar(text("SELECT id FROM trust_safety.case_decisions WHERE idempotency_key=:key"), {"key": idempotency_key}):
+        if await connection.scalar(
+            text(
+                "SELECT id FROM trust_safety.case_decisions WHERE idempotency_key=:key"
+            ),
+            {"key": idempotency_key},
+        ):
             return
         row = (
             (
@@ -357,31 +419,64 @@ async def decide_appeal(
                     FROM trust_safety.moderation_cases c
                     JOIN trust_safety.appeals a ON a.case_id=c.id
                     WHERE c.public_id=:public FOR UPDATE OF c,a
-                    """), {"public": public_id}
+                    """),
+                    {"public": public_id},
                 )
-            ).mappings().one_or_none()
+            )
+            .mappings()
+            .one_or_none()
         )
         if row is None:
             raise CaseModerationError("appeal_not_found")
-        if row["appeal_status"] not in {"submitted", "reviewing"} or row["version"] != expected_version:
+        if (
+            row["appeal_status"] not in {"submitted", "reviewing"}
+            or row["version"] != expected_version
+        ):
             raise CaseModerationError("case_version_conflict")
         db_decision = f"appeal_{decision}"
-        await connection.execute(text("""
+        await connection.execute(
+            text("""
           INSERT INTO trust_safety.case_decisions
             (id,case_id,actor_staff_id,decision_type,subject_component,staff_note,idempotency_key,case_version)
           VALUES (:id,:case,:actor,:decision,:component,:note,:key,:version)
-        """), {"id":uuid4(),"case":row["id"],"actor":actor_staff_id,"decision":db_decision,
-                 "component":row["subject_component"],"note":staff_note,"key":idempotency_key,"version":expected_version})
-        await connection.execute(text("UPDATE trust_safety.appeals SET status=:status,decided_at=now() WHERE id=:id"), {"status":decision,"id":row["appeal_id"]})
-        await connection.execute(text("UPDATE trust_safety.moderation_cases SET version=version+1,updated_at=now() WHERE id=:id"), {"id":row["id"]})
+        """),
+            {
+                "id": uuid4(),
+                "case": row["id"],
+                "actor": actor_staff_id,
+                "decision": db_decision,
+                "component": row["subject_component"],
+                "note": staff_note,
+                "key": idempotency_key,
+                "version": expected_version,
+            },
+        )
+        await connection.execute(
+            text(
+                "UPDATE trust_safety.appeals SET status=:status,decided_at=now() WHERE id=:id"
+            ),
+            {"status": decision, "id": row["appeal_id"]},
+        )
+        await connection.execute(
+            text(
+                "UPDATE trust_safety.moderation_cases SET version=version+1,updated_at=now() WHERE id=:id"
+            ),
+            {"id": row["id"]},
+        )
         if decision == "reversed":
-            await connection.execute(text("UPDATE trust_safety.profile_violations SET status='reversed',reversed_at=now() WHERE case_id=:case AND status='pending'"), {"case":row["id"]})
+            await connection.execute(
+                text(
+                    "UPDATE trust_safety.profile_violations SET status='reversed',reversed_at=now() WHERE case_id=:case AND status='pending'"
+                ),
+                {"case": row["id"]},
+            )
             label = "Решение отменено по апелляции"
         else:
             await _confirm_violation(connection, row["id"])
             label = "Первоначальное решение подтверждено"
         await _timeline(connection, row["id"], db_decision, label)
-        await connection.execute(text("""
+        await connection.execute(
+            text("""
           INSERT INTO communication.notifications
             (id,recipient_user_id,kind,importance,title,body,subject_type,subject_id,
              deep_link,created_at,business_key,delivery_policy,telegram_status)
@@ -389,45 +484,72 @@ async def decide_appeal(
                   :body,'moderation_case',:case,:link,now(),:key,
                   'telegram_and_in_app','pending')
           ON CONFLICT (business_key) WHERE business_key IS NOT NULL DO NOTHING
-        """), {
-            "id": uuid4(), "user": row["subject_owner_user_id"], "case": row["id"],
-            "body": label, "link": f"/app/cases/{public_id}",
-            "key": f"case:{row['id']}:appeal:{decision}",
-        })
-        await _audit(connection, actor_staff_id, "case.appeal_decision", public_id, decision)
+        """),
+            {
+                "id": uuid4(),
+                "user": row["subject_owner_user_id"],
+                "case": row["id"],
+                "body": label,
+                "link": f"/app/cases/{public_id}",
+                "key": f"case:{row['id']}:appeal:{decision}",
+            },
+        )
+        await _audit(
+            connection, actor_staff_id, "case.appeal_decision", public_id, decision
+        )
 
 
 async def _confirm_violation(connection: AsyncConnection, case_id: UUID) -> bool:
     violation = (
         (
-            await connection.execute(text("""
+            await connection.execute(
+                text("""
               UPDATE trust_safety.profile_violations SET status='confirmed',confirmed_at=now()
               WHERE case_id=:case AND status='pending' RETURNING id,user_id,direction
-            """), {"case":case_id})
-        ).mappings().one_or_none()
+            """),
+                {"case": case_id},
+            )
+        )
+        .mappings()
+        .one_or_none()
     )
     if violation is None:
         return False
-    count = int(await connection.scalar(text("""
+    count = int(
+        await connection.scalar(
+            text("""
       SELECT count(*) FROM trust_safety.profile_violations
       WHERE user_id=:user AND direction=:direction AND status='confirmed'
         AND created_at>=now()-interval '180 days'
-    """), {"user":violation["user_id"],"direction":violation["direction"]}) or 0)
+    """),
+            {"user": violation["user_id"], "direction": violation["direction"]},
+        )
+        or 0
+    )
     if count >= 2:
         days = 30 if count == 2 else 90
         ends_at = datetime.now(UTC) + timedelta(days=days)
-        await connection.execute(text("""
+        await connection.execute(
+            text("""
           INSERT INTO trust_safety.profile_restrictions
             (id,user_id,direction,source_violation_id,starts_at,ends_at)
           VALUES (:id,:user,:direction,:violation,now(),:ends_at)
           ON CONFLICT (source_violation_id) DO NOTHING
-        """), {"id":uuid4(),"user":violation["user_id"],"direction":violation["direction"],
-                 "violation":violation["id"],"ends_at":ends_at})
+        """),
+            {
+                "id": uuid4(),
+                "user": violation["user_id"],
+                "direction": violation["direction"],
+                "violation": violation["id"],
+                "ends_at": ends_at,
+            },
+        )
         case_public_id = await connection.scalar(
             text("SELECT public_id FROM trust_safety.moderation_cases WHERE id=:id"),
             {"id": case_id},
         )
-        await connection.execute(text("""
+        await connection.execute(
+            text("""
           INSERT INTO communication.notifications
             (id,recipient_user_id,kind,importance,title,body,subject_type,subject_id,
              deep_link,created_at,expires_at,business_key,delivery_policy,telegram_status)
@@ -435,24 +557,35 @@ async def _confirm_violation(connection: AsyncConnection, case_id: UUID) -> bool
                   :body,'moderation_case',:case,:link,now(),:ends_at,:key,
                   'telegram_and_in_app','pending')
           ON CONFLICT (business_key) WHERE business_key IS NOT NULL DO NOTHING
-        """), {
-            "id": uuid4(), "user": violation["user_id"], "case": case_id,
-            "body": f"Редактирование раздела профиля ограничено до {ends_at:%d.%m.%Y}. Остальные функции приложения доступны.",
-            "link": f"/app/cases/{case_public_id}", "ends_at": ends_at,
-            "key": f"case:{case_id}:restriction",
-        })
+        """),
+            {
+                "id": uuid4(),
+                "user": violation["user_id"],
+                "case": case_id,
+                "body": f"Редактирование раздела профиля ограничено до {ends_at:%d.%m.%Y}. Остальные функции приложения доступны.",
+                "link": f"/app/cases/{case_public_id}",
+                "ends_at": ends_at,
+                "key": f"case:{case_id}:restriction",
+            },
+        )
     return True
 
 
 async def confirm_due_violations(engine: AsyncEngine) -> int:
     async with engine.begin() as connection:
-        ids = list((await connection.scalars(text("""
+        ids = list(
+            (
+                await connection.scalars(
+                    text("""
           SELECT case_id FROM trust_safety.profile_violations v
           WHERE v.status='pending' AND v.confirm_after<=now()
             AND NOT EXISTS (SELECT 1 FROM trust_safety.appeals a
                             WHERE a.case_id=v.case_id AND a.status IN ('submitted','reviewing'))
           FOR UPDATE SKIP LOCKED
-        """))).all())
+        """)
+                )
+            ).all()
+        )
         confirmed = 0
         for case_id in ids:
             confirmed += int(await _confirm_violation(connection, case_id))
@@ -465,7 +598,8 @@ async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
     async with engine.begin() as connection:
         rows = (
             (
-                await connection.execute(text("""
+                await connection.execute(
+                    text("""
                   SELECT r.id,r.evidence_snapshot
                   FROM trust_safety.reports r
                   JOIN trust_safety.moderation_cases c ON c.id=r.case_id
@@ -473,24 +607,38 @@ async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
                     AND NOT EXISTS (SELECT 1 FROM trust_safety.appeals a
                                     WHERE a.case_id=c.id AND a.status IN ('submitted','reviewing'))
                   FOR UPDATE OF r SKIP LOCKED
-                """))
-            ).mappings().all()
+                """)
+                )
+            )
+            .mappings()
+            .all()
         )
         for row in rows:
             snapshot = cast(dict[str, Any], row["evidence_snapshot"] or {})
-            if snapshot.get("component") in {"avatar", "background"} and snapshot.get("value"):
+            if snapshot.get("component") in {"avatar", "background"} and snapshot.get(
+                "value"
+            ):
                 try:
                     asset_id = UUID(str(snapshot["value"]))
                 except ValueError:
                     asset_id = None
                 if asset_id:
-                    keys = list((await connection.scalars(text("""
+                    keys = list(
+                        (
+                            await connection.scalars(
+                                text("""
                       SELECT storage_key FROM media.asset_variants WHERE source_asset_id=:id
                       UNION SELECT storage_key FROM media.assets WHERE id=:id
-                    """), {"id": asset_id})).all())
+                    """),
+                                {"id": asset_id},
+                            )
+                        ).all()
+                    )
                     paths.update(media_root / key for key in keys)
             await connection.execute(
-                text("UPDATE trust_safety.reports SET evidence_snapshot=NULL WHERE id=:id"),
+                text(
+                    "UPDATE trust_safety.reports SET evidence_snapshot=NULL WHERE id=:id"
+                ),
                 {"id": row["id"]},
             )
     for path in paths:
@@ -501,34 +649,48 @@ async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
 async def active_profile_restriction(
     connection: AsyncConnection, user_id: UUID, direction: str
 ) -> datetime | None:
-    return await connection.scalar(text("""
+    return await connection.scalar(
+        text("""
       SELECT max(ends_at) FROM trust_safety.profile_restrictions
       WHERE user_id=:user AND direction=:direction AND ends_at>now()
-    """), {"user":user_id,"direction":direction})
+    """),
+        {"user": user_id, "direction": direction},
+    )
 
 
-async def _timeline(connection: AsyncConnection, case_id: UUID, event: str, label: str) -> None:
-    await connection.execute(text("""
+async def _timeline(
+    connection: AsyncConnection, case_id: UUID, event: str, label: str
+) -> None:
+    await connection.execute(
+        text("""
       INSERT INTO trust_safety.case_timeline_entries(id,case_id,event_type,public_label)
       VALUES (:id,:case,:event,:label)
-    """), {"id":uuid4(),"case":case_id,"event":event,"label":label})
+    """),
+        {"id": uuid4(), "case": case_id, "event": event, "label": label},
+    )
 
 
 async def _notify_owner(
-    connection: AsyncConnection, case: dict[str, Any], component: str | None,
-    public_id: str, deadline: datetime | None,
+    connection: AsyncConnection,
+    case: dict[str, Any],
+    component: str | None,
+    public_id: str,
+    deadline: datetime | None,
 ) -> None:
     owner = case.get("subject_owner_user_id")
     if owner is None:
         return
     labels: dict[str | None, str] = {
-        "avatar": "Аватар", "background": "Фон профиля",
-        "bio": "Описание профиля", "display_name": "Имя профиля",
+        "avatar": "Аватар",
+        "background": "Фон профиля",
+        "bio": "Описание профиля",
+        "display_name": "Имя профиля",
         None: "Контент",
     }
     component_label = labels.get(component, "Контент")
     body = f"{component_label} скрыт после проверки. Апелляцию можно подать в течение 3 дней. Повторное нарушение может ограничить редактирование профиля."
-    await connection.execute(text("""
+    await connection.execute(
+        text("""
       INSERT INTO communication.notifications
         (id,recipient_user_id,kind,importance,title,body,subject_type,subject_id,
          deep_link,created_at,expires_at,business_key,delivery_policy,telegram_status)
@@ -536,16 +698,33 @@ async def _notify_owner(
               'moderation_case',:case_id,:link,now(),:expires,:key,
               'telegram_and_in_app','pending')
       ON CONFLICT (business_key) WHERE business_key IS NOT NULL DO NOTHING
-    """), {"id":uuid4(),"user":owner,"body":body,"case_id":case["id"],
-             "link":f"/app/cases/{public_id}","expires":deadline,
-             "key":f"case:{case['id']}:decision"})
+    """),
+        {
+            "id": uuid4(),
+            "user": owner,
+            "body": body,
+            "case_id": case["id"],
+            "link": f"/app/cases/{public_id}",
+            "expires": deadline,
+            "key": f"case:{case['id']}:decision",
+        },
+    )
 
 
 async def _audit(
     connection: AsyncConnection, actor: UUID, action: str, public_id: str, result: str
 ) -> None:
-    await connection.execute(text("""
+    await connection.execute(
+        text("""
       INSERT INTO trust_safety.staff_audit_log
         (id,actor_staff_id,action,result,details)
       VALUES (:id,:actor,:action,'success',jsonb_build_object('case_public_id',:public,'decision',:decision))
-    """), {"id":uuid4(),"actor":actor,"action":action,"public":public_id,"decision":result})
+    """),
+        {
+            "id": uuid4(),
+            "actor": actor,
+            "action": action,
+            "public": public_id,
+            "decision": result,
+        },
+    )

@@ -151,7 +151,13 @@ async def _message_payload(
         "author_public_id": row.get("public_id", ""),
         "author_avatar_thumbnail_url": (
             f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}"
-            if row.get("avatar_asset_id") and row.get("public_id") else None
+            if row.get("avatar_asset_id") and row.get("public_id")
+            else None
+        ),
+        "author_avatar_url": (
+            f"/api/profiles/{row['public_id']}/avatar?size=256&v={row['profile_version']}"
+            if row.get("avatar_asset_id") and row.get("public_id")
+            else None
         ),
         "author_is_organizer": row["is_organizer"],
         "author_is_viewer": row["is_viewer"],
@@ -231,7 +237,13 @@ async def list_messages(
                 "author_public_id": row["public_id"],
                 "author_avatar_thumbnail_url": (
                     f"/api/profiles/{row['public_id']}/avatar?size=64&v={row['profile_version']}"
-                    if row["avatar_asset_id"] else None
+                    if row["avatar_asset_id"]
+                    else None
+                ),
+                "author_avatar_url": (
+                    f"/api/profiles/{row['public_id']}/avatar?size=256&v={row['profile_version']}"
+                    if row["avatar_asset_id"]
+                    else None
                 ),
                 "author_is_organizer": row["is_organizer"],
                 "author_is_viewer": row["is_viewer"],

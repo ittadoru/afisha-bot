@@ -222,11 +222,13 @@ async def own_response_with_restrictions(
     response = own_response(profile)
     response.media_restricted_until = (
         restrictions["profile_media"].isoformat()
-        if restrictions.get("profile_media") else None
+        if restrictions.get("profile_media")
+        else None
     )
     response.text_restricted_until = (
         restrictions["profile_text"].isoformat()
-        if restrictions.get("profile_text") else None
+        if restrictions.get("profile_text")
+        else None
     )
     return response
 
@@ -243,7 +245,10 @@ async def require_profile_media_allowed(engine: AsyncEngine, user_id: UUID) -> N
     if restricted_until is not None:
         raise HTTPException(
             status_code=403,
-            detail={"code": "profile_media_restricted", "restricted_until": restricted_until.isoformat()},
+            detail={
+                "code": "profile_media_restricted",
+                "restricted_until": restricted_until.isoformat(),
+            },
         )
 
 
@@ -252,18 +257,22 @@ async def _avatar_asset_paths(
 ) -> list[Path]:
     """Return every physical representation of an avatar without duplicates."""
     keys = (
-        await connection.execute(
-            text(
-                """
+        (
+            await connection.execute(
+                text(
+                    """
                 SELECT storage_key FROM media.assets WHERE id=:asset
                 UNION
                 SELECT storage_key FROM media.asset_variants
                 WHERE source_asset_id=:asset
                 """
-            ),
-            {"asset": asset_id},
+                ),
+                {"asset": asset_id},
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return [media_root / key for key in set(keys)]
 
 
@@ -280,7 +289,10 @@ async def _avatar_path(
             await connection.execute(
                 text(
                     """
-                    SELECT a.storage_key AS source_key,v.storage_key AS variant_key
+                    SELECT a.storage_key AS source_key,a.byte_size AS source_size,
+                           a.checksum_sha256 AS source_checksum,
+                           v.storage_key AS variant_key,v.byte_size AS variant_size,
+                           v.checksum_sha256 AS variant_checksum
                     FROM accounts.profiles p
                     JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
                     JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
@@ -297,12 +309,45 @@ async def _avatar_path(
     )
     if row is None:
         return None
-    for key in (row["variant_key"], row["source_key"]):
+    candidates = (
+        (
+            row["variant_key"],
+            row.get("variant_size"),
+            row.get("variant_checksum"),
+        ),
+        (row["source_key"], row.get("source_size"), row.get("source_checksum")),
+    )
+    for key, expected_bytes, expected_checksum in candidates:
         if key:
             candidate = media_root / key
-            if candidate.is_file():
+            if _is_valid_stored_webp(
+                candidate, expected_bytes, expected_checksum
+            ):
                 return candidate
     return None
+
+
+def _is_valid_stored_webp(
+    path: Path, expected_bytes: int | None, expected_checksum: str | None
+) -> bool:
+    """Reject a missing or mutated file before returning public media."""
+    try:
+        stat = path.stat()
+        if not path.is_file() or stat.st_size <= 12:
+            return False
+        if expected_bytes is not None and stat.st_size != expected_bytes:
+            return False
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            header = stream.read(12)
+            digest.update(header)
+            for chunk in iter(lambda: stream.read(64 * 1024), b""):
+                digest.update(chunk)
+        if header[:4] != b"RIFF" or header[8:12] != b"WEBP":
+            return False
+        return expected_checksum is None or digest.hexdigest() == expected_checksum
+    except OSError:
+        return False
 
 
 @router.get(
@@ -425,7 +470,10 @@ async def patch_profile(
     except ProfileRestricted as error:
         raise HTTPException(
             status_code=403,
-            detail={"code": error.code, "restricted_until": error.restricted_until.isoformat()},
+            detail={
+                "code": error.code,
+                "restricted_until": error.restricted_until.isoformat(),
+            },
         ) from error
     except ProfileConflict as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
@@ -591,9 +639,10 @@ async def get_notification_feed(
         params.update(before_at=before[0], before_id=before[1])
     async with engine.connect() as connection:
         rows = (
-            await connection.execute(
-                text(
-                    f"""
+            (
+                await connection.execute(
+                    text(
+                        f"""
                     SELECT n.id,n.kind,n.importance,n.title,n.body,n.deep_link,
                            n.created_at,n.read_at
                     FROM communication.notifications n
@@ -602,10 +651,13 @@ async def get_notification_feed(
                       {where_unread} {cursor_clause}
                     ORDER BY n.created_at DESC,n.id DESC LIMIT :limit
                     """
-                ),
-                params,
+                    ),
+                    params,
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         unread_count = await connection.scalar(
             text(
                 """
@@ -641,18 +693,22 @@ async def read_notification(
     user_id = await mutation_user(request, token, csrf)
     async with engine.begin() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     UPDATE communication.notifications
                     SET read_at=COALESCE(read_at, now())
                     WHERE id=:id AND recipient_user_id=:user
                     RETURNING id,kind,importance,title,body,deep_link,created_at,read_at
                     """
-                ),
-                {"id": notification_id, "user": user_id},
+                    ),
+                    {"id": notification_id, "user": user_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
     if row is None:
         raise HTTPException(status_code=404, detail="notification_not_found")
     return NotificationResponse.model_validate(row)
@@ -790,76 +846,96 @@ async def put_avatar(
         lambda: hashlib.sha256(thumbnail.read_bytes()).hexdigest()
     )
     old_paths: list[Path] = []
-    async with engine.begin() as connection:
-        old = (
-            (
-                await connection.execute(
-                    text(
-                        """SELECT a.id, a.storage_key FROM accounts.profiles p LEFT JOIN media.assets a ON a.id=p.avatar_asset_id WHERE p.user_id=:user FOR UPDATE OF p"""
-                    ),
-                    {"user": user_id},
+    try:
+        async with engine.begin() as connection:
+            old = (
+                (
+                    await connection.execute(
+                        text(
+                            """SELECT a.id, a.storage_key FROM accounts.profiles p LEFT JOIN media.assets a ON a.id=p.avatar_asset_id WHERE p.user_id=:user FOR UPDATE OF p"""
+                        ),
+                        {"user": user_id},
+                    )
                 )
+                .mappings()
+                .one()
             )
-            .mappings()
-            .one()
-        )
-        await connection.execute(
-            text("""INSERT INTO media.assets (id,owner_user_id,purpose,state,storage_key,mime_type,byte_size,width,height,checksum_sha256)
+            await connection.execute(
+                text("""INSERT INTO media.assets (id,owner_user_id,purpose,state,storage_key,mime_type,byte_size,width,height,checksum_sha256)
             VALUES (:id,:user,'profile_avatar','ready',:key,'image/webp',:size,256,256,:checksum)"""),
-            {
-                "id": asset_id,
-                "user": user_id,
-                "key": f"avatars/{asset_id}.webp",
-                "size": destination.stat().st_size,
-                "checksum": checksum,
-            },
-        )
-        await connection.execute(
-            text(
-                """INSERT INTO media.asset_variants
+                {
+                    "id": asset_id,
+                    "user": user_id,
+                    "key": f"avatars/{asset_id}.webp",
+                    "size": destination.stat().st_size,
+                    "checksum": checksum,
+                },
+            )
+            await connection.execute(
+                text(
+                    """INSERT INTO media.asset_variants
                 (id,source_asset_id,variant_key,storage_key,mime_type,width,height,byte_size,checksum_sha256)
                 VALUES
                 (:full_id,:asset,'avatar_256',:full_key,'image/webp',256,256,:full_size,:full_checksum),
                 (:thumb_id,:asset,'avatar_64',:thumb_key,'image/webp',64,64,:thumb_size,:thumb_checksum)"""
-            ),
-            {
-                "full_id": uuid4(),
-                "thumb_id": uuid4(),
-                "asset": asset_id,
-                "full_key": f"avatars/{asset_id}.webp",
-                "thumb_key": f"avatars/{asset_id}.64.webp",
-                "full_size": destination.stat().st_size,
-                "thumb_size": thumbnail.stat().st_size,
-                "full_checksum": checksum,
-                "thumb_checksum": thumbnail_checksum,
-            },
-        )
-        await connection.execute(
-            text(
-                "UPDATE accounts.profiles SET avatar_asset_id=:asset,version=version+1,updated_at=now() WHERE user_id=:user"
-            ),
-            {"asset": asset_id, "user": user_id},
-        )
-        if old["id"]:
-            retained = await connection.scalar(
-                text(
-                    "SELECT 1 FROM trust_safety.profile_reports WHERE avatar_asset_id=:id AND status IN ('pending','reviewed')"
                 ),
-                {"id": old["id"]},
+                {
+                    "full_id": uuid4(),
+                    "thumb_id": uuid4(),
+                    "asset": asset_id,
+                    "full_key": f"avatars/{asset_id}.webp",
+                    "thumb_key": f"avatars/{asset_id}.64.webp",
+                    "full_size": destination.stat().st_size,
+                    "thumb_size": thumbnail.stat().st_size,
+                    "full_checksum": checksum,
+                    "thumb_checksum": thumbnail_checksum,
+                },
             )
-            if retained is None:
-                old_paths = await _avatar_asset_paths(
-                    connection, asset_id=old["id"], media_root=settings.media_root
-                )
-                await connection.execute(
+            linked_variants = int(
+                await connection.scalar(
                     text(
-                        "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=:id"
+                        """SELECT count(*) FROM media.asset_variants
+                        WHERE source_asset_id=:asset
+                          AND variant_key IN ('avatar_256','avatar_64')"""
+                    ),
+                    {"asset": asset_id},
+                )
+                or 0
+            )
+            if linked_variants != 2:
+                raise RuntimeError("avatar_variants_not_linked")
+            await connection.execute(
+                text(
+                    "UPDATE accounts.profiles SET avatar_asset_id=:asset,version=version+1,updated_at=now() WHERE user_id=:user"
+                ),
+                {"asset": asset_id, "user": user_id},
+            )
+            if old["id"]:
+                retained = await connection.scalar(
+                    text(
+                        "SELECT 1 FROM trust_safety.profile_reports WHERE avatar_asset_id=:id AND status IN ('pending','reviewed')"
                     ),
                     {"id": old["id"]},
                 )
+                if retained is None:
+                    old_paths = await _avatar_asset_paths(
+                        connection, asset_id=old["id"], media_root=settings.media_root
+                    )
+                    await connection.execute(
+                        text(
+                            "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=:id"
+                        ),
+                        {"id": old["id"]},
+                    )
+    except BaseException:
+        await to_thread.run_sync(destination.unlink, True)
+        await to_thread.run_sync(thumbnail.unlink, True)
+        raise
     for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
-    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(
+        engine, await load_profile(engine, user_id=user_id)
+    )
 
 
 @router.delete("/account/avatar", response_model=OwnProfileResponse)
@@ -911,7 +987,9 @@ async def delete_avatar(
                 )
     for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
-    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(
+        engine, await load_profile(engine, user_id=user_id)
+    )
 
 
 @router.put("/account/profile-background", response_model=OwnProfileResponse)
@@ -1011,7 +1089,9 @@ async def put_profile_background(
                 old_path = settings.media_root / old["storage_key"]
     if old_path:
         await to_thread.run_sync(old_path.unlink, True)
-    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(
+        engine, await load_profile(engine, user_id=user_id)
+    )
 
 
 @router.delete("/account/profile-background", response_model=OwnProfileResponse)
@@ -1067,7 +1147,9 @@ async def delete_profile_background(
                 old_path = settings.media_root / old["storage_key"]
     if old_path:
         await to_thread.run_sync(old_path.unlink, True)
-    return await own_response_with_restrictions(engine, await load_profile(engine, user_id=user_id))
+    return await own_response_with_restrictions(
+        engine, await load_profile(engine, user_id=user_id)
+    )
 
 
 @router.get("/profiles/{public_id}/avatar")

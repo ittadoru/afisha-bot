@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Self, cast
+from typing import Any, Protocol, Self, cast
 from uuid import uuid4
 
 
@@ -139,6 +139,9 @@ class AvatarImageProcessor:
         ):
             source.unlink(missing_ok=True)
             raise UnsafeImageError("file_too_large")
+        destinations = [destination_256]
+        if destination_64 is not None:
+            destinations.append(destination_64)
         try:
             import pyvips
 
@@ -180,13 +183,41 @@ class AvatarImageProcessor:
                     os.replace(temporary, destination)
                 finally:
                     temporary.unlink(missing_ok=True)
+            validate_avatar_variant(destination_256, expected_size=256)
+            if destination_64 is not None:
+                validate_avatar_variant(destination_64, expected_size=64)
         except UnsafeImageError:
+            for destination in destinations:
+                destination.unlink(missing_ok=True)
             raise
         except Exception as exc:
+            for destination in destinations:
+                destination.unlink(missing_ok=True)
             raise UnsafeImageError("image_decode_or_encode_failed") from exc
         finally:
             source.unlink(missing_ok=True)
         return destination_256, destination_64
+
+
+def validate_avatar_variant(path: Path, *, expected_size: int) -> None:
+    """Re-open an encoded avatar so a partial/corrupt WebP is never published."""
+    if not path.is_file() or path.is_symlink() or path.stat().st_size <= 0:
+        raise UnsafeImageError("avatar_variant_missing")
+    try:
+        import pyvips
+
+        image = cast(
+            Any,
+            pyvips.Image.new_from_file(  # pyright: ignore[reportUnknownMemberType]
+                str(path), access="sequential", fail_on="warning"
+            ),
+        )
+        if image.width != expected_size or image.height != expected_size:
+            raise UnsafeImageError("avatar_variant_dimensions_invalid")
+    except UnsafeImageError:
+        raise
+    except Exception as exc:
+        raise UnsafeImageError("avatar_variant_invalid") from exc
 
 
 class ProfileBackgroundImageProcessor:
