@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -147,6 +147,62 @@ describe("landing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Вернуться на главный экран" }));
     fireEvent.click(screen.getByRole("button", { name: "Ошибка" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Не получилось загрузить");
+  });
+
+  it("ignores an aborted stale looking-post response after sorting changes", async () => {
+    window.history.replaceState({}, "", "/app");
+    let resolveFirst: ((response: Response) => void) | null = null;
+    let lookingCalls = 0;
+    const signals: AbortSignal[] = [];
+    vi.stubGlobal("fetch", vi.fn((input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/geo/catalog")) return Promise.resolve(okJson({ cities: [city], categories: [] }));
+      if (url.endsWith("/account/notifications")) return Promise.resolve(okJson([]));
+      if (url.includes("/looking-posts?")) {
+        lookingCalls += 1;
+        if (lookingCalls === 1) {
+          if (init?.signal) signals.push(init.signal);
+          return new Promise<Response>((resolve) => { resolveFirst = resolve; });
+        }
+        return Promise.resolve(okJson({ items: [{ id: "new", title: "Свежая идея", body: "Описание", category: "Прогулки", created_at: "2026-08-11T12:00:00+03:00", like_count: 0, question_count: 0, viewer_liked: false, is_author: false, status: "active", remaining_seconds: 100, author: { public_id: "12345678", display_name: "Анна", avatar_url: null, avatar_thumbnail_url: null } }], next_cursor: null }));
+      }
+      return Promise.resolve(okJson(profile));
+    }));
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Старые" }));
+    expect(await screen.findByRole("heading", { name: "Свежая идея" })).toBeInTheDocument();
+    expect(signals[0]?.aborted).toBe(true);
+
+    act(() => resolveFirst?.(okJson({ items: [{ id: "old", title: "Устаревшая идея" }], next_cursor: null })));
+    await waitFor(() => expect(screen.queryByText("Устаревшая идея")).not.toBeInTheDocument());
+  });
+
+  it("retries a failed looking-post request only after the user asks", async () => {
+    window.history.replaceState({}, "", "/app");
+    let lookingCalls = 0;
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
+      if (url.endsWith("/account/notifications")) return okJson([]);
+      if (url.includes("/looking-posts?")) {
+        lookingCalls += 1;
+        return lookingCalls === 1
+          ? okJson({}, 503)
+          : okJson({ items: [], next_cursor: null });
+      }
+      return okJson(profile);
+    }));
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
+    expect(await screen.findByText("Не удалось загрузить идеи")).toBeInTheDocument();
+    expect(lookingCalls).toBe(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
+    expect(await screen.findByText("В этом городе пока нет идей")).toBeInTheDocument();
+    expect(lookingCalls).toBe(2);
   });
 
   it("shows looking-post questions without a share action", async () => {

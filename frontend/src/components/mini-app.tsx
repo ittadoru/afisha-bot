@@ -462,8 +462,33 @@ function formatEventClock(value: string): string {
 
 function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | null; csrfToken: string; onCreate: () => void; onOpen: (id: string) => void }) {
   const [items, setItems] = useState<LookingPost[] | null>(null); const [failed, setFailed] = useState(false); const [moreFailed, setMoreFailed] = useState(false); const [loadingMore, setLoadingMore] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const [likeBusy, setLikeBusy] = useState<string | null>(null); const [sort, setSort] = useState<"new" | "old" | "popular">("new");
-  const load = useCallback(async (append = false) => { if (!city) { setItems([]); return; } if (!append) { setItems(null); setFailed(false); } else { setLoadingMore(true); setMoreFailed(false); } try { const suffix = append && nextCursor ? `&cursor=${encodeURIComponent(nextCursor)}` : ""; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts?city_id=${encodeURIComponent(city.id)}&sort=${sort}${suffix}`, { credentials: "include" }); if (!r.ok) throw new Error(); const data = await r.json() as { items: LookingPost[]; next_cursor: string | null }; setItems((current) => append ? [...(current ?? []), ...data.items].filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index) : data.items); setNextCursor(data.next_cursor); } catch { if (append) setMoreFailed(true); else { setFailed(true); setItems([]); } } finally { setLoadingMore(false); } }, [city, nextCursor, sort]);
-  useEffect(() => { void load(); }, [city, sort]);
+  const nextCursorRef = useRef<string | null>(null);
+  const requestRef = useRef<{ id: number; controller: AbortController } | null>(null);
+  const load = useCallback(async (append = false) => {
+    requestRef.current?.controller.abort();
+    if (!city) { setItems([]); setFailed(false); return; }
+    const request = { id: (requestRef.current?.id ?? 0) + 1, controller: new AbortController() };
+    requestRef.current = request;
+    if (!append) { setItems(null); setFailed(false); setMoreFailed(false); } else { setLoadingMore(true); setMoreFailed(false); }
+    try {
+      const cursor = append ? nextCursorRef.current : null;
+      const suffix = cursor ? `&cursor=${encodeURIComponent(cursor)}` : "";
+      const response = await fetch(`${appConfig.apiBaseUrl}/looking-posts?city_id=${encodeURIComponent(city.id)}&sort=${sort}${suffix}`, { credentials: "include", signal: request.controller.signal });
+      if (!response.ok) throw new Error(`looking_posts_${response.status}`);
+      const data = await response.json() as { items: LookingPost[]; next_cursor: string | null };
+      if (requestRef.current?.id !== request.id) return;
+      setItems((current) => append ? [...(current ?? []), ...data.items].filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index) : data.items);
+      nextCursorRef.current = data.next_cursor;
+      setNextCursor(data.next_cursor);
+    } catch (error) {
+      if (request.controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
+      if (requestRef.current?.id !== request.id) return;
+      if (append) setMoreFailed(true); else { setFailed(true); setItems([]); }
+    } finally {
+      if (requestRef.current?.id === request.id) setLoadingMore(false);
+    }
+  }, [city, sort]);
+  useEffect(() => { void load(); return () => requestRef.current?.controller.abort(); }, [load]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
   const statusText = (post: LookingPost) => post.status === "active" ? "Активна" : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
   return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><h1>Найдите компанию</h1></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}><UserAvatar name={post.author.display_name} thumbnailUrl={post.author.avatar_thumbnail_url} fallbackUrl={post.author.avatar_url} size={38} /><header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
