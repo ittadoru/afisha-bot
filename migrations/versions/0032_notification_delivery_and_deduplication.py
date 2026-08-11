@@ -10,8 +10,15 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _execute_statements(sql: str) -> None:
+    """Execute DDL one statement at a time for asyncpg compatibility."""
+    for statement in sql.split(";"):
+        if statement.strip():
+            op.execute(statement)
+
+
 def upgrade() -> None:
-    op.execute(
+    _execute_statements(
         """
         ALTER TABLE communication.notifications
           ADD COLUMN business_key varchar(180),
@@ -33,7 +40,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.execute("DROP INDEX communication.ix_notifications_feed")
     op.execute("DROP INDEX communication.uq_notifications_business_key")
-    op.execute(
+    _execute_statements(
         """
         ALTER TABLE communication.notifications
           DROP COLUMN telegram_sent_at,

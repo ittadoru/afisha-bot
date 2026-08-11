@@ -11,8 +11,15 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _execute_statements(sql: str) -> None:
+    """Execute DDL one statement at a time for asyncpg compatibility."""
+    for statement in sql.split(";"):
+        if statement.strip():
+            op.execute(statement)
+
+
 def upgrade() -> None:
-    op.execute(
+    _execute_statements(
         """
         ALTER TABLE discovery.categories
           ADD COLUMN icon_key varchar(40),
@@ -169,7 +176,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute(
+    _execute_statements(
         """
         DROP TABLE trust_safety.appeals;
         DROP TABLE trust_safety.case_timeline_entries;
