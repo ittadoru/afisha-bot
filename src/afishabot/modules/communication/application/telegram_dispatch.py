@@ -99,6 +99,8 @@ def _safe_web_app_url(
     base = urlsplit(str(base_url))
     if base.scheme not in {"https"} or not base.netloc:
         return None
+    if deep_link is None:
+        return str(base_url)
     path = deep_link or "/app"
     parsed = urlsplit(path)
     if parsed.scheme or parsed.netloc or not parsed.path.startswith("/app"):

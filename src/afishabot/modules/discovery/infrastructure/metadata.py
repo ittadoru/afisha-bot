@@ -85,6 +85,8 @@ categories = Table(
     Column("sort_order", SmallInteger, nullable=False, unique=True),
     Column("is_special", Boolean, nullable=False),
     Column("organizer_selectable", Boolean, nullable=False),
+    Column("icon_key", String(40), nullable=False),
+    Column("color_key", String(40), nullable=False),
     Column("is_active", Boolean, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
 )

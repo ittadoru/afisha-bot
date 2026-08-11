@@ -108,7 +108,7 @@ def _feed_item(row: Any, viewer_id: UUID | None) -> dict[str, Any]:
     author = row["author_user_id"] == viewer_id
     effective_status = "expired" if row["status"] == "active" and row["expires_at"] <= datetime.now(UTC) else row["status"]
     remaining = max(0, int((row["expires_at"] - datetime.now(UTC)).total_seconds()))
-    return {"id": row["id"], "title": row["title"], "body": row["body"], "status": effective_status, "display_status": effective_status, "remaining_seconds": remaining if effective_status == "active" else 0, "created_at": row["created_at"], "expires_at": row["expires_at"], "city": row["city"], "category": row["category"], "like_count": int(row["like_count"] or 0), "question_count": int(row["question_count"] or 0), "viewer_liked": bool(row["viewer_liked"]) if viewer_id else False, "is_author": author, "author": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_url": f"/api/profiles/{row['public_id']}/avatar" if row["avatar_asset_id"] else None}}
+    return {"id": row["id"], "title": row["title"], "body": row["body"], "status": effective_status, "display_status": effective_status, "remaining_seconds": remaining if effective_status == "active" else 0, "created_at": row["created_at"], "expires_at": row["expires_at"], "city": row["city"], "category": row["category"], "like_count": int(row["like_count"] or 0), "question_count": int(row["question_count"] or 0), "viewer_liked": bool(row["viewer_liked"]) if viewer_id else False, "is_author": author, "author": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None, "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None}}
 
 
 async def looking_post_detail(engine: AsyncEngine, *, post_id: UUID, viewer_id: UUID | None) -> dict[str, Any]:
@@ -148,12 +148,21 @@ async def set_looking_post_like(engine: AsyncEngine, *, post_id: UUID, user_id: 
     return {"liked": active, "like_count": int(count or 0)}
 
 
-async def questions_for_viewer(engine: AsyncEngine, *, post_id: UUID, viewer_id: UUID) -> dict[str, list[dict[str, Any]]]:
+async def questions_for_viewer(
+    engine: AsyncEngine, *, post_id: UUID, viewer_id: UUID
+) -> dict[str, Any]:
     async with engine.connect() as connection:
         post = (await connection.execute(text("SELECT author_user_id FROM discovery.looking_posts WHERE id=:id"), {"id": post_id})).mappings().one_or_none()
         if post is None or (post["author_user_id"] != viewer_id and await connection.scalar(text("SELECT 1 FROM discovery.looking_posts WHERE id=:id AND status='hidden'"), {"id": post_id})):
             raise LookingPostNotFound
-        public = (await connection.execute(text("SELECT id,question,answer,answered_at,created_at FROM discovery.looking_post_questions WHERE looking_post_id=:post AND answer IS NOT NULL ORDER BY answered_at,id"), {"post": post_id})).mappings().all()
+        public = (await connection.execute(text("""
+          SELECT q.id,q.question,q.answer,q.answered_at,q.created_at,
+                 pr.public_id,pr.display_name,pr.avatar_asset_id
+          FROM discovery.looking_post_questions q
+          JOIN accounts.profiles pr ON pr.user_id=q.asker_user_id
+          WHERE q.looking_post_id=:post AND q.answer IS NOT NULL
+          ORDER BY q.answered_at,q.id
+        """), {"post": post_id})).mappings().all()
         own = (await connection.execute(text("SELECT id,question,created_at FROM discovery.looking_post_questions WHERE looking_post_id=:post AND asker_user_id=:user AND answer IS NULL"), {"post": post_id, "user": viewer_id})).mappings().all()
         pending: list[dict[str, Any]] = [dict(row) for row in own]
         if post["author_user_id"] == viewer_id:
@@ -161,8 +170,28 @@ async def questions_for_viewer(engine: AsyncEngine, *, post_id: UUID, viewer_id:
               SELECT q.id,q.question,q.created_at,pr.public_id,pr.display_name,pr.avatar_asset_id FROM discovery.looking_post_questions q
               JOIN accounts.profiles pr ON pr.user_id=q.asker_user_id WHERE q.looking_post_id=:post AND q.answer IS NULL ORDER BY q.created_at,q.id
             """), {"post": post_id})).mappings().all()
-            pending = [{**dict(row), "asker": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_url": f"/api/profiles/{row['public_id']}/avatar" if row["avatar_asset_id"] else None}} for row in author_rows]
-    return {"items": [dict(row) for row in public], "pending": pending}
+            pending = [{**dict(row), "asker": {"public_id": row["public_id"], "display_name": row["display_name"], "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None}} for row in author_rows]
+    public_items = [
+        {
+            "id": row["id"], "question": row["question"], "answer": row["answer"],
+            "answered_at": row["answered_at"], "created_at": row["created_at"],
+            "asker": {
+                "public_id": row["public_id"], "display_name": row["display_name"],
+                "avatar_thumbnail_url": f"/api/profiles/{row['public_id']}/avatar?size=64" if row["avatar_asset_id"] else None,
+            },
+        }
+        for row in public
+    ]
+    viewer_can_ask = post["author_user_id"] != viewer_id and not own
+    return {
+        "items": public_items,
+        "pending": pending,
+        "viewer_can_ask": viewer_can_ask,
+        "ask_block_reason": None if viewer_can_ask else (
+            "author_cannot_ask" if post["author_user_id"] == viewer_id
+            else "unanswered_question_exists"
+        ),
+    }
 
 
 async def ask_question(engine: AsyncEngine, *, post_id: UUID, user_id: UUID, question: str, idempotency_key: UUID) -> UUID:

@@ -250,11 +250,11 @@ async def create_event(
             text(
                 """
                 INSERT INTO events.events
-                    (id, kind, creator_user_id, audit_actor_id, city_id,
+                    (id, kind, event_scope, creator_user_id, audit_actor_id, city_id,
                      category_id, lifecycle_status, moderation_status, capacity,
                      current_revision_id, approved_revision_id)
                 VALUES
-                    (:event, 'regular', :user, :user, :city, :category,
+                    (:event, 'regular', 'user', :user, :user, :city, :category,
                      :lifecycle, :moderation, :capacity, NULL, NULL)
                 """
             ),

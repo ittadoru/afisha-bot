@@ -56,6 +56,8 @@ class CategoryResponse(BaseModel):
     name: str
     is_special: bool
     organizer_selectable: bool
+    icon_key: str = "shapes"
+    color_key: str = "gray"
 
 
 class CatalogResponse(BaseModel):
@@ -114,7 +116,8 @@ async def catalog(
             await connection.execute(
                 text(
                     """
-                    SELECT id, slug, name, is_special, organizer_selectable
+                    SELECT id, slug, name, is_special, organizer_selectable,
+                           icon_key, color_key
                     FROM discovery.categories
                     WHERE is_active
                     ORDER BY sort_order

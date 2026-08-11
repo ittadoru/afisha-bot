@@ -53,7 +53,9 @@ class EventImageProcessor:
     def __init__(self, limits: ImageLimits | None = None) -> None:
         self._limits = limits or ImageLimits()
 
-    def process(self, source: Path, destination: Path, crop: NormalizedCrop | None = None) -> Path:
+    def process(
+        self, source: Path, destination: Path, crop: NormalizedCrop | None = None
+    ) -> Path:
         if crop is not None:
             crop.validate()
         if not source.is_file() or source.is_symlink():
@@ -118,34 +120,73 @@ class AvatarImageProcessor:
     """Create a metadata-free square WebP avatar from a client-selected crop."""
 
     def process(self, source: Path, destination: Path) -> Path:
-        limits = ImageLimits(max_file_bytes=12 * 1024 * 1024, max_pixels=20_000_000, output_width=256, output_height=256)
-        if not source.is_file() or source.is_symlink() or source.stat().st_size > limits.max_file_bytes:
+        self.process_variants(source, destination, None)
+        return destination
+
+    def process_variants(
+        self, source: Path, destination_256: Path, destination_64: Path | None
+    ) -> tuple[Path, Path | None]:
+        limits = ImageLimits(
+            max_file_bytes=12 * 1024 * 1024,
+            max_pixels=20_000_000,
+            output_width=256,
+            output_height=256,
+        )
+        if (
+            not source.is_file()
+            or source.is_symlink()
+            or source.stat().st_size > limits.max_file_bytes
+        ):
             source.unlink(missing_ok=True)
             raise UnsafeImageError("file_too_large")
         try:
             import pyvips
 
-            image = cast(VipsImage, pyvips.Image.new_from_file(str(source), access="sequential", fail_on="warning"))  # pyright: ignore[reportUnknownMemberType]
-            if image.width <= 0 or image.height <= 0 or image.width * image.height > limits.max_pixels:
+            image = cast(
+                VipsImage,
+                pyvips.Image.new_from_file(  # pyright: ignore[reportUnknownMemberType]
+                    str(source), access="sequential", fail_on="warning"
+                ),
+            )
+            if (
+                image.width <= 0
+                or image.height <= 0
+                or image.width * image.height > limits.max_pixels
+            ):
                 raise UnsafeImageError("invalid_dimensions")
             image = image.autorot()
             side = min(image.width, image.height)
-            image = image.crop((image.width - side) // 2, (image.height - side) // 2, side, side)
+            image = image.crop(
+                (image.width - side) // 2, (image.height - side) // 2, side, side
+            )
             image = image.thumbnail_image(256, height=256, size="force", crop="centre")
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            temporary = destination.with_name(f".{destination.name}.{uuid4().hex}.tmp")
-            try:
-                image.webpsave(str(temporary), Q=84, effort=5, strip=True)
-                os.replace(temporary, destination)
-            finally:
-                temporary.unlink(missing_ok=True)
+            outputs = ((destination_256, 256, 84),)
+            if destination_64 is not None:
+                outputs += ((destination_64, 64, 74),)
+            for destination, size, quality in outputs:
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                temporary = destination.with_name(
+                    f".{destination.name}.{uuid4().hex}.tmp"
+                )
+                try:
+                    variant = (
+                        image
+                        if size == 256
+                        else image.thumbnail_image(
+                            size, height=size, size="force", crop="centre"
+                        )
+                    )
+                    variant.webpsave(str(temporary), Q=quality, effort=5, strip=True)
+                    os.replace(temporary, destination)
+                finally:
+                    temporary.unlink(missing_ok=True)
         except UnsafeImageError:
             raise
         except Exception as exc:
             raise UnsafeImageError("image_decode_or_encode_failed") from exc
         finally:
             source.unlink(missing_ok=True)
-        return destination
+        return destination_256, destination_64
 
 
 class ProfileBackgroundImageProcessor:

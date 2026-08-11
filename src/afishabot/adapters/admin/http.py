@@ -187,6 +187,7 @@ class CreateSpecialRequest(BaseModel):
     title: str = Field(min_length=1, max_length=60)
     description: str = Field(min_length=1, max_length=1000)
     city_id: UUID
+    category_id: UUID
     starts_at: datetime
     ends_at: datetime
     place: str = Field(default="", max_length=500)
@@ -602,7 +603,7 @@ async def update_street_anchor(
             AND a.geometry_version=:version AND ST_DWithin(c.boundary,
               ST_SetSRID(ST_Point(:longitude,:latitude),4326)::geography,:radius)
           RETURNING a.id
-        """), {"id": anchor_id,"name":body.display_name.strip(),"key":key,"latitude":body.latitude,"longitude":body.longitude,"version":body.geometry_version,"radius":20000})
+        """), {"id": anchor_id,"name":body.display_name.strip(),"key":key,"latitude":body.latitude,"longitude":body.longitude,"version":body.geometry_version,"radius":1000})
         if row is None: raise _error(409, "street_anchor_stale_or_outside_city")
         await connection.execute(text("""INSERT INTO trust_safety.staff_audit_log
           (id,actor_staff_id,action,result,details) VALUES (gen_random_uuid(),:staff,'street_anchor.update','success',jsonb_build_object('street_anchor_id',CAST(:anchor AS text)))"""), {"staff":identity.id,"anchor":str(anchor_id)})
@@ -689,7 +690,15 @@ async def decide_event_review(
         raise _error(409, str(error)) from error
 
 
-@router.post("/events/special", response_model=CreatedSpecialResponse, status_code=201)
+@router.post(
+    "/events/community", response_model=CreatedSpecialResponse, status_code=201
+)
+@router.post(
+    "/events/special",
+    response_model=CreatedSpecialResponse,
+    status_code=201,
+    deprecated=True,
+)
 async def create_special(
     body: CreateSpecialRequest,
     request: Request,
@@ -715,6 +724,7 @@ async def create_special(
             engine,
             staff_id=identity.id,
             city_id=body.city_id,
+            category_id=body.category_id,
             title=body.title,
             description=body.description,
             starts_at=body.starts_at,
@@ -779,7 +789,7 @@ async def special_events(
                     FROM events.events e
                     JOIN events.event_revisions r ON r.id=e.approved_revision_id
                     JOIN discovery.cities c ON c.id=e.city_id
-                    WHERE e.kind='special' AND e.lifecycle_status='published'
+                    WHERE e.event_scope='community' AND e.lifecycle_status='published'
                     ORDER BY r.starts_at,e.id
                     """
                     )

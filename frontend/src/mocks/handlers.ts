@@ -34,7 +34,7 @@ export const handlers = [
   http.get("*/account/me", () => HttpResponse.json(mockProfile, { headers: { "X-Afisha-CSRF": "mock-csrf" } })),
   http.put("*/account/profile-background", () => HttpResponse.json({ ...mockProfile, background_url: "/brand/dagestan-profile-hero.jpg", version: mockProfile.version + 1 })),
   http.delete("*/account/profile-background", () => HttpResponse.json({ ...mockProfile, background_url: null, version: mockProfile.version + 1 })),
-  http.get("*/geo/catalog", () => HttpResponse.json({ cities: [{ id: "makhachkala", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047, service_radius_m: 20000 }], categories: [{ id: "walks", slug: "walks", name: "Прогулки", is_special: false, organizer_selectable: true }, { id: "tourism", slug: "tourism", name: "Туризм", is_special: false, organizer_selectable: true }, { id: "creativity", slug: "creativity", name: "Творчество", is_special: false, organizer_selectable: true }] })),
+  http.get("*/geo/catalog", () => HttpResponse.json({ cities: [{ id: "makhachkala", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047, service_radius_m: 1000 }], categories: [{ id: "walks", slug: "walks", name: "Прогулки", is_special: false, organizer_selectable: true, icon_key: "footprints", color_key: "moss" }, { id: "tourism", slug: "tourism", name: "Туризм", is_special: false, organizer_selectable: true, icon_key: "mountain", color_key: "teal" }, { id: "creativity", slug: "creativity", name: "Творчество", is_special: false, organizer_selectable: true, icon_key: "palette", color_key: "rose" }] })),
   http.get("*/events", ({ request }) => {
     const view = new URL(request.url).searchParams.get("view");
     if (view === "map") return HttpResponse.json({ items: [

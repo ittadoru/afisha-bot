@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from afishabot.adapters.http.auth import CSRF_HEADER, SESSION_COOKIE
 from afishabot.core.config import Settings
@@ -45,6 +45,7 @@ class OwnProfileResponse(BaseModel):
     selected_city_id: str | None
     city_name: str | None
     avatar_url: str | None
+    avatar_thumbnail_url: str | None
     background_url: str | None
     version: int
     next_name_change_at: str | None
@@ -60,6 +61,7 @@ class PublicProfileResponse(BaseModel):
     display_name: str
     bio: str | None
     avatar_url: str | None
+    avatar_thumbnail_url: str | None
     background_url: str | None
     organizer_status: str
     successful_events: int
@@ -176,6 +178,9 @@ def own_response(profile: ProfileView) -> OwnProfileResponse:
         avatar_url=f"/api/profiles/{profile.public_id}/avatar?v={profile.version}"
         if profile.avatar_asset_id
         else None,
+        avatar_thumbnail_url=f"/api/profiles/{profile.public_id}/avatar?size=64&v={profile.version}"
+        if profile.avatar_asset_id
+        else None,
         background_url=(
             f"/api/profiles/{profile.public_id}/background?v={profile.version}"
             if profile.background_asset_id
@@ -190,6 +195,26 @@ def own_response(profile: ProfileView) -> OwnProfileResponse:
         upcoming_count=profile.upcoming_count,
         completed_count=profile.completed_count,
     )
+
+
+async def _avatar_asset_paths(
+    connection: AsyncConnection, *, asset_id: UUID, media_root: Path
+) -> list[Path]:
+    """Return every physical representation of an avatar without duplicates."""
+    keys = (
+        await connection.execute(
+            text(
+                """
+                SELECT storage_key FROM media.assets WHERE id=:asset
+                UNION
+                SELECT storage_key FROM media.asset_variants
+                WHERE source_asset_id=:asset
+                """
+            ),
+            {"asset": asset_id},
+        )
+    ).scalars().all()
+    return [media_root / key for key in set(keys)]
 
 
 @router.get(
@@ -217,6 +242,11 @@ async def anonymous_public_profile(
             if profile.avatar_asset_id
             else None
         ),
+        avatar_thumbnail_url=(
+            f"/api/public/profiles/{profile.public_id}/avatar?size=64&v={profile.version}"
+            if profile.avatar_asset_id
+            else None
+        ),
         background_url=(
             f"/api/public/profiles/{profile.public_id}/background?v={profile.version}"
             if profile.background_asset_id
@@ -229,19 +259,25 @@ async def anonymous_public_profile(
 
 
 @router.get("/public/profiles/{public_id}/avatar")
-async def anonymous_profile_avatar(public_id: str, request: Request) -> Response:
+async def anonymous_profile_avatar(
+    public_id: str,
+    request: Request,
+    size: Annotated[Literal[64, 256], Query()] = 256,
+) -> Response:
     settings, _, engine = dependencies(request)
     async with engine.connect() as connection:
         key = await connection.scalar(
             text(
                 """
-                SELECT a.storage_key FROM accounts.profiles p
+                SELECT COALESCE(v.storage_key,a.storage_key) FROM accounts.profiles p
                 JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
                 JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
+                LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
+                  AND v.variant_key=:variant
                 WHERE p.public_id=:id
                 """
             ),
-            {"id": public_id},
+            {"id": public_id, "variant": f"avatar_{size}"},
         )
     if key is None:
         raise HTTPException(status_code=404, detail="avatar_not_found")
@@ -249,7 +285,9 @@ async def anonymous_profile_avatar(public_id: str, request: Request) -> Response
     if not path.is_file():
         raise HTTPException(status_code=404, detail="avatar_not_found")
     return FileResponse(
-        path, media_type="image/webp", headers={"Cache-Control": "public, max-age=300"}
+        path,
+        media_type="image/webp",
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
     )
 
 
@@ -360,6 +398,9 @@ async def public_profile(
         display_name=profile.display_name,
         bio=profile.bio,
         avatar_url=f"/api/profiles/{profile.public_id}/avatar?v={profile.version}"
+        if profile.avatar_asset_id
+        else None,
+        avatar_thumbnail_url=f"/api/profiles/{profile.public_id}/avatar?size=64&v={profile.version}"
         if profile.avatar_asset_id
         else None,
         background_url=(
@@ -649,16 +690,22 @@ async def put_avatar(
     asset_id = uuid4()
     source = settings.media_root / "quarantine" / f"{asset_id}.upload"
     destination = settings.media_root / "avatars" / f"{asset_id}.webp"
+    thumbnail = settings.media_root / "avatars" / f"{asset_id}.64.webp"
     await to_thread.run_sync(source.parent.mkdir, 0o750, True, True)
     await to_thread.run_sync(source.write_bytes, bytes(data))
     try:
-        await to_thread.run_sync(AvatarImageProcessor().process, source, destination)
+        await to_thread.run_sync(
+            AvatarImageProcessor().process_variants, source, destination, thumbnail
+        )
     except UnsafeImageError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     checksum = await to_thread.run_sync(
         lambda: hashlib.sha256(destination.read_bytes()).hexdigest()
     )
-    old_path: Path | None = None
+    thumbnail_checksum = await to_thread.run_sync(
+        lambda: hashlib.sha256(thumbnail.read_bytes()).hexdigest()
+    )
+    old_paths: list[Path] = []
     async with engine.begin() as connection:
         old = (
             (
@@ -685,6 +732,26 @@ async def put_avatar(
         )
         await connection.execute(
             text(
+                """INSERT INTO media.asset_variants
+                (id,source_asset_id,variant_key,storage_key,mime_type,width,height,byte_size,checksum_sha256)
+                VALUES
+                (:full_id,:asset,'avatar_256',:full_key,'image/webp',256,256,:full_size,:full_checksum),
+                (:thumb_id,:asset,'avatar_64',:thumb_key,'image/webp',64,64,:thumb_size,:thumb_checksum)"""
+            ),
+            {
+                "full_id": uuid4(),
+                "thumb_id": uuid4(),
+                "asset": asset_id,
+                "full_key": f"avatars/{asset_id}.webp",
+                "thumb_key": f"avatars/{asset_id}.64.webp",
+                "full_size": destination.stat().st_size,
+                "thumb_size": thumbnail.stat().st_size,
+                "full_checksum": checksum,
+                "thumb_checksum": thumbnail_checksum,
+            },
+        )
+        await connection.execute(
+            text(
                 "UPDATE accounts.profiles SET avatar_asset_id=:asset,version=version+1,updated_at=now() WHERE user_id=:user"
             ),
             {"asset": asset_id, "user": user_id},
@@ -697,14 +764,16 @@ async def put_avatar(
                 {"id": old["id"]},
             )
             if retained is None:
+                old_paths = await _avatar_asset_paths(
+                    connection, asset_id=old["id"], media_root=settings.media_root
+                )
                 await connection.execute(
                     text(
                         "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=:id"
                     ),
                     {"id": old["id"]},
                 )
-                old_path = settings.media_root / old["storage_key"]
-    if old_path:
+    for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
     return own_response(await load_profile(engine, user_id=user_id))
 
@@ -718,7 +787,7 @@ async def delete_avatar(
     settings, _, engine = dependencies(request)
     validate_origin(request, settings)
     user_id = await mutation_user(request, token, csrf)
-    old_path: Path | None = None
+    old_paths: list[Path] = []
     async with engine.begin() as connection:
         old = (
             (
@@ -746,14 +815,16 @@ async def delete_avatar(
                 {"id": old["id"]},
             )
             if retained is None:
+                old_paths = await _avatar_asset_paths(
+                    connection, asset_id=old["id"], media_root=settings.media_root
+                )
                 await connection.execute(
                     text(
                         "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=:id"
                     ),
                     {"id": old["id"]},
                 )
-                old_path = settings.media_root / old["storage_key"]
-    if old_path:
+    for old_path in old_paths:
         await to_thread.run_sync(old_path.unlink, True)
     return own_response(await load_profile(engine, user_id=user_id))
 
@@ -917,15 +988,22 @@ async def avatar(
     public_id: str,
     request: Request,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    size: Annotated[Literal[64, 256], Query()] = 256,
 ) -> Response:
     await current_user(request, token)
     settings, _, engine = dependencies(request)
     async with engine.connect() as connection:
         key = await connection.scalar(
             text(
-                """SELECT a.storage_key FROM accounts.profiles p JOIN accounts.users u ON u.id=p.user_id AND u.status='active' JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready' WHERE p.public_id=:id"""
+                """SELECT COALESCE(v.storage_key,a.storage_key)
+                FROM accounts.profiles p
+                JOIN accounts.users u ON u.id=p.user_id AND u.status='active'
+                JOIN media.assets a ON a.id=p.avatar_asset_id AND a.state='ready'
+                LEFT JOIN media.asset_variants v ON v.source_asset_id=a.id
+                  AND v.variant_key=:variant
+                WHERE p.public_id=:id"""
             ),
-            {"id": public_id},
+            {"id": public_id, "variant": f"avatar_{size}"},
         )
     if key is None:
         raise HTTPException(status_code=404, detail="avatar_not_found")
@@ -933,7 +1011,9 @@ async def avatar(
     if not path.is_file():
         raise HTTPException(status_code=404, detail="avatar_not_found")
     return FileResponse(
-        path, media_type="image/webp", headers={"Cache-Control": "private, max-age=300"}
+        path,
+        media_type="image/webp",
+        headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
 
 

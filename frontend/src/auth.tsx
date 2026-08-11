@@ -13,6 +13,7 @@ export interface AccountProfile {
   age_confirmed: boolean;
   city_name?: string | null;
   avatar_url?: string | null;
+  avatar_thumbnail_url?: string | null;
   background_url?: string | null;
   version?: number;
   next_name_change_at?: string | null;

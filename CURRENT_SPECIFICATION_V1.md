@@ -17,8 +17,8 @@ Afisha — Telegram Mini App и публичный адаптивный сайт
 
 MVP включает Event, LookingPost 72 часа, interest, join, FIFO waitlist, простой
 participant chat, LookingPost Q&A, notifications, attendance/dispute/rating,
-четыре публичных reputation level, moderation/appeals, public web и тип
-«Особое».
+четыре публичных reputation level, moderation/appeals, public web и
+общественные события.
 
 В MVP нет minimum/confirmation, user geolocation/«Рядом со мной», clustering,
 QR/geofence, WebSocket chat, achievements/challenges, AI/ML, Kafka и отдельного
@@ -37,7 +37,8 @@ Telegram username/phone, выбранный город, координаты и 
 ## Карта и место
 
 Организатор выбирает точку marker-ом; backend reverse-geocode через закрытый
-Nominatim. Point — источник истины. Publish разрешён только внутри city polygon.
+Nominatim. Point — источник истины. Publish разрешён внутри city polygon и
+фиксированного буфера 1 000 м; размер Nominatim-extract эту зону не расширяет.
 После публикации point/address/category неизменяемы.
 
 Режимы: `STREET_ONLY`, `EXACT_PARTICIPANTS`, `EXACT_PUBLIC`. Interest,
@@ -77,13 +78,14 @@ joined-only, пять попыток, один success. Без code возник
 LookingPost живёт 72 часа, не имеет фото и отдельного времени; title ограничен
 30, text — 300 символами. У пользователя может быть один unanswered question
 до 200 символов; ответ автора — до 300. До ответа вопрос закрыт для остальных,
-а опубликованная immutable пара не раскрывает asker. Обычный Q&A staff не
+а опубликованная immutable пара показывает публичное имя, 64×64 avatar и
+ссылку на профиль asker. Обычный Q&A staff не
 видит без связанной жалобы и case permission.
 
-Обычные категории: Спорт, Игры, Сходки, Кино, Кафе, Туризм, Обучение,
-Творчество, Автомобили, Волонтёрство, Работа, Развлечения, Музыка, Прогулки и
-Другое. «Работа» допускает только бесплатные профессиональные встречи и обмен
-опытом. «Особое» создаёт только administrator, показывается первым, не имеет
+Обычные категории: Спорт, Игры, Сходки, Кафе, Туризм, Обучение, Творчество,
+Автомобили, Волонтёрство, Работа, Развлечения, Прогулки и Другое. «Работа»
+допускает только бесплатные профессиональные встречи и обмен опытом.
+Общественное событие создаёт только administrator, имеет любую активную категорию и не имеет
 публичного организатора, вступления, capacity, очереди, чата, attendance,
 оценок и reputation; низкая активность его не скрывает.
 

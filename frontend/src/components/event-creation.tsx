@@ -227,7 +227,7 @@ function eventErrorMessage(reason: unknown): string {
   const messages: Record<string, string> = {
     start_too_soon_new: "Для нового организатора начало должно быть минимум через 6 часов.",
     start_too_soon_trusted: "Начало должно быть минимум через 1 час.",
-    point_outside_city_area: "Выберите место не дальше 20 км от города.",
+    point_outside_city_area: "Выберите место в границах города или не дальше 1 км от них.",
     photo_not_available: "Фотография устарела или уже использована. Загрузите её снова.",
     category_not_available: "Эта категория больше недоступна.",
     city_selection_required: "Сначала выберите и сохраните город в профиле.",

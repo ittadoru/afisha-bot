@@ -25,6 +25,7 @@ function initializeTelegramMiniApp(): void {
   if (!webApp) return;
 
   webApp.ready();
+  webApp.disableVerticalSwipes?.();
   const syncFullscreen = () => {
     document.documentElement.dataset.fullscreen = String(Boolean(webApp.isFullscreen));
   };
@@ -67,6 +68,18 @@ function initializeTelegramMiniApp(): void {
 }
 
 initializeTelegramMiniApp();
+
+// Keep native map gestures while preventing page-level pinch/double-tap zoom.
+document.addEventListener("gesturestart", (event) => {
+  if (!(event.target as Element | null)?.closest(".maplibregl-map")) event.preventDefault();
+}, { passive: false });
+let lastTouchEnd = 0;
+document.addEventListener("touchend", (event) => {
+  if ((event.target as Element | null)?.closest(".maplibregl-map")) return;
+  const now = Date.now();
+  if (now - lastTouchEnd < 300) event.preventDefault();
+  lastTouchEnd = now;
+}, { passive: false });
 
 async function enableMocks(): Promise<void> {
   if (!import.meta.env.DEV || import.meta.env.VITE_USE_MOCKS !== "true") return;

@@ -31,6 +31,22 @@ assets = Table(
     Column("updated_at", DateTime(timezone=True), nullable=False),
 )
 
+asset_variants = Table(
+    "asset_variants",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("source_asset_id", UUID(as_uuid=True), nullable=False),
+    Column("variant_key", String(40), nullable=False),
+    Column("storage_key", Text, nullable=False, unique=True),
+    Column("mime_type", String(100), nullable=False),
+    Column("width", Integer, nullable=False),
+    Column("height", Integer, nullable=False),
+    Column("byte_size", BigInteger, nullable=False),
+    Column("checksum_sha256", String(64), nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("updated_at", DateTime(timezone=True), nullable=False),
+)
+
 storage_analysis = Table(
     "storage_analysis",
     metadata,

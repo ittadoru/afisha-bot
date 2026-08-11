@@ -1,10 +1,12 @@
 import {
   ArrowLeft,
   Bell,
+  BellOff,
   CalendarDays,
   Check,
   ChevronRight,
   Clock3,
+  Flag,
   Heart,
   History,
   ImageOff,
@@ -59,6 +61,7 @@ interface Catalog {
 interface ProfileEvent { id: string; title: string; starts_at: string; ends_at: string; category: string; role?: string | null }
 type PublicEvent = {
   id: string; kind: "regular" | "special"; lifecycle_status?: string;
+  event_scope?: "user" | "community";
   category: string; category_slug: string; title: string; description: string;
   starts_at: string; ends_at: string; visible_address: string;
   participant_count: number; capacity: number | null; available_places: number | null;
@@ -114,16 +117,18 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const closeEvent = useCallback(() => {
     setSelectedEventId(null);
     setChatOpen(false);
-    navigate("/app");
-  }, [navigate]);
+    const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+    navigate(returnTo ?? "/app");
+  }, [location.state, navigate]);
   const openChat = useCallback((id: string) => {
     setChatOpen(true);
     navigate(`/app/event/${id}/chat`);
   }, [navigate]);
   const closeLookingPost = useCallback(() => {
     setSelectedLookingPostId(null);
-    navigate("/app/company");
-  }, [navigate]);
+    const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+    navigate(returnTo ?? "/app/company");
+  }, [location.state, navigate]);
   const openStreetGroup = useCallback((ids: string[], street: string) => {
     setStreetGroup({ ids, street });
   }, []);
@@ -210,6 +215,13 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
     return true;
   };
 
+  useEffect(() => {
+    const webApp = window.Telegram?.WebApp;
+    if (createDirty) webApp?.enableClosingConfirmation?.();
+    else webApp?.disableClosingConfirmation?.();
+    return () => webApp?.disableClosingConfirmation?.();
+  }, [createDirty]);
+
   const selectSection = async (next: Section) => {
     if (next !== "create" && !await leaveCreate()) return;
     setPreviewState(null);
@@ -277,6 +289,23 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       backButton.hide?.();
     };
   }, [choosingCity, citySaving, profile.selected_city_id]);
+
+  const reportMatch = location.pathname.match(
+    /^\/app\/report\/(event|profile|looking_post|q_and_a_answer|attendance)\/([^/]+)$/,
+  );
+  const caseMatch = location.pathname.match(/^\/app\/cases\/([^/]+)$/);
+  if (reportMatch) {
+    return <ReportScreen subjectType={reportMatch[1]} subjectId={reportMatch[2]} csrfToken={csrfToken} onBack={() => {
+      const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+      if (returnTo) navigate(returnTo); else navigate(-1);
+    }} />;
+  }
+  if (caseMatch) {
+    return <CaseDetailScreen casePublicId={caseMatch[1]} csrfToken={csrfToken} onBack={() => navigate("/app/cases")} />;
+  }
+  if (location.pathname === "/app/cases") {
+    return <CasesScreen onBack={() => navigate("/app/profile")} onOpen={(id) => navigate(`/app/cases/${id}`)} />;
+  }
 
   return (
     <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}`}>
@@ -404,7 +433,7 @@ function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | nul
   const load = useCallback(async (append = false) => { if (!city) { setItems([]); return; } if (!append) { setItems(null); setFailed(false); } else { setLoadingMore(true); setMoreFailed(false); } try { const suffix = append && nextCursor ? `&cursor=${encodeURIComponent(nextCursor)}` : ""; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts?city_id=${encodeURIComponent(city.id)}&sort=${sort}${suffix}`, { credentials: "include" }); if (!r.ok) throw new Error(); const data = await r.json() as { items: LookingPost[]; next_cursor: string | null }; setItems((current) => append ? [...(current ?? []), ...data.items].filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index) : data.items); setNextCursor(data.next_cursor); } catch { if (append) setMoreFailed(true); else { setFailed(true); setItems([]); } } finally { setLoadingMore(false); } }, [city, nextCursor, sort]);
   useEffect(() => { void load(); }, [city, sort]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
-  const statusText = (post: LookingPost) => post.status === "active" ? `Активна · осталось ${Math.max(1, Math.ceil(post.remaining_seconds / 3600))} ч` : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
+  const statusText = (post: LookingPost) => post.status === "active" ? "Активна" : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
   return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
 }
 
@@ -420,7 +449,7 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
   const ask = async () => { if (busy) return; setBusy(true); const key = askKey.current ?? crypto.randomUUID(); askKey.current = key; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": key }, body: JSON.stringify({ question }) }); setBusy(false); if (r.ok) { askKey.current = null; setQuestion(""); setMessage("Вопрос отправлен автору."); void load(); } else setMessage(r.status === 409 ? "На эту идею уже отправлен вопрос, ожидающий ответа." : "Не удалось отправить вопрос."); };
   const answer = async (questionId: string) => { const value = answers[questionId]?.trim(); if (!value || busy) return; setBusy(true); const key = answerKeys.current[questionId] ?? crypto.randomUUID(); answerKeys.current[questionId] = key; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions/${questionId}/answer`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": key }, body: JSON.stringify({ answer: value }) }); setBusy(false); if (r.ok) { delete answerKeys.current[questionId]; setMessage("Ответ опубликован."); void load(); } else setMessage(r.status === 409 ? "На этот вопрос уже ответили." : "Не удалось сохранить ответ."); };
   const withdraw = async () => { if (!post || busy || !confirm("Снять идею с публикации?")) return; setBusy(true); const response = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setBusy(false); if (response.ok) { setMessage("Идея снята с публикации."); void load(); } else setMessage("Не удалось снять идею."); };
-  const statusText = post?.status === "active" ? `Активна · осталось ${Math.max(1, Math.ceil((post?.remaining_seconds ?? 0) / 3600))} ч` : post?.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
+  const statusText = post?.status === "active" ? "Активна" : post?.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
   return <section className={`looking-detail${post && !post.is_author && post.status === "active" ? " has-composer" : ""}`}>
     <header className="detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Компания</strong><div className="detail-menu-wrap">{post?.is_author && post.status === "active" ? <><button type="button" aria-label="Действия с идеей" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="detail-overflow-menu"><button type="button" disabled={busy} onClick={() => { setMenuOpen(false); void withdraw(); }}>Снять идею</button></div>}</> : <span />}</div></header>
     {post ? <><div className="looking-detail-scroll">
@@ -491,7 +520,7 @@ function Notifications({ csrfToken, onUnreadChange }: { csrfToken: string; onUnr
       onUnreadChange(Math.max(0, unread - 1));
       void fetch(`${appConfig.apiBaseUrl}/account/notifications/${item.id}/read`, { method: "PATCH", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
     }
-    if (item.deep_link?.startsWith("/app")) navigate(item.deep_link);
+    if (item.deep_link?.startsWith("/app")) navigate(item.deep_link, { state: { returnTo: "/app/notifications" } });
   };
   const readAll = async () => {
     setItems((current) => current?.map((item) => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })) ?? current);
@@ -525,6 +554,7 @@ function Profile({
   registerBack,
 }: { profile: AccountProfile; city: MapCity | null; onChooseCity: () => void; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void; registerBack: (back: (() => void) | null) => void }) {
   const navigate = useNavigate();
+  const profileLocation = useLocation();
   const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
   const [editing, setEditing] = useState(false);
   const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
@@ -584,7 +614,11 @@ function Profile({
   useEffect(() => { if (!initialPublicId) return; void fetch(`${appConfig.apiBaseUrl}/profiles/${initialPublicId}`, { credentials: "include" }).then(async (response) => { if (response.ok) setPublicProfile(await response.json() as AccountProfile); else setMessage("Профиль не найден"); }); }, [initialPublicId]);
   useEffect(() => {
     const back = publicProfile
-      ? () => { setPublicProfile(null); navigate("/app"); }
+      ? () => {
+          setPublicProfile(null);
+          const returnTo = (profileLocation.state as { returnTo?: string } | null)?.returnTo;
+          navigate(returnTo ?? "/app");
+        }
       : editing
         ? () => setEditing(false)
         : eventMode
@@ -592,7 +626,7 @@ function Profile({
           : null;
     registerBack(back);
     return () => registerBack(null);
-  }, [editing, eventMode, navigate, publicProfile, registerBack]);
+  }, [editing, eventMode, navigate, profileLocation.state, publicProfile, registerBack]);
   if (publicProfile) return <PublicProfile profile={publicProfile} csrfToken={csrfToken} />;
   if (editing) return <ProfileEditor profile={profile} csrfToken={csrfToken} onUpdate={onUpdate} onDone={() => { setEditing(false); setMessage("Профиль сохранён"); }} />;
   if (eventMode) return <AccountEvents state={eventMode} csrfToken={csrfToken} />;
@@ -618,7 +652,7 @@ function Profile({
       </div>
 
       <h2 className="group-title">Моя активность</h2>
-      <div className="profile-settings-group"><button className="settings-row" type="button" onClick={() => setEventMode("upcoming")}><span><small>События</small><strong>Будущие события</strong></span><ChevronRight aria-hidden="true" /></button><button className="settings-row" type="button" onClick={() => setEventMode("completed")}><span><small>История</small><strong>Завершённые события</strong></span><ChevronRight aria-hidden="true" /></button></div>
+      <div className="profile-settings-group"><button className="settings-row" type="button" onClick={() => setEventMode("upcoming")}><span><small>События</small><strong>Будущие события</strong></span><ChevronRight aria-hidden="true" /></button><button className="settings-row" type="button" onClick={() => setEventMode("completed")}><span><small>История</small><strong>Завершённые события</strong></span><ChevronRight aria-hidden="true" /></button><button className="settings-row" type="button" onClick={() => navigate("/app/cases")}><span><small>Жалобы, споры и апелляции</small><strong>Мои обращения</strong></span><ChevronRight aria-hidden="true" /></button></div>
 
       <Button className="logout-button" variant="outline" onClick={() => void onLogout()}>Выйти из аккаунта</Button>
       {import.meta.env.DEV && <><h2 className="group-title">Предпросмотр состояний</h2><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></>}
@@ -678,6 +712,7 @@ function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; 
 }
 
 function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: string; csrfToken: string; onClose: () => void; onOpenChat: () => void }) {
+  const navigate = useNavigate();
   const [event, setEvent] = useState<PublicEvent | null>(null);
   const [failed, setFailed] = useState(false);
   const [organizer, setOrganizer] = useState<AccountProfile | null>(null);
@@ -752,7 +787,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
   return <section className={`event-detail-page${event ? ` category-${event.category_slug}` : ""}`}>
     <header className="event-detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Событие</strong><span>{canChat && <button className="chat-discovery-button" type="button" aria-label="Открыть чат события" onClick={onOpenChat}><MessageCircle aria-hidden="true" /><i aria-hidden="true" /></button>}<button type="button" aria-label="Поделиться событием" onClick={() => void share()}><Share2 aria-hidden="true" /></button></span></header>
     {failed ? <DemoState state="error" onClose={onClose} /> : !event ? <LoadingScreen variant="section" /> : <><div className="event-detail-scroll"><EventPhoto className="event-detail-hero" src={event.photo_url} alt={`Фотография события «${event.title}»`} /><main className="event-detail-content">
-      <div className="event-detail-labels"><span className="category-chip">{event.category}</span>{event.kind === "special" && <span className="municipal-label"><Sparkles aria-hidden="true" /> Общественное</span>}<button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-label={`${event.viewer_interested ? "Убрать из интересного" : "Добавить в интересное"}. Всего ${event.interest_count ?? 0}`} aria-pressed={event.viewer_interested} disabled={busy || event.lifecycle_status !== "published"} onClick={() => void toggleInterest()}><Heart aria-hidden="true" /> {event.interest_count ?? 0}</button></div>
+      <div className="event-detail-labels"><span className="category-chip">{event.category}</span>{(event.event_scope === "community" || event.kind === "special") && <span className="municipal-label"><Sparkles aria-hidden="true" /> Общественное</span>}{event.event_scope !== "community" && event.kind !== "special" && <button className={`interest-button${event.viewer_interested ? " active" : ""}`} type="button" aria-label={`${event.viewer_interested ? "Убрать из интересного" : "Добавить в интересное"}. Всего ${event.interest_count ?? 0}`} aria-pressed={event.viewer_interested} disabled={busy || event.lifecycle_status !== "published"} onClick={() => void toggleInterest()}><Heart aria-hidden="true" /> {event.interest_count ?? 0}</button>}</div>
       <h1>{event.title}</h1>
       <div className="event-facts"><div><span><CalendarDays aria-hidden="true" /></span><p><small>Когда</small><strong>{formatEventTime(event.starts_at)}</strong><span>до {formatEventTime(event.ends_at)}</span></p></div><div><span><MapPin aria-hidden="true" /></span><p><small>Где</small><strong>{event.visible_address}</strong></p></div><div><span><Users aria-hidden="true" /></span><p><small>Участники</small><strong>{event.participant_count} собираются</strong><span>{event.capacity === null ? "Без ограничения мест" : `Свободно: ${event.available_places}`}</span></p></div></div>
       {event.lifecycle_status === "cancelled" && <p className="event-state danger">Событие отменено</p>}
@@ -763,7 +798,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
       {event.kind === "regular" ? <button className="organizer-link" type="button" onClick={() => void openOrganizer()}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span className="organizer-copy"><small>Организатор</small><strong>{event.organizer_name}</strong><span>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</span></span><ChevronRight aria-hidden="true" /></button> : <div className="municipal-organizer"><Sparkles aria-hidden="true" /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}
       {message && <p className="inline-feedback" role="status">{message}</p>}{copied && <p className="inline-feedback" role="status">Ссылка скопирована</p>}
     </main></div>
-    {showPrimaryAction && <footer className="event-sticky-cta">{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}</footer>}</>}
+    {showPrimaryAction && <footer className="event-sticky-cta">{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}{!event.viewer_is_organizer && event.event_scope !== "community" && event.kind !== "special" && <button className="event-report-button" type="button" aria-label="Пожаловаться на событие" onClick={() => navigate(`/app/report/event/${event.id}`, { state: { returnTo: `/app/event/${event.id}` } })}><Flag aria-hidden="true" /></button>}</footer>}</>}
   </section>;
 }
 
@@ -783,7 +818,47 @@ function formatEventTime(value: string): string {
 }
 
 function DecorativeEmpty({ title, text }: { title: string; text: string }) {
-  return <div className="decorative-empty" role="status"><span className="empty-landscape" aria-hidden="true"><i /><i /><i /></span><span className="ornament-divider" aria-hidden="true" /><h2>{title}</h2><p>{text}</p></div>;
+  return <div className="decorative-empty" role="status"><span className="empty-icon" aria-hidden="true"><BellOff /></span><h2>{title}</h2><p>{text}</p></div>;
+}
+
+function ReportScreen({ subjectType, subjectId, csrfToken, onBack }: { subjectType: string; subjectId: string; csrfToken: string; onBack: () => void }) {
+  const navigate = useNavigate();
+  const [reason, setReason] = useState("safety_risk");
+  const [explanation, setExplanation] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [caseId, setCaseId] = useState<string | null>(null);
+  const submit = async () => {
+    if (busy || (reason === "other" && !explanation.trim())) return;
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ subject_type: subjectType, subject_id: subjectId, reason_code: reason, explanation: explanation.trim() || null }) });
+      if (!response.ok) throw new Error(response.status === 422 ? "На этот объект нельзя пожаловаться." : "Не удалось отправить обращение.");
+      setCaseId((await response.json() as { case_public_id: string }).case_public_id);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Не удалось отправить обращение."); }
+    finally { setBusy(false); }
+  };
+  if (caseId) return <main className="mini-app"><SubpageHeader title="Обращение отправлено" onBack={onBack} /><section className="centered-screen report-success" role="status"><Check aria-hidden="true" /><h1>{caseId}</h1><p>Мы получили обращение. Статус можно отслеживать в разделе «Мои обращения».</p><Button onClick={onBack}>Готово</Button><Button variant="outline" onClick={() => navigate(`/app/cases/${caseId}`)}>Мои обращения</Button></section></main>;
+  return <main className="mini-app"><SubpageHeader title="Пожаловаться" onBack={onBack} /><section className="profile-editor report-screen scroll-focus-container"><h1>Что произошло?</h1><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="safety_risk">Угроза безопасности</option><option value="misleading">Вводящие в заблуждение данные</option><option value="spam_or_commerce">Спам или коммерция</option><option value="inappropriate_content">Недопустимый контент</option><option value="other">Другое</option></select></label><label>Пояснение {reason !== "other" && <small>необязательно</small>}<textarea maxLength={500} value={explanation} onChange={(event) => setExplanation(event.target.value)} placeholder="Без личных и чувствительных данных" /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button disabled={busy || (reason === "other" && !explanation.trim())} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить жалобу"}</Button></section></main>;
+}
+
+type CaseSummary = { public_id: string; subject_type: string; status: string; created_at: string };
+function CasesScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (id: string) => void }) {
+  const [filter, setFilter] = useState<"active" | "resolved">("active");
+  const [items, setItems] = useState<CaseSummary[] | null>(null);
+  const [error, setError] = useState(false);
+  const load = useCallback(async () => { setItems(null); setError(false); try { const response = await fetch(`${appConfig.apiBaseUrl}/account/cases?status=${filter}`, { credentials: "include" }); if (!response.ok) throw new Error(); setItems((await response.json() as { items: CaseSummary[] }).items); } catch { setItems([]); setError(true); } }, [filter]);
+  useEffect(() => { void load(); }, [load]);
+  return <main className="mini-app"><SubpageHeader title="Мои обращения" onBack={onBack} /><section className="feed cases-screen"><div className="notification-filters" role="tablist"><button role="tab" aria-selected={filter === "active"} onClick={() => setFilter("active")}>Активные</button><button role="tab" aria-selected={filter === "resolved"} onClick={() => setFilter("resolved")}>Решённые</button></div>{items === null ? <LoadingScreen variant="section" /> : error ? <CompactListState title="Не удалось загрузить обращения" action="Повторить" onAction={() => void load()} /> : items.length ? items.map((item) => <button className="case-card" key={item.public_id} onClick={() => onOpen(item.public_id)}><strong>{item.public_id}</strong><span>{item.subject_type} · {new Date(item.created_at).toLocaleDateString("ru-RU")}</span><small>{item.status === "resolved" ? "Решено" : "На рассмотрении"}</small><ChevronRight aria-hidden="true" /></button>) : <DecorativeEmpty title="Обращений пока нет" text="Здесь появятся жалобы, споры и апелляции." />}</section></main>;
+}
+
+function CaseDetailScreen({ casePublicId, csrfToken, onBack }: { casePublicId: string; csrfToken: string; onBack: () => void }) {
+  type Detail = CaseSummary & { timeline: Array<{ event_type: string; public_label: string; created_at: string }>; can_appeal: boolean };
+  const [detail, setDetail] = useState<Detail | null>(null); const [error, setError] = useState(false); const [appeal, setAppeal] = useState(""); const [busy, setBusy] = useState(false);
+  const load = useCallback(async () => { try { const response = await fetch(`${appConfig.apiBaseUrl}/account/cases/${casePublicId}`, { credentials: "include" }); if (!response.ok) throw new Error(); setDetail(await response.json() as Detail); } catch { setError(true); } }, [casePublicId]);
+  useEffect(() => { void load(); }, [load]);
+  const submitAppeal = async () => { if (!appeal.trim() || busy) return; setBusy(true); const response = await fetch(`${appConfig.apiBaseUrl}/account/cases/${casePublicId}/appeal`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ explanation: appeal.trim() }) }); setBusy(false); if (response.ok) { setAppeal(""); void load(); } };
+  return <main className="mini-app"><SubpageHeader title={casePublicId} onBack={onBack} />{error ? <CompactListState title="Обращение недоступно" action="Назад" onAction={onBack} /> : !detail ? <LoadingScreen variant="section" /> : <section className="feed case-detail"><h1>{detail.status === "resolved" ? "Обращение решено" : "Обращение рассматривается"}</h1><ol className="status-timeline">{detail.timeline.map((entry) => <li key={`${entry.event_type}-${entry.created_at}`}><span aria-hidden="true" /><div><strong>{entry.public_label}</strong><small>{new Date(entry.created_at).toLocaleString("ru-RU")}</small></div></li>)}</ol>{detail.can_appeal && <div className="profile-editor"><label>Апелляция<textarea maxLength={500} value={appeal} onChange={(event) => setAppeal(event.target.value)} /></label><Button disabled={busy || !appeal.trim()} onClick={() => void submitAppeal()}>Отправить апелляцию</Button></div>}</section>}</main>;
 }
 
 function DemoState({ state, onClose }: { state: Exclude<PreviewState, null>; onClose?: () => void }) {

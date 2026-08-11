@@ -1,5 +1,6 @@
 import { ArrowLeft, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { appConfig } from "@/config";
 import { LoadingScreen } from "@/components/ui/loading-screen";
@@ -9,6 +10,8 @@ interface ChatMessage {
   body: string;
   created_at: string;
   author_display_name: string;
+  author_public_id: string;
+  author_avatar_thumbnail_url: string | null;
   author_is_organizer: boolean;
   author_is_viewer: boolean;
 }
@@ -24,6 +27,8 @@ function messageTime(value: string): string {
 }
 
 export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [chatEnabled, setChatEnabled] = useState(true);
   const [viewerIsOrganizer, setViewerIsOrganizer] = useState(false);
   const [title, setTitle] = useState("");
@@ -162,7 +167,7 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
         const showDay = !previous || messageDay(previous.created_at) !== messageDay(item.created_at);
         const compact = Boolean(previous && !showDay && previous.author_display_name === item.author_display_name && previous.author_is_organizer === item.author_is_organizer);
         return <div className="chat-message-wrap" key={item.id}>{showDay && <time className="chat-day">{messageDayLabel(item.created_at)}</time>}<article className={`chat-message${item.author_is_viewer ? " viewer" : ""}${item.author_is_organizer ? " organizer" : ""}${compact ? " compact" : ""}`}>
-          {!compact && <small>{item.author_is_viewer ? "Вы" : item.author_display_name}{item.author_is_organizer && <span>Организатор</span>}</small>}
+          {!compact && <div className="chat-author">{!item.author_is_viewer && <button type="button" aria-label={`Открыть профиль ${item.author_display_name}`} onClick={() => navigate(`/app/profile/${item.author_public_id}`, { state: { returnTo: location.pathname } })}>{item.author_avatar_thumbnail_url ? <img src={item.author_avatar_thumbnail_url} width="36" height="36" loading="lazy" decoding="async" alt="" /> : <span>{item.author_display_name[0]}</span>}</button>}<small>{item.author_is_viewer ? "Вы" : item.author_display_name}{item.author_is_organizer && <span>Организатор</span>}</small></div>}
           <p>{item.body}</p><time>{messageTime(item.created_at)}</time>
         </article></div>;
       })}

@@ -125,7 +125,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           });
           if (response.status === 422) {
             if (currentRequest === requestId) {
-              setAddress(`Выберите место не дальше ${Math.round((city.service_radius_m ?? 20_000) / 1000)} км от города ${city.name}`);
+              setAddress(`Выберите место в границах города или не дальше ${Math.round((city.service_radius_m ?? 1_000) / 1000)} км от них`);
               callbacksRef.current.onLocationChange?.(null);
             }
             return;

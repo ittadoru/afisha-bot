@@ -34,6 +34,8 @@ interface TelegramWebApp {
   contentSafeAreaInset?: { top: number; bottom: number; left: number; right: number };
   enableClosingConfirmation?: () => void;
   disableClosingConfirmation?: () => void;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
   showConfirm?: (message: string, callback: (confirmed: boolean) => void) => void;
   BackButton?: {
     show?: () => void;

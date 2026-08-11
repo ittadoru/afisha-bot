@@ -31,6 +31,7 @@ events = Table(
     metadata,
     Column("id", UUID(as_uuid=True), primary_key=True),
     Column("kind", Text, nullable=False),
+    Column("event_scope", String(16), nullable=False),
     Column("creator_user_id", UUID(as_uuid=True)),
     Column("audit_actor_id", UUID(as_uuid=True), nullable=False),
     Column("city_id", UUID(as_uuid=True), nullable=False),

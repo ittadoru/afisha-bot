@@ -29,7 +29,7 @@ async def _event_list(
             await connection.execute(
                 text(
                     """
-                    SELECT e.id,e.kind,cat.slug AS category_slug,
+                    SELECT e.id,e.kind,e.event_scope,cat.slug AS category_slug,
                            cat.name AS category,r.title,r.description,
                            r.starts_at,r.ends_at,
                            COALESCE(r.organizer_street,r.street_name) AS street_name,
@@ -87,7 +87,7 @@ async def _event_map(
             await connection.execute(
                 text(
                     """
-                    SELECT 'event' AS marker_type,e.id,e.kind,
+                    SELECT 'event' AS marker_type,e.id,e.kind,e.event_scope,
                            cat.slug AS category_slug,cat.name AS category,
                            r.title,r.starts_at,
                            ST_Y(r.location::geometry) AS latitude,
@@ -155,7 +155,7 @@ async def event_detail(
             await connection.execute(
                 text(
                     """
-                    SELECT e.id,e.kind,e.lifecycle_status,
+                    SELECT e.id,e.kind,e.event_scope,e.lifecycle_status,
                            e.cancellation_reason_code,e.capacity,
                            cat.slug AS category_slug,cat.name AS category,
                            city.name AS city,r.title,r.description,

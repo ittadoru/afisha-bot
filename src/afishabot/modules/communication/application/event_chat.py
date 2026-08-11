@@ -84,7 +84,8 @@ async def _event_for_chat(connection: Any, event_id: UUID) -> dict[str, Any] | N
         (
             await connection.execute(
                 text("""
-        SELECT e.id, e.creator_user_id, e.lifecycle_status, e.chat_enabled, r.ends_at
+        SELECT e.id, e.creator_user_id, e.lifecycle_status, e.chat_enabled,
+               e.event_scope, r.ends_at
         FROM events.events e
         JOIN events.event_revisions r ON r.id = e.approved_revision_id
         WHERE e.id = :id
@@ -124,7 +125,8 @@ async def _message_payload(
         (
             await connection.execute(
                 text("""
-        SELECT m.body, m.created_at, pr.display_name,
+        SELECT m.body, m.created_at, pr.public_id, pr.display_name,
+               pr.avatar_asset_id,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
         FROM communication.messages m
@@ -146,6 +148,11 @@ async def _message_payload(
         "body": row["body"],
         "created_at": row["created_at"].isoformat(),
         "author_display_name": row["display_name"],
+        "author_public_id": row.get("public_id", ""),
+        "author_avatar_thumbnail_url": (
+            f"/api/profiles/{row['public_id']}/avatar?size=64"
+            if row.get("avatar_asset_id") and row.get("public_id") else None
+        ),
         "author_is_organizer": row["is_organizer"],
         "author_is_viewer": row["is_viewer"],
     }
@@ -159,6 +166,8 @@ async def ensure_chat_access(
         event = await _event_for_chat(connection, event_id)
         if event is None:
             raise EventNotActive("event_not_found")
+        if event["event_scope"] == "community":
+            raise ChatForbidden("chat_not_allowed")
         episode = await _active_episode(connection, event_id, user_id)
         if episode is None and event["creator_user_id"] != user_id:
             raise ChatForbidden("chat_forbidden")
@@ -177,6 +186,8 @@ async def list_messages(
         event = await _event_for_chat(connection, event_id)
         if event is None:
             raise EventNotActive("event_not_found")
+        if event["event_scope"] == "community":
+            raise ChatForbidden("chat_not_allowed")
         episode = await _active_episode(connection, event_id, viewer_id)
         if episode is None and event["creator_user_id"] != viewer_id:
             raise ChatForbidden("chat_forbidden")
@@ -194,7 +205,8 @@ async def list_messages(
             (
                 await connection.execute(
                     text(f"""
-            SELECT m.id, m.body, m.created_at, pr.display_name,
+            SELECT m.id, m.body, m.created_at, pr.public_id, pr.display_name,
+               pr.avatar_asset_id,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
             FROM communication.messages m
@@ -216,6 +228,11 @@ async def list_messages(
                 "body": row["body"],
                 "created_at": row["created_at"].isoformat(),
                 "author_display_name": row["display_name"],
+                "author_public_id": row["public_id"],
+                "author_avatar_thumbnail_url": (
+                    f"/api/profiles/{row['public_id']}/avatar?size=64"
+                    if row["avatar_asset_id"] else None
+                ),
                 "author_is_organizer": row["is_organizer"],
                 "author_is_viewer": row["is_viewer"],
             }
@@ -249,6 +266,8 @@ async def send_message(
         event = await _event_for_chat(connection, event_id)
         if event is None:
             raise EventNotActive("event_not_found")
+        if event["event_scope"] == "community":
+            raise ChatForbidden("chat_not_allowed")
         if event["lifecycle_status"] != "published":
             raise EventNotActive("event_not_active")
         if not event["chat_enabled"]:
@@ -291,6 +310,8 @@ async def set_chat_enabled(
         event = await _event_for_chat(connection, event_id)
         if event is None:
             raise EventNotActive("event_not_found")
+        if event["event_scope"] == "community":
+            raise ChatForbidden("chat_not_allowed")
         if event["creator_user_id"] != user_id:
             raise ChatForbidden("chat_forbidden")
         await connection.execute(

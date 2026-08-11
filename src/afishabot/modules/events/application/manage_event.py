@@ -415,6 +415,7 @@ async def create_special_event(
     *,
     staff_id: UUID,
     city_id: UUID,
+    category_id: UUID,
     title: str,
     description: str,
     starts_at: datetime,
@@ -442,16 +443,19 @@ async def create_special_event(
         ends_at = ends_at.replace(tzinfo=UTC)
 
     async with engine.begin() as connection:
-        category_id = await connection.scalar(
+        category_available = await connection.scalar(
             text(
                 """
-                SELECT id FROM discovery.categories
-                WHERE slug = 'special' AND is_special AND is_active
+                SELECT EXISTS(
+                    SELECT 1 FROM discovery.categories
+                    WHERE id = :category AND is_active AND slug NOT IN ('special','cinema','music')
+                )
                 """
-            )
+            ),
+            {"category": category_id},
         )
-        if category_id is None:
-            raise EventManagementError("special_category_not_available")
+        if not category_available:
+            raise EventManagementError("category_not_available")
         city = (
             (
                 await connection.execute(
@@ -487,10 +491,10 @@ async def create_special_event(
             text(
                 """
                 INSERT INTO events.events
-                    (id, kind, audit_actor_id, city_id, category_id,
+                    (id, kind, event_scope, audit_actor_id, city_id, category_id,
                      lifecycle_status, moderation_status)
                 VALUES
-                    (:event, 'special', :staff, :city, :category,
+                    (:event, 'special', 'community', :staff, :city, :category,
                      'published', 'approved')
                 """
             ),

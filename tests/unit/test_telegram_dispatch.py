@@ -44,7 +44,8 @@ def test_open_button_uses_mini_app_url() -> None:
     settings = type("Fake", (), {"afisha_mini_app_url": url})()
     button = _open_button(settings)
     assert button is not None
-    assert button.inline_keyboard[0][0].url == url
+    assert button.inline_keyboard[0][0].web_app is not None
+    assert button.inline_keyboard[0][0].web_app.url == url
 
 
 def test_kind_icons_cover_all_existing_kinds() -> None:

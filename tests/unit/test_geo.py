@@ -130,7 +130,7 @@ async def test_catalog_returns_city_service_areas(settings: Settings) -> None:
     assert response.status_code == 200
     city = response.json()["cities"][0]
     assert city["id"] == str(city_id)
-    assert city["service_radius_m"] == 20_000
+    assert city["service_radius_m"] == 1_000
     assert city["map_bounds"] == {
         "west": 47.1,
         "south": 42.7,
@@ -138,4 +138,4 @@ async def test_catalog_returns_city_service_areas(settings: Settings) -> None:
         "north": 43.3,
     }
     assert city["allowed_area"] == {"type": "Polygon", "coordinates": []}
-    assert connection.execute.await_args_list[0].args[1] == {"radius_meters": 20_000}
+    assert connection.execute.await_args_list[0].args[1] == {"radius_meters": 1_000}

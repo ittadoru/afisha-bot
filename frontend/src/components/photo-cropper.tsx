@@ -99,7 +99,6 @@ export function EventPhotoUploader({ csrfToken, value, onChange }: EventPhotoUpl
 
   return (
     <div className={value ? "event-photo-ready" : "event-photo-uploader"}>
-      <small className="photo-auto-hint">Фотография автоматически обрежется в формат 4:3 (горизонтально).</small>
       {value && <>
         <img src={value.preview_url} alt="Безопасная фотография события" />
         <p><Check aria-hidden="true" /> Фотография загружена и очищена от скрытых данных.</p>

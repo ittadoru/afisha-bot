@@ -33,6 +33,7 @@ type AuditPage = { items: AuditEntry[]; next_before: string | null };
 type View = "dashboard" | "moderation" | "streets" | "special" | "audit";
 type SpecialEvent = { id: string; title: string; starts_at: string; ends_at: string; city: string };
 type CityOption = { id: string; slug: string; name: string; center_latitude: number; center_longitude: number };
+type CategoryOption = { id: string; slug: string; name: string; organizer_selectable: boolean };
 type Review = { id: string; event_id: string; event_revision_id: string; submitted_at: string; title: string; starts_at: string; city: string; public_id: string; display_name: string };
 type ReviewDetail = Review & { description: string; ends_at: string; normalized_address: string; organizer_address: string | null; organizer_street: string | null; organizer_place: string | null; street_name: string | null; landmark: string | null; address_visibility: string; street_anchor_id: string | null; street_anchor_name: string | null; latitude: number; longitude: number; capacity: number | null; category: string; organizer_status: string; successful_events: number; photo_url: string };
 type StreetAnchor = { id: string; city_id: string; display_name: string; source: "nominatim" | "staff"; geometry_version: number; updated_at: string; latitude: number; longitude: number; active_event_count: number };
@@ -147,7 +148,7 @@ function AdminShell({ staff, csrf, onCsrf, renewCsrf, onExpire, onLogout }: { st
           <button className={view === "dashboard" ? "active" : ""} onClick={() => setView("dashboard")}><LayoutDashboard />Главная</button>
           <button className={view === "moderation" ? "active" : ""} onClick={() => setView("moderation")}><ClipboardCheck />Модерация</button>
           <button className={view === "streets" ? "active" : ""} onClick={() => setView("streets")}><MapPinned />Улицы</button>
-          <button className={view === "special" ? "active" : ""} onClick={() => setView("special")}><Sparkles />Особые события</button>
+          <button className={view === "special" ? "active" : ""} onClick={() => setView("special")}><Sparkles />Общественные события</button>
           <button className={view === "audit" ? "active" : ""} onClick={() => setView("audit")}><History />История действий</button>
         </nav>
         <div className="admin-sidebar-footer">
@@ -166,6 +167,7 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
   const [items, setItems] = useState<SpecialEvent[] | null>(null);
   const [reason, setReason] = useState("plans_changed");
   const [cities, setCities] = useState<CityOption[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [creating, setCreating] = useState(false);
   const [busyForm, setBusyForm] = useState(false);
   const [formError, setFormError] = useState("");
@@ -173,6 +175,7 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
     title: "",
     description: "",
     city_id: "",
+    category_id: "",
     start_date: "",
     start_time: "",
     end_date: "",
@@ -189,10 +192,12 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
   useEffect(() => { void load().catch(() => setItems([])); }, [load]);
   useEffect(() => {
     void fetch("/api/geo/catalog", { credentials: "same-origin", headers: { Accept: "application/json" } })
-      .then(async (response) => { if (!response.ok) throw new Error("catalog unavailable"); return await response.json() as { cities: CityOption[] }; })
+      .then(async (response) => { if (!response.ok) throw new Error("catalog unavailable"); return await response.json() as { cities: CityOption[]; categories: CategoryOption[] }; })
       .then((data) => {
         setCities(data.cities);
-        setForm((current) => ({ ...current, city_id: current.city_id || data.cities[0]?.id || "" }));
+        const selectable = data.categories.filter((item) => item.organizer_selectable && !["special", "cinema", "music"].includes(item.slug));
+        setCategories(selectable);
+        setForm((current) => ({ ...current, city_id: current.city_id || data.cities[0]?.id || "", category_id: current.category_id || selectable[0]?.id || "" }));
       })
       .catch(() => undefined);
   }, [onCsrf]);
@@ -211,13 +216,14 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
     if (longitude.error) { setFormError(longitude.error); return; }
     setBusyForm(true);
     try {
-      await api("/events/special", {
+      await api("/events/community", {
         method: "POST",
         headers: { "Content-Type": "application/json", [csrfHeader]: csrf },
         body: JSON.stringify({
           title: form.title,
           description: form.description,
           city_id: form.city_id,
+          category_id: form.category_id,
           starts_at: startsAt,
           ends_at: endsAt,
           place: form.place,
@@ -225,7 +231,7 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
           longitude: longitude.value,
         }),
       });
-      setForm({ title: "", description: "", city_id: form.city_id, start_date: "", start_time: "", end_date: "", end_time: "", place: "", latitude: "", longitude: "" });
+      setForm({ title: "", description: "", city_id: form.city_id, category_id: form.category_id, start_date: "", start_time: "", end_date: "", end_time: "", place: "", latitude: "", longitude: "" });
       await load();
     } catch (reason) {
       if (reason instanceof AdminApiError && reason.status === 401) { onExpire(); return; }
@@ -248,13 +254,14 @@ function SpecialEvents({ csrf, onCsrf, onExpire }: { csrf: string; onCsrf: (valu
       else setFormError("Не удалось отменить событие. Попробуйте ещё раз.");
     }
   };
-  return <section><header className="admin-page-header"><div><p>Общественные события</p><h1>Особые события</h1></div></header>
+  return <section><header className="admin-page-header"><div><p>Только для staff</p><h1>Общественные события</h1></div></header>
     {!creating ? <button className="admin-more" onClick={() => setCreating(true)}>Создать событие</button>
       : <form onSubmit={create} className="admin-create-form">
         <h2>Новое общественное событие</h2>
         <label>Название<input value={form.title} onChange={setField("title")} maxLength={60} required /></label>
         <label>Описание<textarea value={form.description} onChange={setField("description")} maxLength={1000} rows={4} required /></label>
         <label>Город<select value={form.city_id} onChange={setField("city_id")}>{cities.map((city) => <option key={city.id} value={city.id}>{city.name}</option>)}</select></label>
+        <label>Категория<select value={form.category_id} onChange={setField("category_id")} required>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
         <div className="admin-create-row">
           <label>Дата начала<input type="date" value={form.start_date} onChange={setField("start_date")} required /></label>
           <label>Время начала<input type="time" value={form.start_time} onChange={setField("start_time")} required /></label>
