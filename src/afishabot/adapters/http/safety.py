@@ -198,10 +198,14 @@ async def cases_feed(
             (
                 await connection.execute(
                     text(f"""
-          SELECT DISTINCT c.public_id,c.subject_type,c.status,c.created_at,c.updated_at
+          SELECT c.public_id,c.subject_type,c.status,c.created_at,c.updated_at
           FROM trust_safety.moderation_cases c
-          LEFT JOIN trust_safety.reports r ON r.case_id=c.id
-          WHERE (r.reporter_user_id=:user OR c.subject_owner_user_id=:user) AND {condition}
+          WHERE (
+            c.subject_owner_user_id=:user OR EXISTS (
+              SELECT 1 FROM trust_safety.reports r
+              WHERE r.case_id=c.id AND r.reporter_user_id=:user
+            )
+          ) AND {condition}
           ORDER BY c.updated_at DESC,c.id DESC LIMIT 50
         """),
                     {"user": user_id},

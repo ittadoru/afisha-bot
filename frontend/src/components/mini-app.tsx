@@ -23,6 +23,7 @@ import {
   Send,
   Share2,
   Sparkles,
+  Trash2,
   TrendingUp,
   UserRoundSearch,
   Users,
@@ -34,8 +35,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import type { AccountProfile } from "@/auth";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
+import { AlertDialog } from "@/components/ui/alert-dialog";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { MapCity } from "@/components/event-map";
 import { EventCreation } from "@/components/event-creation";
 import { EventChat } from "@/components/event-chat";
@@ -75,7 +78,7 @@ type PublicEvent = {
   chat_enabled?: boolean;
 };
 
-type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: "active" | "expired" | "hidden"; remaining_seconds: number; author: { display_name: string; avatar_url: string | null } };
+type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: "active" | "expired" | "hidden"; remaining_seconds: number; author: { public_id: string; display_name: string; avatar_url: string | null; avatar_thumbnail_url?: string | null } };
 type NotificationItem = { id: string; title: string; body: string; importance: string; deep_link: string | null; created_at: string; read_at: string | null };
 type NotificationFilter = "all" | "unread";
 
@@ -107,6 +110,31 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [streetGroup, setStreetGroup] = useState<{ ids: string[]; street: string } | null>(null);
   const createDiscardRef = useRef<(() => Promise<void>) | null>(null);
   const profileBackRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const path = location.pathname;
+    const profileMatch = path.match(/^\/app\/profile\/(\d{8})$/);
+    const chatMatch = path.match(/^\/app\/event\/([0-9a-f-]{36})\/chat$/i);
+    const eventMatch = path.match(/^\/app\/event\/([0-9a-f-]{36})$/i);
+    const lookingMatch = path.match(/^\/app\/(?:looking|company)\/([0-9a-f-]{36})$/i);
+    if (profileMatch) {
+      setSection("profile");
+      setSelectedEventId(null);
+      setSelectedLookingPostId(null);
+      setChatOpen(false);
+    } else if (chatMatch) {
+      setSelectedEventId(chatMatch[1]);
+      setSelectedLookingPostId(null);
+      setChatOpen(true);
+    } else if (eventMatch) {
+      setSelectedEventId(eventMatch[1]);
+      setSelectedLookingPostId(null);
+      setChatOpen(false);
+    } else if (lookingMatch) {
+      setSelectedLookingPostId(lookingMatch[1]);
+      setSelectedEventId(null);
+      setChatOpen(false);
+    }
+  }, [location.pathname]);
   const registerCreateDiscard = useCallback((discard: (() => Promise<void>) | null) => { createDiscardRef.current = discard; }, []);
   const registerProfileBack = useCallback((back: (() => void) | null) => { profileBackRef.current = back; }, []);
   const openEvent = useCallback((id: string) => {
@@ -434,7 +462,7 @@ function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | nul
   useEffect(() => { void load(); }, [city, sort]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
   const statusText = (post: LookingPost) => post.status === "active" ? "Активна" : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
-  return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
+  return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><h1>Найдите компанию</h1></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}>{post.author.avatar_thumbnail_url ?? post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_thumbnail_url ?? post.author.avatar_url ?? ""} width="38" height="38" loading="lazy" decoding="async" alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
 }
 
 function CompactListState({ title, action, onAction }: { title: string; action: string; onAction: () => void }) {
@@ -442,9 +470,13 @@ function CompactListState({ title, action, onAction }: { title: string; action: 
 }
 
 function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrfToken: string; onClose: () => void }) {
-  type Question = { id: string; question: string; answer?: string; asker?: { display_name: string } };
+  const navigate = useNavigate();
+  const location = useLocation();
+  type Question = { id: string; question: string; answer?: string; asker?: { public_id: string; display_name: string; avatar_thumbnail_url: string | null } };
   const [post, setPost] = useState<LookingPost | null>(null); const [questions, setQuestions] = useState<Question[]>([]); const [pending, setPending] = useState<Question[]>([]); const [question, setQuestion] = useState(""); const [answers, setAnswers] = useState<Record<string, string>>({}); const [message, setMessage] = useState(""); const [busy, setBusy] = useState(false); const [menuOpen, setMenuOpen] = useState(false); const askKey = useRef<string | null>(null); const answerKeys = useRef<Record<string, string>>({});
-  const load = useCallback(async () => { const [detail, qa] = await Promise.all([fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { credentials: "include" })]); if (detail.ok) setPost(await detail.json() as LookingPost); if (qa.ok) { const data = await qa.json() as { items: Question[]; pending: Question[] }; setQuestions(data.items); setPending(data.pending); } }, [postId]);
+  const [viewerCanAsk, setViewerCanAsk] = useState(false);
+  const [askBlockReason, setAskBlockReason] = useState<string | null>(null);
+  const load = useCallback(async () => { const [detail, qa] = await Promise.all([fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { credentials: "include" })]); if (detail.ok) setPost(await detail.json() as LookingPost); if (qa.ok) { const data = await qa.json() as { items: Question[]; pending: Question[]; viewer_can_ask: boolean; ask_block_reason: string | null }; setQuestions(data.items); setPending(data.pending); setViewerCanAsk(data.viewer_can_ask); setAskBlockReason(data.ask_block_reason); } }, [postId]);
   useEffect(() => { void load(); }, [load]);
   const ask = async () => { if (busy) return; setBusy(true); const key = askKey.current ?? crypto.randomUUID(); askKey.current = key; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": key }, body: JSON.stringify({ question }) }); setBusy(false); if (r.ok) { askKey.current = null; setQuestion(""); setMessage("Вопрос отправлен автору."); void load(); } else setMessage(r.status === 409 ? "На эту идею уже отправлен вопрос, ожидающий ответа." : "Не удалось отправить вопрос."); };
   const answer = async (questionId: string) => { const value = answers[questionId]?.trim(); if (!value || busy) return; setBusy(true); const key = answerKeys.current[questionId] ?? crypto.randomUUID(); answerKeys.current[questionId] = key; const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}/questions/${questionId}/answer`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": key }, body: JSON.stringify({ answer: value }) }); setBusy(false); if (r.ok) { delete answerKeys.current[questionId]; setMessage("Ответ опубликован."); void load(); } else setMessage(r.status === 409 ? "На этот вопрос уже ответили." : "Не удалось сохранить ответ."); };
@@ -453,16 +485,20 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
   return <section className={`looking-detail${post && !post.is_author && post.status === "active" ? " has-composer" : ""}`}>
     <header className="detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Компания</strong><div className="detail-menu-wrap">{post?.is_author && post.status === "active" ? <><button type="button" aria-label="Действия с идеей" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="detail-overflow-menu"><button type="button" disabled={busy} onClick={() => { setMenuOpen(false); void withdraw(); }}>Снять идею</button></div>}</> : <span />}</div></header>
     {post ? <><div className="looking-detail-scroll">
-      <header className="idea-detail-author">{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<span><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</small></span><span className="category-chip">{post.category}</span></header>
-      <div className="idea-detail-intro"><h1>{post.title}</h1><p>{post.body}</p><span className="idea-status"><i aria-hidden="true" />{statusText}</span></div>
+      <header className="idea-detail-author">{post.author.avatar_thumbnail_url ?? post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_thumbnail_url ?? post.author.avatar_url ?? ""} width="48" height="48" decoding="async" alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<span><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</small></span><span className="category-chip">{post.category}</span></header>
+      <div className="idea-detail-intro"><h1>{post.title}</h1><p>{post.body}</p><div className="idea-status-row"><span className="idea-status"><i aria-hidden="true" />{statusText}</span>{!post.is_author && post.status === "active" && <button type="button" className="idea-report-link" onClick={() => navigate(`/app/report/looking_post/${post.id}`, { state: { returnTo: location.pathname } })}>Пожаловаться</button>}</div></div>
       <section className="qa-section"><header><span><MessageCircleQuestion aria-hidden="true" /></span><div><p className="section-kicker">Обсуждение</p><h2>Вопросы и ответы</h2></div><small>{questions.length + pending.length}</small></header>
-        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}><span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p></div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
-        {pending.length > 0 && <div className="qa-pending"><h3>{post.is_author ? "Ждут вашего ответа" : "Ожидает ответа автора"}</h3>{pending.map((item) => <article className="qa-card pending" key={item.id}>{post.is_author && item.asker && <small>{item.asker.display_name}</small>}<span className="qa-label">Вопрос</span><strong>{item.question}</strong>{post.is_author && post.status === "active" && <div className="qa-answer-form"><label htmlFor={`answer-${item.id}`}>Ваш ответ</label><textarea id={`answer-${item.id}`} value={answers[item.id] ?? ""} onChange={(event) => setAnswers({ ...answers, [item.id]: event.target.value })} maxLength={300} placeholder="Ответьте коротко и по делу" /><Button disabled={busy || !answers[item.id]?.trim()} onClick={() => void answer(item.id)}>Опубликовать ответ</Button></div>}</article>)}</div>}
+        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}>{item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p></div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
+        {pending.length > 0 && <div className="qa-pending"><h3>{post.is_author ? "Ждут вашего ответа" : "Ожидает ответа автора"}</h3>{pending.map((item) => <article className="qa-card pending" key={item.id}>{post.is_author && item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong>{post.is_author && post.status === "active" && <div className="qa-answer-form"><label htmlFor={`answer-${item.id}`}>Ваш ответ</label><textarea id={`answer-${item.id}`} value={answers[item.id] ?? ""} onChange={(event) => setAnswers({ ...answers, [item.id]: event.target.value })} maxLength={300} placeholder="Ответьте коротко и по делу" /><Button disabled={busy || !answers[item.id]?.trim()} onClick={() => void answer(item.id)}>Опубликовать ответ</Button></div>}</article>)}</div>}
       </section>
       {message && <p className="inline-feedback" role="status">{message}</p>}
     </div>
-    {!post.is_author && post.status === "active" && <form className="qa-composer" onSubmit={(event) => { event.preventDefault(); void ask(); }}><label className="sr-only" htmlFor="qa-question">Ваш вопрос</label><textarea id="qa-question" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={200} placeholder="Задайте вопрос автору" /><button type="submit" aria-label="Отправить вопрос" disabled={busy || !question.trim()}><Send aria-hidden="true" /></button></form>}</> : <LoadingScreen variant="section" />}
+    {!post.is_author && post.status === "active" && <form className="qa-composer" onSubmit={(event) => { event.preventDefault(); if (viewerCanAsk) void ask(); }}><label className="sr-only" htmlFor="qa-question">Ваш вопрос</label><textarea id="qa-question" rows={1} value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={200} placeholder="Задайте вопрос автору" /><button type="submit" aria-label="Отправить вопрос" disabled={busy || !question.trim() || !viewerCanAsk}><Send aria-hidden="true" /></button>{askBlockReason === "unanswered_question_exists" && <p className="qa-block-reason" role="status">Сначала дождитесь ответа на предыдущий вопрос.</p>}</form>}</> : <LoadingScreen variant="section" />}
   </section>;
+}
+
+function QuestionAuthor({ asker, onOpen }: { asker: { display_name: string; avatar_thumbnail_url: string | null }; onOpen: () => void }) {
+  return <button type="button" className="qa-author" onClick={onOpen} aria-label={`Открыть профиль ${asker.display_name}`}>{asker.avatar_thumbnail_url ? <img src={asker.avatar_thumbnail_url} width="36" height="36" loading="lazy" decoding="async" alt="" /> : <span>{asker.display_name[0]}</span>}<strong>{asker.display_name}</strong><ChevronRight aria-hidden="true" /></button>;
 }
 
 function CreateScreen({ initialKind, city, categories, catalogLoading, catalogFailed, csrfToken, organizerStatus, onDirtyChange, registerDiscard, onChooseCity, onDone }: { initialKind: "event" | "idea"; city: MapCity | null; categories: Category[]; catalogLoading: boolean; catalogFailed: boolean; csrfToken: string; organizerStatus: "new" | "trusted"; onDirtyChange: (dirty: boolean) => void; registerDiscard: (discard: (() => Promise<void>) | null) => void; onChooseCity: () => void; onDone: () => void }) {
@@ -559,59 +595,17 @@ function Profile({
   const [editing, setEditing] = useState(false);
   const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
   const [message, setMessage] = useState("");
-  const [avatarBusy, setAvatarBusy] = useState(false);
-  const [backgroundBusy, setBackgroundBusy] = useState(false);
   const [eventMode, setEventMode] = useState<"upcoming" | "completed" | null>(null);
-  const upload = async (file: Blob) => {
-    if (avatarBusy) return;
-    setMessage("");
-    setAvatarBusy(true);
-    try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file });
-      if (response.ok) onUpdate(await response.json() as AccountProfile);
-      else setMessage(response.status === 413 ? "Фото слишком большое — максимум 12 МБ." : "Не удалось обработать фотографию");
-    } catch {
-      setMessage("Нет связи с сервером.");
-    } finally {
-      setAvatarBusy(false);
-    }
-  };
-  const removeAvatar = async () => {
-    if (avatarBusy) return;
-    const response = await fetch(`${appConfig.apiBaseUrl}/account/avatar`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
-    if (response.ok) onUpdate(await response.json() as AccountProfile);
-    else setMessage("Не удалось удалить фотографию");
-  };
-  const uploadBackground = async (file: File) => {
-    if (backgroundBusy) return;
-    setMessage("");
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) { setMessage("Для фона подойдут JPEG, PNG или WebP."); return; }
-    if (file.size > 12 * 1024 * 1024) { setMessage("Фон слишком большой — максимум 12 МБ."); return; }
-    setBackgroundBusy(true);
-    try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/account/profile-background`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file });
-      if (response.ok) onUpdate(await response.json() as AccountProfile);
-      else setMessage(response.status === 413 ? "Фон слишком большой — максимум 12 МБ." : "Не удалось обработать фон профиля");
-    } catch {
-      setMessage("Нет связи с сервером.");
-    } finally {
-      setBackgroundBusy(false);
-    }
-  };
-  const resetBackground = async () => {
-    if (backgroundBusy) return;
-    setBackgroundBusy(true); setMessage("");
-    try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/account/profile-background`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
-      if (response.ok) onUpdate(await response.json() as AccountProfile);
-      else setMessage("Не удалось вернуть стандартный фон");
-    } catch {
-      setMessage("Нет связи с сервером.");
-    } finally {
-      setBackgroundBusy(false);
-    }
-  };
-  useEffect(() => { if (!initialPublicId) return; void fetch(`${appConfig.apiBaseUrl}/profiles/${initialPublicId}`, { credentials: "include" }).then(async (response) => { if (response.ok) setPublicProfile(await response.json() as AccountProfile); else setMessage("Профиль не найден"); }); }, [initialPublicId]);
+  useEffect(() => {
+    if (!initialPublicId) { setPublicProfile(null); return; }
+    let active = true;
+    void fetch(`${appConfig.apiBaseUrl}/profiles/${initialPublicId}`, { credentials: "include" }).then(async (response) => {
+      if (!active) return;
+      if (response.ok) setPublicProfile(await response.json() as AccountProfile);
+      else setMessage("Профиль не найден");
+    });
+    return () => { active = false; };
+  }, [initialPublicId]);
   useEffect(() => {
     const back = publicProfile
       ? () => {
@@ -631,7 +625,7 @@ function Profile({
   if (editing) return <ProfileEditor profile={profile} csrfToken={csrfToken} onUpdate={onUpdate} onDone={() => { setEditing(false); setMessage("Профиль сохранён"); }} />;
   if (eventMode) return <AccountEvents state={eventMode} csrfToken={csrfToken} />;
   return <section className="profile-screen premium-profile">
-    <div className={`profile-hero${profile.background_url ? " custom-background" : " default-background"}`} style={profile.background_url ? { backgroundImage: `linear-gradient(to top, rgb(18 43 50 / .34), transparent 56%), url(${profile.background_url})` } : undefined} role="img" aria-label={profile.background_url ? "Ваш фон профиля" : "Стандартный фон профиля"}><span className="ornament-divider" aria-hidden="true" /></div>
+    <div className={`profile-hero${profile.background_url ? " custom-background" : " default-background"}`} style={profile.background_url ? { backgroundImage: `linear-gradient(to top, rgb(18 43 50 / .34), transparent 56%), url(${profile.background_url})` } : undefined} role="img" aria-label={profile.background_url ? "Ваш фон профиля" : "Стандартный фон профиля"} />
     <div className="profile-content">
       <div className="profile-identity">
         {profile.avatar_url ? <img className="profile-avatar profile-photo" src={profile.avatar_url} alt="Ваш аватар" /> : <span className="profile-avatar" style={{ backgroundColor: color }}>{profile.display_name[0]}</span>}
@@ -645,10 +639,6 @@ function Profile({
       <h2 className="group-title">Город и настройки</h2>
       <div className="profile-settings-group">
         <button className="settings-row" type="button" onClick={onChooseCity}><span className="settings-icon city-settings-icon"><MapPin aria-hidden="true" /></span><span><small>Мой город</small><strong>{city?.name ?? "Выберите город"}</strong></span><ChevronRight aria-hidden="true" /></button>
-        <label className="settings-row file-settings-row"><span className="settings-icon"><ImageOff aria-hidden="true" /></span><span><small>Фотография</small><strong>{avatarBusy ? "Загружаем…" : profile.avatar_url ? "Заменить фотографию" : "Добавить фотографию"}</strong></span><ChevronRight aria-hidden="true" /><input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); }} /></label>
-        {profile.avatar_url && <button className="settings-row danger-settings-row" type="button" disabled={avatarBusy} onClick={() => void removeAvatar()}><span>Удалить фотографию</span><ChevronRight aria-hidden="true" /></button>}
-        <label className="settings-row file-settings-row"><span className="settings-icon background-settings-icon"><ImageOff aria-hidden="true" /></span><span><small>Фон профиля</small><strong>{backgroundBusy ? "Обрабатываем…" : profile.background_url ? "Заменить фон" : "Добавить фон"}</strong></span><ChevronRight aria-hidden="true" /><input type="file" accept="image/jpeg,image/png,image/webp" disabled={backgroundBusy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void uploadBackground(file); }} /></label>
-        {profile.background_url && <button className="settings-row reset-background-row" type="button" disabled={backgroundBusy} onClick={() => void resetBackground()}><span>Вернуть стандартный фон</span><ChevronRight aria-hidden="true" /></button>}
       </div>
 
       <h2 className="group-title">Моя активность</h2>
@@ -664,7 +654,41 @@ function ProfileEditor({ profile, csrfToken, onUpdate, onDone }: { profile: Acco
   const [name, setName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [saving, setSaving] = useState(false);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [backgroundBusy, setBackgroundBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<"avatar" | "background" | null>(null);
   const [message, setMessage] = useState("");
+  const changeMedia = async (kind: "avatar" | "background", file: File) => {
+    const setBusy = kind === "avatar" ? setAvatarBusy : setBackgroundBusy;
+    setBusy(true); setMessage("");
+    try {
+      const endpoint = kind === "avatar" ? "/account/avatar" : "/account/profile-background";
+      const response = await fetch(`${appConfig.apiBaseUrl}${endpoint}`, { method: "PUT", credentials: "include", headers: { "Content-Type": file.type, "X-Afisha-CSRF": csrfToken }, body: file });
+      if (!response.ok) throw new Error(response.status === 413 ? "Файл слишком большой — максимум 12 МБ." : "Не удалось обработать изображение.");
+      onUpdate(await response.json() as AccountProfile);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Нет связи с сервером.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const deleteMedia = async () => {
+    if (!deleteTarget) return;
+    const kind = deleteTarget;
+    const setBusy = kind === "avatar" ? setAvatarBusy : setBackgroundBusy;
+    setBusy(true); setMessage("");
+    try {
+      const endpoint = kind === "avatar" ? "/account/avatar" : "/account/profile-background";
+      const response = await fetch(`${appConfig.apiBaseUrl}${endpoint}`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
+      if (!response.ok) throw new Error("Не удалось удалить изображение.");
+      onUpdate(await response.json() as AccountProfile);
+      setDeleteTarget(null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Нет связи с сервером.");
+    } finally {
+      setBusy(false);
+    }
+  };
   const save = async () => {
     setSaving(true);
     setMessage("");
@@ -678,7 +702,12 @@ function ProfileEditor({ profile, csrfToken, onUpdate, onDone }: { profile: Acco
       setSaving(false);
     }
   };
-  return <section className="adaptive-form-page profile-editor-screen"><div className="adaptive-form-scroll scroll-focus-container"><form id="profile-editor-form" className="demo-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><p className="section-kicker">Профиль</p><h1>Редактировать профиль</h1><div className="profile-editor"><label>Псевдоним<input value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /><small>{name.length}/32</small></label><label>О себе<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} placeholder="Расскажите немного о себе" /><small>{bio.length}/150</small></label></div>{message && <p className="form-error" role="alert">{message}</p>}</form></div><footer className="form-sticky-actions"><Button form="profile-editor-form" type="submit" disabled={saving || !name.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</Button></footer></section>;
+  const mediaBusy = avatarBusy || backgroundBusy;
+  return <section className="adaptive-form-page profile-editor-screen"><div className="adaptive-form-scroll scroll-focus-container"><form id="profile-editor-form" className="demo-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><p className="section-kicker">Профиль</p><h1>Редактировать профиль</h1><div className="profile-media-editor" aria-label="Фотографии профиля"><MediaEditorRow label="Фотография" previewUrl={profile.avatar_thumbnail_url ?? profile.avatar_url} busy={avatarBusy} onFile={(file) => void changeMedia("avatar", file)} onDelete={profile.avatar_url ? () => setDeleteTarget("avatar") : undefined} /><MediaEditorRow label="Фон профиля" previewUrl={profile.background_url} busy={backgroundBusy} background onFile={(file) => void changeMedia("background", file)} onDelete={profile.background_url ? () => setDeleteTarget("background") : undefined} /></div><div className="profile-editor"><label>Псевдоним<input value={name} onChange={(event) => setName(event.target.value)} maxLength={32} /><small>{name.length}/32</small></label><label>О себе<textarea value={bio} onChange={(event) => setBio(event.target.value)} maxLength={150} placeholder="Расскажите немного о себе" /><small>{bio.length}/150</small></label></div>{message && <p className="form-error" role="alert">{message}</p>}</form></div><footer className="form-sticky-actions"><Button form="profile-editor-form" type="submit" disabled={saving || mediaBusy || !name.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</Button></footer><AlertDialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open && !mediaBusy) setDeleteTarget(null); }} title={deleteTarget === "avatar" ? "Удалить фотографию?" : "Вернуть стандартный фон?"} description="Изображение и его уменьшенные копии будут удалены. Это действие нельзя отменить." busy={mediaBusy} onConfirm={() => void deleteMedia()} /></section>;
+}
+
+function MediaEditorRow({ label, previewUrl, busy, background = false, onFile, onDelete }: { label: string; previewUrl?: string | null; busy: boolean; background?: boolean; onFile: (file: File) => void; onDelete?: () => void }) {
+  return <div className="profile-media-row"><label className="profile-media-action"><span className={`profile-media-preview${background ? " background" : ""}`}>{previewUrl ? <img src={previewUrl} width={background ? 96 : 48} height={48} decoding="async" alt="" /> : <ImageOff aria-hidden="true" />}</span><span><small>{label}</small><strong>{busy ? "Обрабатываем…" : previewUrl ? "Заменить" : "Добавить"}</strong></span><input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) onFile(file); }} /></label>{onDelete && <button className="profile-media-delete" type="button" disabled={busy} onClick={onDelete} aria-label={`Удалить: ${label.toLowerCase()}`}><Trash2 aria-hidden="true" /></button>}</div>;
 }
 
 
@@ -849,7 +878,12 @@ function CasesScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (id: stri
   const [error, setError] = useState(false);
   const load = useCallback(async () => { setItems(null); setError(false); try { const response = await fetch(`${appConfig.apiBaseUrl}/account/cases?status=${filter}`, { credentials: "include" }); if (!response.ok) throw new Error(); setItems((await response.json() as { items: CaseSummary[] }).items); } catch { setItems([]); setError(true); } }, [filter]);
   useEffect(() => { void load(); }, [load]);
-  return <main className="mini-app"><SubpageHeader title="Мои обращения" onBack={onBack} /><section className="feed cases-screen"><div className="notification-filters" role="tablist"><button role="tab" aria-selected={filter === "active"} onClick={() => setFilter("active")}>Активные</button><button role="tab" aria-selected={filter === "resolved"} onClick={() => setFilter("resolved")}>Решённые</button></div>{items === null ? <LoadingScreen variant="section" /> : error ? <CompactListState title="Не удалось загрузить обращения" action="Повторить" onAction={() => void load()} /> : items.length ? items.map((item) => <button className="case-card" key={item.public_id} onClick={() => onOpen(item.public_id)}><strong>{item.public_id}</strong><span>{item.subject_type} · {new Date(item.created_at).toLocaleDateString("ru-RU")}</span><small>{item.status === "resolved" ? "Решено" : "На рассмотрении"}</small><ChevronRight aria-hidden="true" /></button>) : <DecorativeEmpty title="Обращений пока нет" text="Здесь появятся жалобы, споры и апелляции." />}</section></main>;
+  const content = items === null ? <LoadingScreen variant="section" /> : error ? <CompactListState title="Не удалось загрузить обращения" action="Повторить" onAction={() => void load()} /> : items.length ? <div className="case-list">{items.map((item) => <button type="button" className="case-card" key={item.public_id} onClick={() => onOpen(item.public_id)}><strong>{item.public_id}</strong><span>{caseSubjectLabel(item.subject_type)} · {new Date(item.created_at).toLocaleDateString("ru-RU")}</span><small>{item.status === "resolved" ? "Решено" : "На рассмотрении"}</small><ChevronRight aria-hidden="true" /></button>)}</div> : <div className="cases-empty" role="status"><MessageCircleQuestion aria-hidden="true" /><h2>{filter === "active" ? "Нет активных обращений" : "Решённых обращений пока нет"}</h2><p>{filter === "active" ? "Новые жалобы, споры и апелляции появятся здесь." : "После решения обращения переместятся в этот раздел."}</p></div>;
+  return <main className="mini-app"><SubpageHeader title="Мои обращения" onBack={onBack} /><section className="cases-screen"><Tabs value={filter} onValueChange={(value) => setFilter(value as "active" | "resolved")}><TabsList aria-label="Статус обращений"><TabsTrigger value="active">Активные</TabsTrigger><TabsTrigger value="resolved">Решённые</TabsTrigger></TabsList><TabsContent value={filter}>{content}</TabsContent></Tabs></section></main>;
+}
+
+function caseSubjectLabel(subjectType: string): string {
+  return ({ event: "Событие", profile: "Профиль", looking_post: "Идея", q_and_a_answer: "Ответ", attendance: "Посещение" } as Record<string, string>)[subjectType] ?? "Обращение";
 }
 
 function CaseDetailScreen({ casePublicId, csrfToken, onBack }: { casePublicId: string; csrfToken: string; onBack: () => void }) {

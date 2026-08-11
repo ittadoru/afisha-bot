@@ -1,4 +1,23 @@
-import { ArrowLeft, Camera, List, MapPin, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft,
+  BriefcaseBusiness,
+  Camera,
+  Car,
+  Coffee,
+  Dumbbell,
+  Footprints,
+  Gamepad2,
+  GraduationCap,
+  HandHeart,
+  List,
+  Mountain,
+  Palette,
+  PartyPopper,
+  RefreshCw,
+  Shapes,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import {
   AttributionControl,
   Map as MapLibreMap,
@@ -8,6 +27,7 @@ import {
   type Marker,
 } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/ui/loading-screen";
@@ -63,6 +83,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const publicMarkersRef = useRef<Marker[]>([]);
+  const markerRootsRef = useRef<Root[]>([]);
   const callbacksRef = useRef({ onLocationChange, onOpenEvent, onOpenStreetGroup });
   const [failed, setFailed] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -175,6 +196,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       setMarkersLoading(true);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
+      markerRootsRef.current.forEach((root) => root.unmount());
+      markerRootsRef.current = [];
       void fetch(`${appConfig.apiBaseUrl}/events?city_id=${encodeURIComponent(city.id)}&view=map`, { credentials: "include", signal: eventsController.signal })
         .then(async (response) => {
           if (!response.ok) throw new Error();
@@ -193,7 +216,14 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             markerContent.className = item.marker_type === "street" ? "street-marker-shape" : "event-pin-shape";
             const markerLabel = document.createElement("span");
             markerLabel.className = "marker-label";
-            markerLabel.textContent = item.marker_type === "street" ? String(item.event_count ?? 0) : item.kind === "special" ? "ОС" : categorySymbol(item.category_slug);
+            if (item.marker_type === "street") {
+              markerLabel.textContent = String(item.event_count ?? 0);
+            } else {
+              const CategoryIcon = categoryIcon(item.category_slug);
+              const iconRoot = createRoot(markerLabel);
+              iconRoot.render(<CategoryIcon aria-hidden="true" />);
+              markerRootsRef.current.push(iconRoot);
+            }
             markerContent.append(markerLabel);
             element.append(markerContent);
             element.title = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.title ?? item.category ?? "Событие";
@@ -222,6 +252,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       window.clearTimeout(initialLoadTimer);
       publicMarkersRef.current.forEach((item) => item.remove());
       publicMarkersRef.current = [];
+      markerRootsRef.current.forEach((root) => root.unmount());
+      markerRootsRef.current = [];
       map.remove();
       mapRef.current = null;
     };
@@ -252,13 +284,26 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           {selecting && <p className="sr-only" aria-live="polite">{address}</p>}
           {markersLoading && <LoadingScreen variant="overlay" />}
           {empty && <div className="map-empty-chip">Пока тихо — создайте первое событие</div>}
-          {!selecting && !empty && <aside className="map-legend" aria-label="Легенда карты"><span><i className="legend-exact" aria-hidden="true" />Точное место</span><span><i className="legend-street" aria-hidden="true" />Общая улица</span></aside>}
         </section>
       )}
     </section>
   );
 }
 
-function categorySymbol(slug: string | null): string {
-  return ({ sport: "СП", games: "ИГ", cinema: "КИ", music: "МУ", walks: "ПР", tourism: "ТУ", cars: "АВ", cafe: "КА", education: "ОБ", creativity: "ТВ", volunteering: "ВО", work: "РА" } as Record<string, string>)[slug ?? ""] ?? "СО";
+function categoryIcon(slug: string | null): LucideIcon {
+  return ({
+    sport: Dumbbell,
+    games: Gamepad2,
+    meetups: Users,
+    cafe: Coffee,
+    tourism: Mountain,
+    education: GraduationCap,
+    creativity: Palette,
+    cars: Car,
+    volunteering: HandHeart,
+    work: BriefcaseBusiness,
+    entertainment: PartyPopper,
+    walks: Footprints,
+    other: Shapes,
+  } as Record<string, LucideIcon>)[slug ?? ""] ?? Shapes;
 }
