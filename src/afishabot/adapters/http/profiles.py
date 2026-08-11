@@ -2,6 +2,7 @@ import hashlib
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from collections.abc import Mapping
 from datetime import datetime
+from enum import IntEnum
 from pathlib import Path
 from typing import Annotated, Literal, cast
 from uuid import UUID, uuid4
@@ -37,6 +38,11 @@ from afishabot.modules.media.application.image_processing import (
 )
 
 router = APIRouter(tags=["profiles"])
+
+
+class AvatarSize(IntEnum):
+    THUMBNAIL = 64
+    FULL = 256
 
 
 class OwnProfileResponse(BaseModel):
@@ -320,9 +326,7 @@ async def _avatar_path(
     for key, expected_bytes, expected_checksum in candidates:
         if key:
             candidate = media_root / key
-            if _is_valid_stored_webp(
-                candidate, expected_bytes, expected_checksum
-            ):
+            if _is_valid_stored_webp(candidate, expected_bytes, expected_checksum):
                 return candidate
     return None
 
@@ -395,14 +399,14 @@ async def anonymous_public_profile(
 async def anonymous_profile_avatar(
     public_id: str,
     request: Request,
-    size: Annotated[Literal[64, 256], Query()] = 256,
+    size: Annotated[AvatarSize, Query()] = AvatarSize.FULL,
 ) -> Response:
     settings, _, engine = dependencies(request)
     async with engine.connect() as connection:
         path = await _avatar_path(
             connection,
             public_id=public_id,
-            size=size,
+            size=int(size),
             media_root=settings.media_root,
         )
     if path is None:
@@ -1157,7 +1161,7 @@ async def avatar(
     public_id: str,
     request: Request,
     token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
-    size: Annotated[Literal[64, 256], Query()] = 256,
+    size: Annotated[AvatarSize, Query()] = AvatarSize.FULL,
 ) -> Response:
     await current_user(request, token)
     settings, _, engine = dependencies(request)
@@ -1165,7 +1169,7 @@ async def avatar(
         path = await _avatar_path(
             connection,
             public_id=public_id,
-            size=size,
+            size=int(size),
             media_root=settings.media_root,
         )
     if path is None:

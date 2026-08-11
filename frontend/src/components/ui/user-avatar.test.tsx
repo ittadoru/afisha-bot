@@ -8,18 +8,28 @@ describe("UserAvatar", () => {
     const { container } = render(
       <UserAvatar
         name="Анна"
-        thumbnailUrl="/avatar-64.webp"
-        fallbackUrl="/avatar-256.webp"
+        thumbnailUrl="/api/profiles/12345678/avatar?size=64&v=7"
+        fallbackUrl="/api/profiles/12345678/avatar?size=256&v=7"
       />,
     );
 
     const thumbnail = container.querySelector("img");
-    expect(thumbnail).toHaveAttribute("src", "/avatar-64.webp");
+    expect(thumbnail).toHaveAttribute(
+      "src",
+      "/api/profiles/12345678/avatar?size=64&v=7",
+    );
     expect(container.querySelector(".user-avatar-initial")).not.toBeInTheDocument();
+
+    fireEvent.load(thumbnail!);
+    expect(container.querySelector("img")).toHaveClass("is-loaded");
+    expect(container.querySelector("img")).toHaveAttribute("src", expect.stringContaining("size=64"));
 
     fireEvent.error(thumbnail!);
     const fallback = container.querySelector("img");
-    expect(fallback).toHaveAttribute("src", "/avatar-256.webp");
+    expect(fallback).toHaveAttribute(
+      "src",
+      "/api/profiles/12345678/avatar?size=256&v=7",
+    );
 
     fireEvent.error(fallback!);
     expect(container.querySelector("img")).not.toBeInTheDocument();
