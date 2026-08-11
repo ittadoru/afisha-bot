@@ -1,5 +1,6 @@
 import { CalendarDays, Map, ShieldCheck, Users } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
+import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
 
 import { MiniAppAuth } from "@/auth";
 import { AdminApp } from "@/admin-app";
@@ -10,8 +11,6 @@ import { appConfig } from "@/config";
 
 const MiniApp = lazy(async () => ({ default: (await import("@/components/mini-app")).MiniApp }));
 
-type View = "landing" | "map";
-
 const benefits = [
   { icon: Map, title: "Смотрите, что происходит", text: "События и встречи рядом на одной понятной карте." },
   { icon: Users, title: "Участвуйте бесплатно", text: "Выбирайте компанию и занимайте место без платы за участие." },
@@ -20,18 +19,19 @@ const benefits = [
 
 export default function App() {
   if (window.location.hostname === "admin.podvval.xyz") return <AdminApp />;
-  const publicEventId = window.location.pathname.match(/^\/event\/([0-9a-f-]{36})$/i)?.[1];
-  if (publicEventId) return <PublicEventPage eventId={publicEventId} />;
-  return <LandingOrMiniApp />;
+  return <BrowserRouter><Routes>
+    <Route path="/" element={<LandingPage />} />
+    <Route path="/event/:eventId" element={<PublicEventRoute />} />
+    <Route path="/app/*" element={<MiniAppRoute />} />
+    <Route path="*" element={<LandingPage />} />
+  </Routes></BrowserRouter>;
 }
 
-function LandingOrMiniApp() {
-  const [view, setView] = useState<View>(() => window.location.pathname.startsWith("/app") ? "map" : "landing");
+function MiniAppRoute() {
+  return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
+}
 
-  if (view === "map") {
-    return <MiniAppAuth>{({ profile, csrfToken, updateProfile, logout }) => <Suspense fallback={<LoadingScreen />}><MiniApp profile={profile} csrfToken={csrfToken} onProfileUpdate={updateProfile} onLogout={logout} /></Suspense>}</MiniAppAuth>;
-  }
-
+function LandingPage() {
   return (
     <main>
       <header className="site-header">
@@ -68,6 +68,11 @@ function LandingOrMiniApp() {
       </section>
     </main>
   );
+}
+
+function PublicEventRoute() {
+  const { eventId } = useParams();
+  return eventId ? <PublicEventPage eventId={eventId} /> : <LandingPage />;
 }
 
 function PublicEventPage({ eventId }: { eventId: string }) {

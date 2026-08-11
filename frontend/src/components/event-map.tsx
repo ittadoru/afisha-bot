@@ -252,6 +252,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
           {selecting && <p className="sr-only" aria-live="polite">{address}</p>}
           {markersLoading && <LoadingScreen variant="overlay" />}
           {empty && <div className="map-empty-chip">Пока тихо — создайте первое событие</div>}
+          {!selecting && !empty && <aside className="map-legend" aria-label="Легенда карты"><span><i className="legend-exact" aria-hidden="true" />Точное место</span><span><i className="legend-street" aria-hidden="true" />Общая улица</span></aside>}
         </section>
       )}
     </section>

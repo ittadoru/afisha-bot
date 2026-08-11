@@ -20,6 +20,20 @@ class EventCreationConflict(EventCreationError):
     pass
 
 
+def _eligible_organizer_status(
+    organizer_status: str | None,
+    selected_city_id: UUID | None,
+    event_city_id: UUID,
+) -> str:
+    if selected_city_id is None:
+        raise EventCreationError("city_selection_required")
+    if selected_city_id != event_city_id:
+        raise EventCreationError("profile_city_mismatch")
+    if organizer_status not in {"new", "trusted"}:
+        raise EventCreationError("organizer_not_eligible")
+    return organizer_status
+
+
 @dataclass(frozen=True, slots=True)
 class CreateEventCommand:
     user_id: UUID
@@ -135,21 +149,30 @@ async def create_event(
                 ),
             )
 
-        organizer_status = await connection.scalar(
-            text(
-                """
-                SELECT o.status
-                FROM reputation.organizer_profiles o
-                JOIN accounts.users u ON u.id=o.user_id AND u.status='active'
-                    AND u.accepted_age_rule_at IS NOT NULL
-                JOIN accounts.profiles p ON p.user_id=u.id
-                WHERE o.user_id=:user AND p.selected_city_id=:city
-                """
-            ),
-            {"user": command.user_id, "city": command.city_id},
+        organizer = (
+            (
+                await connection.execute(
+                    text(
+                        """
+                    SELECT o.status, p.selected_city_id
+                    FROM accounts.users u
+                    JOIN accounts.profiles p ON p.user_id=u.id
+                    LEFT JOIN reputation.organizer_profiles o ON o.user_id=u.id
+                    WHERE u.id=:user AND u.status='active'
+                        AND u.accepted_age_rule_at IS NOT NULL
+                    """
+                    ),
+                    {"user": command.user_id},
+                )
+            )
+            .mappings()
+            .one_or_none()
         )
-        if organizer_status not in {"new", "trusted"}:
-            raise EventCreationError("organizer_not_eligible")
+        organizer_status = _eligible_organizer_status(
+            organizer["status"] if organizer is not None else None,
+            organizer["selected_city_id"] if organizer is not None else None,
+            command.city_id,
+        )
         minimum_notice = timedelta(hours=1 if organizer_status == "trusted" else 6)
         if command.starts_at < now + minimum_notice:
             raise EventCreationError(

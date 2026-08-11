@@ -1,5 +1,6 @@
 from dataclasses import asdict
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
+from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, Request, Response, status
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from afishabot.core.config import Settings
 from afishabot.modules.accounts.application.auth import (
     AccountProfile,
+    complete_onboarding,
     confirm_age,
     resolve_identity_and_issue_session,
     revoke_session,
@@ -66,6 +68,14 @@ class SessionResponse(BaseModel):
 
 class BootstrapResponse(BaseModel):
     nonce: str
+
+
+class OnboardingRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selected_city_id: UUID
+    accepted_age_rule: Literal[True]
+    profile_version: int = Field(gt=0)
 
 
 @router.post("/auth/mini/bootstrap", response_model=BootstrapResponse)
@@ -196,6 +206,37 @@ async def age_consent(
     if profile is None:
         raise _error(status.HTTP_401_UNAUTHORIZED, "invalid_session_or_csrf")
     return _profile_response(profile)
+
+
+@router.post("/account/onboarding", response_model=ProfileResponse)
+async def onboarding(
+    body: OnboardingRequest,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf_token: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> ProfileResponse:
+    settings, _, engine = _dependencies(request)
+    _validated_origin(request, settings)
+    if session_token is None or csrf_token is None:
+        raise _error(status.HTTP_401_UNAUTHORIZED, "session_required")
+    try:
+        profile = await complete_onboarding(
+            engine,
+            token=session_token,
+            csrf_token=csrf_token,
+            auth_secret=_required_auth_secret(settings),
+            selected_city_id=body.selected_city_id,
+            expected_profile_version=body.profile_version,
+        )
+    except ValueError as error:
+        code = str(error)
+        raise _error(
+            status.HTTP_409_CONFLICT if code == "stale_profile" else status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code,
+        ) from error
+    if profile is None:
+        raise _error(status.HTTP_401_UNAUTHORIZED, "invalid_session_or_csrf")
+    return _profile_response(profile, await load_profile(engine, user_id=profile.user_id))
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)

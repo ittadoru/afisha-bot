@@ -7,6 +7,7 @@ from afishabot.adapters.admin.http import router as admin_router
 from afishabot.adapters.http.auth import router as auth_router
 from afishabot.adapters.http.chat import router as chat_router
 from afishabot.adapters.http.events import router as events_router
+from afishabot.adapters.http.features import router as features_router
 from afishabot.adapters.http.geo import router as geo_router
 from afishabot.adapters.http.health import router as health_router
 from afishabot.adapters.http.looking_posts import router as looking_posts_router
@@ -36,6 +37,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     application.add_middleware(RequestContextMiddleware)
     application.include_router(health_router)
+    application.include_router(features_router)
     application.include_router(geo_router)
     application.include_router(auth_router)
     application.include_router(events_router)

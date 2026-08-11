@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -9,11 +9,13 @@ vi.mock("@/components/event-map", () => ({
 
 afterEach(cleanup);
 
+const city = { id: "10000000-0000-4000-8000-000000000001", name: "Махачкала", latitude: 42.9849, longitude: 47.5047 };
+
 const profile = {
   public_id: "12345678",
   display_name: "Гость 2048",
   bio: null,
-  selected_city_id: null,
+  selected_city_id: city.id,
   age_confirmed: true,
   background_url: null,
 };
@@ -35,8 +37,9 @@ beforeEach(() => {
   };
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
-    if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+    if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
     if (url.endsWith("/account/notifications")) return okJson([]);
+    if (url.includes("/looking-posts?")) return okJson({ items: [], next_cursor: null });
     return okJson(profile);
   }));
 });
@@ -68,15 +71,56 @@ describe("landing", () => {
     render(<App />);
 
     expect(await screen.findByLabelText("Карта событий")).toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input).endsWith("/account/profile/city"))).toBe(false);
     expect(screen.getByRole("group", { name: "Разделы главного экрана" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
+  });
+
+  it("requires a city for a profile without a saved selection and saves the first city", async () => {
+    window.history.replaceState({}, "", "/app");
+    const profileWithoutCity = { ...profile, selected_city_id: null };
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/account/me")) return okJson(profileWithoutCity);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
+      if (url.endsWith("/account/onboarding") && init?.method === "POST") return okJson(profile);
+      return okJson(profileWithoutCity);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText(/Выберите город и подтвердите возраст/)).toBeInTheDocument();
+    expect(screen.queryByText("Назад")).not.toBeInTheDocument();
+    expect(await screen.findByRole("radio", { name: city.name })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ехала →" })).toBeDisabled();
+  });
+
+  it("keeps mandatory city selection open when saving fails", async () => {
+    window.history.replaceState({}, "", "/app");
+    const profileWithoutCity = { ...profile, selected_city_id: null };
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/account/me")) return okJson(profileWithoutCity);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
+      if (url.endsWith("/account/onboarding")) return okJson({}, 500);
+      return okJson(profileWithoutCity);
+    }));
+
+    render(<App />);
+    fireEvent.click(await screen.findByRole("radio", { name: city.name }));
+    fireEvent.click(screen.getByRole("button", { name: "Ехала →" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Не удалось сохранить выбор");
+    expect(screen.getByText("Ваш город")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Карта событий")).not.toBeInTheDocument();
   });
 
   it("allows visiting every future Mini App section", async () => {
     window.history.replaceState({}, "", "/app");
     render(<App />);
 
-    fireEvent.click(await screen.findByRole("button", { name: "Ищу людей" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
     expect(await screen.findByRole("heading", { name: "Найдите компанию" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Создать объявление" }));
@@ -161,14 +205,15 @@ describe("landing", () => {
       if (url.endsWith("/account/me")) return new Response("", { status: 401 });
       if (url.endsWith("/auth/mini/bootstrap")) return okJson({ nonce: "nonce" });
       if (url.endsWith("/auth/mini/exchange")) return okJson({ profile: firstProfile, csrf_token: "csrf", created: true });
-      if (url.endsWith("/account/age-consent")) return okJson(profile);
-      if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
-      if (url.endsWith("/account/notifications")) return okJson([]);
+      if (url.endsWith("/account/onboarding")) return okJson(profile);
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
       return okJson(profile);
     }));
 
     render(<App />);
-    fireEvent.click(await screen.findByRole("button", { name: "Мне исполнилось 14 лет" }));
+    fireEvent.click(await screen.findByRole("radio", { name: city.name }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /Мне исполнилось 14 лет/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Ехала →" }));
 
     expect(await screen.findByLabelText("Карта событий")).toBeInTheDocument();
   });

@@ -17,10 +17,6 @@ class JsonFormatter(logging.Formatter):
         request_id = getattr(record, "request_id", None)
         if isinstance(request_id, str):
             payload["request_id"] = request_id
-        for field in ("stage", "reason", "city_id"):
-            value = getattr(record, field, None)
-            if isinstance(value, str):
-                payload[field] = value
         return json.dumps(payload, ensure_ascii=False)
 
 

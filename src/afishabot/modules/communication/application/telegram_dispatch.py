@@ -3,6 +3,7 @@
 import logging
 from collections import defaultdict
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
@@ -11,7 +12,7 @@ from aiogram.exceptions import (
     TelegramForbiddenError,
     TelegramUnauthorizedError,
 )
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -47,6 +48,8 @@ async def _fetch_pending(engine: AsyncEngine) -> list[dict[str, Any]]:
                     JOIN accounts.telegram_identities t
                       ON t.user_id = n.recipient_user_id
                     WHERE n.tg_pushed_at IS NULL
+                      AND n.delivery_policy = 'telegram_and_in_app'
+                      AND n.telegram_status = 'pending'
                       AND n.created_at <= now() - interval '3 seconds'
                     ORDER BY n.created_at, n.id
                     LIMIT :limit
@@ -61,17 +64,22 @@ async def _fetch_pending(engine: AsyncEngine) -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
-async def _mark_sent(engine: AsyncEngine, ids: list[Any]) -> None:
+async def _mark_delivery(
+    engine: AsyncEngine, ids: list[Any], *, status: str
+) -> None:
     if not ids:
         return
     async with engine.begin() as connection:
         await connection.execute(
             text(
                 "UPDATE communication.notifications "
-                "SET tg_pushed_at = now() "
+                "SET tg_pushed_at = now(), telegram_status = :status, "
+                "telegram_last_attempt_at = now(), "
+                "telegram_sent_at = CASE WHEN :status = 'sent' THEN now() "
+                "ELSE telegram_sent_at END "
                 "WHERE id = ANY(:ids)"
             ),
-            {"ids": ids},
+            {"ids": ids, "status": status},
         )
 
 
@@ -82,12 +90,33 @@ def _compose_text(items: list[dict[str, Any]]) -> str:
     )
 
 
-def _open_button(bot_settings: BotSettings) -> InlineKeyboardMarkup | None:
-    url = bot_settings.afisha_mini_app_url
+def _safe_web_app_url(
+    bot_settings: BotSettings, deep_link: str | None = None
+) -> str | None:
+    base_url = bot_settings.afisha_mini_app_url
+    if base_url is None:
+        return None
+    base = urlsplit(str(base_url))
+    if base.scheme not in {"https"} or not base.netloc:
+        return None
+    path = deep_link or "/app"
+    parsed = urlsplit(path)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/app"):
+        path = "/app"
+        parsed = urlsplit(path)
+    return urlunsplit((base.scheme, base.netloc, parsed.path, parsed.query, ""))
+
+
+def _open_button(
+    bot_settings: BotSettings, deep_link: str | None = None
+) -> InlineKeyboardMarkup | None:
+    url = _safe_web_app_url(bot_settings, deep_link)
     if url is None:
         return None
     return InlineKeyboardMarkup(
-        inline_keyboard=[[InlineKeyboardButton(text="Открыть в Afisha", url=str(url))]]
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Открыть в Afisha", web_app=WebAppInfo(url=url))]
+        ]
     )
 
 
@@ -112,7 +141,7 @@ async def dispatch_telegram_notifications(engine: AsyncEngine) -> int:
                 await bot.send_message(
                     chat_id=telegram_user_id,
                     text=_compose_text(batch),
-                    reply_markup=_open_button(bot_settings),
+                    reply_markup=_open_button(bot_settings, batch[0].get("deep_link")),
                 )
                 sent.extend(item["id"] for item in batch)
             except TelegramForbiddenError, TelegramUnauthorizedError:
@@ -128,8 +157,8 @@ async def dispatch_telegram_notifications(engine: AsyncEngine) -> int:
                 # Transient failures (5xx, flood control) stay queued for the
                 # next sweep.
                 LOG.warning("Telegram push to %s failed: %s", recipient_user_id, exc)
-        await _mark_sent(engine, sent)
-        await _mark_sent(engine, doomed)
+        await _mark_delivery(engine, sent, status="sent")
+        await _mark_delivery(engine, doomed, status="unreachable")
         return len(sent) + len(doomed)
     finally:
         await bot.session.close()

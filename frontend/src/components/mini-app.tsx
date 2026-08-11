@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import type { AccountProfile } from "@/auth";
 import { appConfig } from "@/config";
@@ -72,13 +73,16 @@ type PublicEvent = {
 };
 
 type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: "active" | "expired" | "hidden"; remaining_seconds: number; author: { display_name: string; avatar_url: string | null } };
-type NotificationItem = { id: string; title: string; body: string; importance: string; read_at: string | null };
+type NotificationItem = { id: string; title: string; body: string; importance: string; deep_link: string | null; created_at: string; read_at: string | null };
+type NotificationFilter = "all" | "unread";
 
 export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { profile: AccountProfile; csrfToken: string; onProfileUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void> }) {
-  const initialPublicId = window.location.pathname.match(/^\/app\/profile\/(\d{8})$/)?.[1] ?? null;
-  const initialEventId = window.location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})$/i)?.[1] ?? null;
-  const initialChatEventId = window.location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})\/chat$/i)?.[1] ?? null;
-  const initialLookingPostId = window.location.pathname.match(/^\/app\/looking\/([0-9a-f-]{36})$/i)?.[1] ?? null;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const initialPublicId = location.pathname.match(/^\/app\/profile\/(\d{8})$/)?.[1] ?? null;
+  const initialEventId = location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})$/i)?.[1] ?? null;
+  const initialChatEventId = location.pathname.match(/^\/app\/event\/([0-9a-f-]{36})\/chat$/i)?.[1] ?? null;
+  const initialLookingPostId = location.pathname.match(/^\/app\/(?:looking|company)\/([0-9a-f-]{36})$/i)?.[1] ?? null;
   const [section, setSection] = useState<Section>(initialPublicId ? "profile" : "events");
   const [lastHomeSection, setLastHomeSection] = useState<"events" | "people">("events");
   const [eventsMode, setEventsMode] = useState<EventsMode>("map");
@@ -89,7 +93,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const [catalogFailed, setCatalogFailed] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [selectedCity, setSelectedCity] = useState<MapCity | null>(null);
-  const [choosingCity, setChoosingCity] = useState(false);
+  const [choosingCity, setChoosingCity] = useState(profile.selected_city_id == null);
   const [citySaving, setCitySaving] = useState(false);
   const [savingCityId, setSavingCityId] = useState<string | null>(null);
   const [cityError, setCityError] = useState("");
@@ -105,21 +109,21 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   const openEvent = useCallback((id: string) => {
     setSelectedEventId(id);
     setChatOpen(false);
-    window.history.pushState({}, "", `/app/event/${id}`);
-  }, []);
+    navigate(`/app/event/${id}`);
+  }, [navigate]);
   const closeEvent = useCallback(() => {
     setSelectedEventId(null);
     setChatOpen(false);
-    window.history.pushState({}, "", "/app");
-  }, []);
+    navigate("/app");
+  }, [navigate]);
   const openChat = useCallback((id: string) => {
     setChatOpen(true);
-    window.history.pushState({}, "", `/app/event/${id}/chat`);
-  }, []);
+    navigate(`/app/event/${id}/chat`);
+  }, [navigate]);
   const closeLookingPost = useCallback(() => {
     setSelectedLookingPostId(null);
-    window.history.pushState({}, "", "/app");
-  }, []);
+    navigate("/app/company");
+  }, [navigate]);
   const openStreetGroup = useCallback((ids: string[], street: string) => {
     setStreetGroup({ ids, street });
   }, []);
@@ -133,6 +137,32 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   }, []);
 
   useEffect(() => { refreshUnreadNotifications(); }, [refreshUnreadNotifications]);
+
+  useEffect(() => {
+    const path = location.pathname;
+    const event = path.match(/^\/app\/event\/([0-9a-f-]{36})(?:\/chat)?$/i);
+    const looking = path.match(/^\/app\/(?:looking|company)\/([0-9a-f-]{36})$/i);
+    if (event) {
+      setSelectedEventId(event[1]);
+      setSelectedLookingPostId(null);
+      setChatOpen(path.endsWith("/chat"));
+      return;
+    }
+    if (looking) {
+      setSelectedLookingPostId(looking[1]);
+      setSelectedEventId(null);
+      return;
+    }
+    setSelectedEventId(null);
+    setSelectedLookingPostId(null);
+    setChatOpen(false);
+    if (path === "/app/company") setSection("people");
+    else if (path === "/app/notifications") setSection("notifications");
+    else if (path === "/app/profile" || /^\/app\/profile\/\d{8}$/.test(path)) setSection("profile");
+    else if (path === "/app/create/company") { setCreateKind("idea"); setSection("create"); }
+    else if (path === "/app/create/event") { setCreateKind("event"); setSection("create"); }
+    else setSection("events");
+  }, [location.pathname]);
 
   useEffect(() => {
     const scrollFocusedField = (event?: Event) => {
@@ -162,7 +192,8 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       .then((data) => {
         if (!active) return;
         setCatalog(data);
-        setSelectedCity((current) => current ?? data.cities.find((city) => city.id === profile.selected_city_id) ?? data.cities[0] ?? null);
+        setSelectedCity(data.cities.find((city) => city.id === profile.selected_city_id) ?? null);
+        if (profile.selected_city_id == null) setChoosingCity(true);
       })
       .catch(() => { if (active) setCatalogFailed(true); })
       .finally(() => { if (active) setCatalogLoading(false); });
@@ -184,12 +215,22 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
     setPreviewState(null);
     if (next === "events" || next === "people") setLastHomeSection(next);
     setSection(next);
+    const route = next === "events" ? "/app" : next === "people" ? "/app/company" : next === "notifications" ? "/app/notifications" : next === "profile" ? "/app/profile" : createKind === "idea" ? "/app/create/company" : "/app/create/event";
+    if (location.pathname !== route) navigate(route);
   };
 
   const createForMode = async () => {
+    if (profile.selected_city_id == null) {
+      setCityError("Сначала выберите и сохраните город.");
+      setChoosingCity(true);
+      return;
+    }
     const kind = section === "people" ? "idea" : "event";
     setCreateKind(kind);
-    await selectSection("create");
+    if (!await leaveCreate()) return;
+    setPreviewState(null);
+    setSection("create");
+    navigate(kind === "idea" ? "/app/create/company" : "/app/create/event");
   };
 
   const openCityChooser = async () => {
@@ -198,7 +239,8 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   };
 
   const saveCity = async (city: MapCity) => {
-    if (citySaving || city.id === selectedCity?.id) { setChoosingCity(false); return; }
+    if (citySaving) return;
+    if (city.id === profile.selected_city_id) { setSelectedCity(city); setChoosingCity(false); return; }
     setCitySaving(true); setSavingCityId(city.id); setCityError("");
     const request = async (version: number) => await fetch(`${appConfig.apiBaseUrl}/account/profile/city`, {
       method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken },
@@ -223,6 +265,10 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   useEffect(() => {
     const backButton = window.Telegram?.WebApp?.BackButton;
     if (!backButton || !choosingCity) return;
+    if (profile.selected_city_id == null) {
+      backButton.hide?.();
+      return;
+    }
     const close = () => { if (!citySaving) setChoosingCity(false); };
     backButton.onClick?.(close);
     backButton.show?.();
@@ -230,34 +276,34 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
       backButton.offClick?.(close);
       backButton.hide?.();
     };
-  }, [choosingCity, citySaving]);
+  }, [choosingCity, citySaving, profile.selected_city_id]);
 
   return (
     <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}`}>
-      {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} loading={catalogLoading} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving) setChoosingCity(false); }} /> : selectedEventId || selectedLookingPostId ? (
+      {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} loading={catalogLoading} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} required={profile.selected_city_id == null} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving && profile.selected_city_id != null) setChoosingCity(false); }} /> : selectedEventId || selectedLookingPostId ? (
         <div className="mini-content page-mode">
           {selectedEventId
             ? (chatOpen
-              ? <EventChat eventId={selectedEventId} csrfToken={csrfToken} onClose={() => { setChatOpen(false); window.history.pushState({}, "", `/app/event/${selectedEventId}`); }} />
+              ? <EventChat eventId={selectedEventId} csrfToken={csrfToken} onClose={() => { setChatOpen(false); navigate(`/app/event/${selectedEventId}`); }} />
               : <EventPage eventId={selectedEventId} csrfToken={csrfToken} onClose={closeEvent} onOpenChat={() => openChat(selectedEventId)} />)
             : <LookingPostSheet postId={selectedLookingPostId ?? ""} csrfToken={csrfToken} onClose={closeLookingPost} />}
         </div>
       ) : <>
-      {(section === "events" || section === "people") ? <HomeTopBar profile={profile} eventsMode={eventsMode} showViewSwitch={section === "events"} unread={unreadNotifications} onModeChange={setEventsMode} onProfile={() => void selectSection("profile")} onNotifications={() => { refreshUnreadNotifications(); void selectSection("notifications"); }} /> : <SubpageHeader title={{ create: createKind === "event" ? "Новое событие" : "Новая идея", notifications: "Уведомления", profile: "Профиль", events: "События", people: "Ищу людей" }[section]} onBack={() => { if (section === "profile" && profileBackRef.current) profileBackRef.current(); else void selectSection(section === "create" ? createKind === "idea" ? "people" : "events" : lastHomeSection); }} />}
+      {(section === "events" || section === "people") ? <HomeTopBar profile={profile} eventsMode={eventsMode} showViewSwitch={section === "events"} unread={unreadNotifications} onModeChange={setEventsMode} onProfile={() => void selectSection("profile")} onNotifications={() => { refreshUnreadNotifications(); void selectSection("notifications"); }} /> : <SubpageHeader title={{ create: createKind === "event" ? "Новое событие" : "Новая идея", notifications: "Уведомления", profile: "Профиль", events: "События", people: "Компания" }[section]} onBack={() => { if (section === "profile" && profileBackRef.current) profileBackRef.current(); else void selectSection(section === "create" ? createKind === "idea" ? "people" : "events" : lastHomeSection); }} />}
       <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}${section === "people" ? " people-mode" : ""}${section === "events" || section === "people" ? " home-mode" : " subpage-mode"}`}>
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
         ) : (
           <Suspense fallback={<LoadingScreen variant="section" />}>
             {section === "events" && (eventsMode === "map" ? <EventMap embedded city={selectedCity ?? undefined} onOpenEvent={openEvent} onOpenStreetGroup={openStreetGroup} onOpenList={openEventsList} /> : <EventsList city={selectedCity} onOpen={openEvent} />)}
-            {section === "people" && <PeopleList city={selectedCity} csrfToken={csrfToken} onCreate={() => setSection("create")} onOpen={(id) => { setSelectedLookingPostId(id); window.history.pushState({}, "", `/app/looking/${id}`); }} />}
-            {section === "create" && <CreateScreen initialKind={createKind} city={selectedCity} categories={catalog?.categories ?? []} catalogLoading={catalogLoading} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); setSection(createKind === "idea" ? "people" : "events"); }} />}
-            {section === "notifications" && <Notifications onUnreadChange={setUnreadNotifications} />}
+            {section === "people" && <PeopleList city={selectedCity} csrfToken={csrfToken} onCreate={() => void createForMode()} onOpen={(id) => { setSelectedLookingPostId(id); navigate(`/app/company/${id}`); }} />}
+            {section === "create" && <CreateScreen initialKind={createKind} city={selectedCity} categories={catalog?.categories ?? []} catalogLoading={catalogLoading} catalogFailed={catalogFailed} csrfToken={csrfToken} organizerStatus={profile.organizer_status === "trusted" ? "trusted" : "new"} onDirtyChange={setCreateDirty} registerDiscard={registerCreateDiscard} onChooseCity={() => void openCityChooser()} onDone={() => { setCreateDirty(false); navigate(createKind === "idea" ? "/app/company" : "/app"); }} />}
+            {section === "notifications" && <Notifications csrfToken={csrfToken} onUnreadChange={setUnreadNotifications} />}
             {section === "profile" && <Profile profile={profile} city={selectedCity} onChooseCity={() => void openCityChooser()} initialPublicId={initialPublicId} csrfToken={csrfToken} onUpdate={onProfileUpdate} onLogout={onLogout} onPreview={setPreviewState} registerBack={registerProfileBack} />}
           </Suspense>
         )}
       </div>
-      {(section === "events" || section === "people") && <HomeModeDock active={section} onSelect={(next) => void selectSection(next)} onCreate={() => void createForMode()} />}
+      {(section === "events" || section === "people") && <HomeModeDock active={section} cityName={selectedCity?.name ?? null} onChooseCity={() => void openCityChooser()} onSelect={(next) => void selectSection(next)} onCreate={() => void createForMode()} />}
       </>}
       {streetGroup && <StreetGroupSheet group={streetGroup} onClose={() => setStreetGroup(null)} onOpen={(id) => { setStreetGroup(null); openEvent(id); }} />}
     </main>
@@ -279,7 +325,7 @@ function HomeTopBar({ profile, eventsMode, showViewSwitch, unread, onModeChange,
     {showViewSwitch ? <div className="floating-segment view-segment" role="group" aria-label="Вид событий">
       <button type="button" aria-pressed={eventsMode === "map"} onClick={() => onModeChange("map")}><Map aria-hidden="true" />Карта</button>
       <button type="button" aria-pressed={eventsMode === "list"} onClick={() => onModeChange("list")}><List aria-hidden="true" />Список</button>
-    </div> : <span className="home-mode-title"><UserRoundSearch aria-hidden="true" />Ищу людей</span>}
+    </div> : <span className="home-mode-title"><UserRoundSearch aria-hidden="true" />Компания</span>}
     <button className="floating-round-control notification-control" type="button" aria-label={`Открыть уведомления${unread ? `. Непрочитанных: ${unread}` : ""}`} onClick={onNotifications}>
       <Bell aria-hidden="true" />
       {unread > 0 && <span className="notification-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
@@ -291,18 +337,19 @@ function SubpageHeader({ title, onBack }: { title: string; onBack: () => void })
   return <header className="subpage-header"><button type="button" aria-label="Вернуться на главный экран" onClick={onBack}><ArrowLeft aria-hidden="true" /></button><strong>{title}</strong><span aria-hidden="true" /></header>;
 }
 
-function HomeModeDock({ active, onSelect, onCreate }: { active: "events" | "people"; onSelect: (section: "events" | "people") => void; onCreate: () => void }) {
+function HomeModeDock({ active, cityName, onChooseCity, onSelect, onCreate }: { active: "events" | "people"; cityName: string | null; onChooseCity: () => void; onSelect: (section: "events" | "people") => void; onCreate: () => void }) {
   return <div className="home-bottom-controls">
+    <button className="dock-city-control" type="button" aria-label={`Выбрать город${cityName ? `. Сейчас: ${cityName}` : ""}`} onClick={onChooseCity}><MapPin aria-hidden="true" /></button>
     <div className="floating-segment mode-segment" role="group" aria-label="Разделы главного экрана">
       <button type="button" aria-pressed={active === "events"} onClick={() => onSelect("events")}><CalendarDays aria-hidden="true" />События</button>
-      <button type="button" aria-pressed={active === "people"} onClick={() => onSelect("people")}><Users aria-hidden="true" />Ищу людей</button>
+      <button type="button" aria-pressed={active === "people"} onClick={() => onSelect("people")}><Users aria-hidden="true" />Компания</button>
     </div>
     <button className="create-fab" type="button" aria-label={active === "events" ? "Создать событие" : "Создать объявление"} onClick={onCreate}><Plus aria-hidden="true" /></button>
   </div>;
 }
 
-function CityChooser({ cities, selected, loading, failed, saving, savingCityId, error, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; loading: boolean; failed: boolean; saving: boolean; savingCityId: string | null; error: string; onSelect: (city: MapCity) => void; onClose: () => void }) {
-  return <section className="city-chooser-screen"><header className="city-chooser-header"><button type="button" disabled={saving} onClick={onClose}><ArrowLeft aria-hidden="true" /> Назад</button><strong>Выберите город</strong><span /></header>{loading ? <LoadingScreen variant="section" /> : <div className="city-chooser-list scroll-focus-container">{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{error && <p className="form-error" role="alert">{error}</p>}{cities.map((city) => <button className="menu-row city-choice" type="button" disabled={saving} key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span>{savingCityId === city.id ? <LoaderCircle className="spin" aria-label="Сохраняем" /> : selected?.id === city.id ? <Check aria-label="Выбран" /> : <ChevronRight />}</button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></div>}</section>;
+function CityChooser({ cities, selected, loading, failed, saving, savingCityId, error, required, onSelect, onClose }: { cities: MapCity[]; selected: MapCity | null; loading: boolean; failed: boolean; saving: boolean; savingCityId: string | null; error: string; required: boolean; onSelect: (city: MapCity) => void; onClose: () => void }) {
+  return <section className="city-chooser-screen"><header className="city-chooser-header">{required ? <span /> : <button type="button" disabled={saving} onClick={onClose}><ArrowLeft aria-hidden="true" /> Назад</button>}<strong>Выберите город</strong><span /></header>{loading ? <LoadingScreen variant="section" /> : <div className="city-chooser-list scroll-focus-container">{failed && <p className="form-error" role="alert">Не удалось загрузить города. Попробуйте открыть приложение снова.</p>}{error && <p className="form-error" role="alert">{error}</p>}{cities.map((city) => <button className="menu-row city-choice" type="button" disabled={saving} key={city.id} aria-current={selected?.id === city.id ? "true" : undefined} onClick={() => onSelect(city)}><span>{city.name}</span>{savingCityId === city.id ? <LoaderCircle className="spin" aria-label="Сохраняем" /> : selected?.id === city.id ? <Check aria-label="Выбран" /> : <ChevronRight />}</button>)}<button className="menu-row unavailable-city" type="button" disabled><span>Другой город<small>Пока не поддерживается</small></span></button></div>}</section>;
 }
 
 function EventsList({ city, onOpen }: { city: MapCity | null; onOpen: (id: string) => void }) {
@@ -358,7 +405,7 @@ function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | nul
   useEffect(() => { void load(); }, [city, sort]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
   const statusText = (post: LookingPost) => post.status === "active" ? `Активна · осталось ${Math.max(1, Math.ceil(post.remaining_seconds / 3600))} ч` : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
-  return <section className="people-screen" aria-label="Ищу людей"><div className="people-toolbar"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
+  return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><div><p className="section-kicker">Идеи живут 72 часа</p><h1>Найдите компанию</h1></div></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}>{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
 }
 
 function CompactListState({ title, action, onAction }: { title: string; action: string; onAction: () => void }) {
@@ -375,7 +422,7 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
   const withdraw = async () => { if (!post || busy || !confirm("Снять идею с публикации?")) return; setBusy(true); const response = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${postId}`, { method: "DELETE", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setBusy(false); if (response.ok) { setMessage("Идея снята с публикации."); void load(); } else setMessage("Не удалось снять идею."); };
   const statusText = post?.status === "active" ? `Активна · осталось ${Math.max(1, Math.ceil((post?.remaining_seconds ?? 0) / 3600))} ч` : post?.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
   return <section className={`looking-detail${post && !post.is_author && post.status === "active" ? " has-composer" : ""}`}>
-    <header className="detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Ищу людей</strong><div className="detail-menu-wrap">{post?.is_author && post.status === "active" ? <><button type="button" aria-label="Действия с идеей" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="detail-overflow-menu"><button type="button" disabled={busy} onClick={() => { setMenuOpen(false); void withdraw(); }}>Снять идею</button></div>}</> : <span />}</div></header>
+    <header className="detail-appbar"><button type="button" aria-label="Назад" onClick={onClose}><ArrowLeft aria-hidden="true" /></button><strong>Компания</strong><div className="detail-menu-wrap">{post?.is_author && post.status === "active" ? <><button type="button" aria-label="Действия с идеей" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal aria-hidden="true" /></button>{menuOpen && <div className="detail-overflow-menu"><button type="button" disabled={busy} onClick={() => { setMenuOpen(false); void withdraw(); }}>Снять идею</button></div>}</> : <span />}</div></header>
     {post ? <><div className="looking-detail-scroll">
       <header className="idea-detail-author">{post.author.avatar_url ? <img className="demo-avatar" src={post.author.avatar_url} alt="" /> : <span className="demo-avatar">{post.author.display_name[0]}</span>}<span><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</small></span><span className="category-chip">{post.category}</span></header>
       <div className="idea-detail-intro"><h1>{post.title}</h1><p>{post.body}</p><span className="idea-status"><i aria-hidden="true" />{statusText}</span></div>
@@ -416,22 +463,54 @@ function LookingPostCreation({ city, categories, csrfToken, categoryId, setCateg
   return <section className="adaptive-form-page"><div className="adaptive-form-scroll scroll-focus-container"><form id="looking-post-form" className="demo-form" onSubmit={(event) => { event.preventDefault(); void save(); }}><p className="section-kicker">Ищу людей · 72 часа</p><h1>Новая идея</h1><p className="selected-city"><MapPin /><span><small>Город</small>{city?.name ?? "Выберите город"}</span></p><label>Название<input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={30} placeholder="Кого и для чего вы ищете" /></label><label>Категория<select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="" disabled>Выберите категорию</option>{categories.map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label>Описание<textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Расскажите самое важное" maxLength={300} /></label>{error && <p className="form-error" role="alert">{error}</p>}</form></div><footer className="form-sticky-actions"><Button form="looking-post-form" type="submit" disabled={saving || !canPublish}>{saving ? "Публикуем…" : "Опубликовать идею"}</Button></footer></section>;
 }
 
-function Notifications({ onUnreadChange }: { onUnreadChange: (count: number) => void }) {
+function Notifications({ csrfToken, onUnreadChange }: { csrfToken: string; onUnreadChange: (count: number) => void }) {
+  const navigate = useNavigate();
   const [items, setItems] = useState<NotificationItem[] | null>(null);
-  useEffect(() => { void fetch(`${appConfig.apiBaseUrl}/account/notifications`, { credentials: "include" }).then(async (response) => response.ok ? await response.json() as NotificationItem[] : []).then((nextItems) => { setItems(nextItems); onUnreadChange(nextItems.filter((item) => !item.read_at).length); }); }, [onUnreadChange]);
+  const [filter, setFilter] = useState<NotificationFilter>("all");
+  const [error, setError] = useState("");
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const response = await fetch(`${appConfig.apiBaseUrl}/account/notifications/feed?filter=${filter}`, { credentials: "include" });
+      if (!response.ok) throw new Error("notification_feed_unavailable");
+      const feed = await response.json() as { items?: NotificationItem[]; unread_count?: number };
+      const nextItems = Array.isArray(feed.items) ? feed.items : [];
+      setItems(nextItems);
+      onUnreadChange(feed.unread_count ?? nextItems.filter((item) => !item.read_at).length);
+    } catch {
+      setError("Не удалось загрузить уведомления. Проверьте связь и повторите попытку.");
+      setItems([]);
+    }
+  }, [filter, onUnreadChange]);
+  useEffect(() => { void load(); }, [load]);
   const unread = items?.filter((item) => !item.read_at).length ?? 0;
+  const read = async (item: NotificationItem) => {
+    if (!item.read_at) {
+      const readAt = new Date().toISOString();
+      setItems((current) => current?.map((entry) => entry.id === item.id ? { ...entry, read_at: readAt } : entry) ?? current);
+      onUnreadChange(Math.max(0, unread - 1));
+      void fetch(`${appConfig.apiBaseUrl}/account/notifications/${item.id}/read`, { method: "PATCH", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
+    }
+    if (item.deep_link?.startsWith("/app")) navigate(item.deep_link);
+  };
+  const readAll = async () => {
+    setItems((current) => current?.map((item) => ({ ...item, read_at: item.read_at ?? new Date().toISOString() })) ?? current);
+    onUnreadChange(0);
+    await fetch(`${appConfig.apiBaseUrl}/account/notifications/read-all`, { method: "POST", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } });
+  };
   const urgentItems = items?.filter((item) => item.importance === "critical") ?? [];
-  const regularItems = items?.filter((item) => item.importance !== "critical") ?? [];
-  return <section className="feed notifications-screen"><div className="section-heading"><div><p className="section-kicker">Важное и новое</p><h1>Уведомления</h1></div>{unread > 0 && <span className="unread-count">{unread} новых</span>}</div>{items === null ? <LoadingScreen variant="section" /> : items.length ? <>{urgentItems.length > 0 && <NotificationGroup title="Нужно сделать" items={urgentItems} />}{regularItems.length > 0 && <NotificationGroup title="Сегодня" items={regularItems} />}</> : <DecorativeEmpty title="Пока всё спокойно" text="Здесь появятся важные новости о событиях и встречах." />}</section>;
+  const todayItems = items?.filter((item) => item.importance !== "critical" && new Date(item.created_at).toDateString() === new Date().toDateString()) ?? [];
+  const olderItems = items?.filter((item) => item.importance !== "critical" && !todayItems.includes(item)) ?? [];
+  return <section className="feed notifications-screen"><div className="section-heading"><div><p className="section-kicker">Важное и новое</p><h1>Уведомления</h1></div>{unread > 0 && <button className="text-action" type="button" onClick={() => void readAll()}>Прочитать все</button>}</div><div className="notification-filters" role="group" aria-label="Фильтр уведомлений"><button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>Все</button><button type="button" aria-pressed={filter === "unread"} onClick={() => setFilter("unread")}>Непрочитанные</button></div>{items === null ? <LoadingScreen variant="section" /> : error ? <section className="centered-screen"><SearchX /><p>{error}</p><Button onClick={() => void load()}>Повторить</Button></section> : items.length ? <>{urgentItems.length > 0 && <NotificationGroup title="Нужно сделать" items={urgentItems} onRead={read} />}{todayItems.length > 0 && <NotificationGroup title="Сегодня" items={todayItems} onRead={read} />}{olderItems.length > 0 && <NotificationGroup title="Ранее" items={olderItems} onRead={read} />}</> : <DecorativeEmpty title="Пока всё спокойно" text="Здесь появятся важные новости о событиях и встречах." />}</section>;
 }
 
-function NotificationGroup({ title, items }: { title: string; items: NotificationItem[] }) {
+function NotificationGroup({ title, items, onRead }: { title: string; items: NotificationItem[]; onRead: (item: NotificationItem) => void }) {
   const headingId = title === "Нужно сделать" ? "notification-action" : "notification-today";
-  return <section className="notification-group" aria-labelledby={headingId}><h2 id={headingId}>{title}</h2>{items.map((item) => <Notification key={item.id} icon={<Bell />} title={item.title} text={item.body} urgent={item.importance === "critical"} />)}</section>;
+  return <section className="notification-group" aria-labelledby={headingId}><h2 id={headingId}>{title}</h2>{items.map((item) => <Notification key={item.id} item={item} onRead={onRead} />)}</section>;
 }
 
-function Notification({ icon, title, text, urgent = false }: { icon: React.ReactNode; title: string; text: string; urgent?: boolean }) {
-  return <article className={`notification${urgent ? " urgent" : ""}`}><span>{icon}</span><div><strong>{title}</strong><p>{text}</p></div><ChevronRight /></article>;
+function Notification({ item, onRead }: { item: NotificationItem; onRead: (item: NotificationItem) => void }) {
+  return <button className={`notification${item.importance === "critical" ? " urgent" : ""}${item.read_at ? " read" : " unread"}`} type="button" onClick={() => void onRead(item)}><span><Bell aria-hidden="true" /></span><div><strong>{item.title}</strong><p>{item.body}</p></div>{!item.read_at && <i className="notification-unread-dot" aria-label="Непрочитано" />}{item.deep_link && <ChevronRight aria-hidden="true" />}</button>;
 }
 
 function Profile({
@@ -445,6 +524,7 @@ function Profile({
   onPreview,
   registerBack,
 }: { profile: AccountProfile; city: MapCity | null; onChooseCity: () => void; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void; registerBack: (back: (() => void) | null) => void }) {
+  const navigate = useNavigate();
   const color = `hsl(${Number(profile.public_id.slice(-3)) % 360} 42% 42%)`;
   const [editing, setEditing] = useState(false);
   const [publicProfile, setPublicProfile] = useState<AccountProfile | null>(null);
@@ -504,7 +584,7 @@ function Profile({
   useEffect(() => { if (!initialPublicId) return; void fetch(`${appConfig.apiBaseUrl}/profiles/${initialPublicId}`, { credentials: "include" }).then(async (response) => { if (response.ok) setPublicProfile(await response.json() as AccountProfile); else setMessage("Профиль не найден"); }); }, [initialPublicId]);
   useEffect(() => {
     const back = publicProfile
-      ? () => { setPublicProfile(null); window.history.pushState({}, "", "/app"); }
+      ? () => { setPublicProfile(null); navigate("/app"); }
       : editing
         ? () => setEditing(false)
         : eventMode
@@ -512,7 +592,7 @@ function Profile({
           : null;
     registerBack(back);
     return () => registerBack(null);
-  }, [editing, eventMode, publicProfile, registerBack]);
+  }, [editing, eventMode, navigate, publicProfile, registerBack]);
   if (publicProfile) return <PublicProfile profile={publicProfile} csrfToken={csrfToken} />;
   if (editing) return <ProfileEditor profile={profile} csrfToken={csrfToken} onUpdate={onUpdate} onDone={() => { setEditing(false); setMessage("Профиль сохранён"); }} />;
   if (eventMode) return <AccountEvents state={eventMode} csrfToken={csrfToken} />;

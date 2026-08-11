@@ -230,6 +230,9 @@ function eventErrorMessage(reason: unknown): string {
     point_outside_city_area: "Выберите место не дальше 20 км от города.",
     photo_not_available: "Фотография устарела или уже использована. Загрузите её снова.",
     category_not_available: "Эта категория больше недоступна.",
+    city_selection_required: "Сначала выберите и сохраните город в профиле.",
+    profile_city_mismatch: "Город события не совпадает с городом в профиле. Выберите город заново.",
+    organizer_not_eligible: "Сейчас ваш профиль не может создавать события.",
     address_unavailable: "Сейчас не удаётся подтвердить адрес. Попробуйте позже.",
     idempotency_key_reused: "Данные изменились во время отправки. Повторите попытку.",
   };

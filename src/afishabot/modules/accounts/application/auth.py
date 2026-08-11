@@ -281,6 +281,101 @@ async def confirm_age(
     return await load_session_profile(engine, token=token, auth_secret=auth_secret)
 
 
+async def complete_onboarding(
+    engine: AsyncEngine,
+    *,
+    token: str,
+    csrf_token: str,
+    auth_secret: bytes,
+    selected_city_id: UUID,
+    expected_profile_version: int,
+) -> AccountProfile | None:
+    """Atomically save the mandatory age acknowledgement and home city."""
+    async with engine.begin() as connection:
+        row = (
+            await connection.execute(
+                text(
+                    """
+                    SELECT u.id, p.version
+                    FROM accounts.users u
+                    JOIN accounts.sessions s ON s.user_id=u.id
+                    JOIN accounts.profiles p ON p.user_id=u.id
+                    WHERE s.token_hash=:token_hash
+                      AND s.csrf_token_hash=:csrf_hash
+                      AND s.revoked_at IS NULL AND s.expires_at>now()
+                      AND u.status='active'
+                    FOR UPDATE OF u, s, p
+                    """
+                ),
+                {
+                    "token_hash": credential_hash(auth_secret, token),
+                    "csrf_hash": credential_hash(auth_secret, csrf_token),
+                },
+            )
+        ).mappings().one_or_none()
+        if row is None:
+            return None
+        if row["version"] != expected_profile_version:
+            raise ValueError("stale_profile")
+        city_exists = await connection.scalar(
+            text("SELECT 1 FROM discovery.cities WHERE id=:id AND is_active"),
+            {"id": selected_city_id},
+        )
+        if city_exists is None:
+            raise ValueError("invalid_city")
+        accepted_at = datetime.now(UTC)
+        await connection.execute(
+            text(
+                """
+                INSERT INTO accounts.age_acceptances
+                    (id, user_id, rule_version, accepted_at)
+                VALUES (:id, :user_id, :rule_version, :accepted_at)
+                ON CONFLICT (user_id, rule_version) DO NOTHING
+                """
+            ),
+            {
+                "id": uuid4(),
+                "user_id": row["id"],
+                "rule_version": AGE_RULE_VERSION,
+                "accepted_at": accepted_at,
+            },
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE accounts.users
+                SET accepted_age_rule_version=:rule_version,
+                    accepted_age_rule_at=COALESCE(accepted_age_rule_at, :accepted_at),
+                    updated_at=now()
+                WHERE id=:user_id
+                """
+            ),
+            {
+                "user_id": row["id"],
+                "rule_version": AGE_RULE_VERSION,
+                "accepted_at": accepted_at,
+            },
+        )
+        updated = await connection.scalar(
+            text(
+                """
+                UPDATE accounts.profiles
+                SET selected_city_id=:city, version=version+1, updated_at=now()
+                WHERE user_id=:user_id AND version=:version
+                RETURNING user_id
+                """
+            ),
+            {
+                "city": selected_city_id,
+                "user_id": row["id"],
+                "version": expected_profile_version,
+            },
+        )
+        if updated is None:
+            raise ValueError("stale_profile")
+    return await load_session_profile(engine, token=token, auth_secret=auth_secret)
+
+
 async def revoke_session(
     engine: AsyncEngine,
     *,

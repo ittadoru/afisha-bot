@@ -30,6 +30,11 @@ notifications = Table(
     Column("read_at", DateTime(timezone=True)),
     Column("expires_at", DateTime(timezone=True)),
     Column("tg_pushed_at", DateTime(timezone=True)),
+    Column("business_key", String(180)),
+    Column("delivery_policy", Text, nullable=False),
+    Column("telegram_status", Text, nullable=False),
+    Column("telegram_last_attempt_at", DateTime(timezone=True)),
+    Column("telegram_sent_at", DateTime(timezone=True)),
 )
 
 chat_message_requests = Table(

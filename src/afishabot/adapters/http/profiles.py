@@ -1,4 +1,6 @@
 import hashlib
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Literal, cast
@@ -110,6 +112,16 @@ class NotificationResponse(BaseModel):
     deep_link: str | None
     created_at: datetime
     read_at: datetime | None
+
+
+class NotificationFeedResponse(BaseModel):
+    items: list[NotificationResponse]
+    next_cursor: str | None
+    unread_count: int
+
+
+class NotificationSettingsResponse(BaseModel):
+    telegram_status: Literal["pending", "sent", "unreachable", "none"]
 
 
 def dependencies(request: Request) -> tuple[Settings, Redis, AsyncEngine]:
@@ -433,6 +445,157 @@ async def get_account_notifications(
             .all()
         )
     return [NotificationResponse.model_validate(row) for row in rows]
+
+
+@router.get("/account/notifications/feed", response_model=NotificationFeedResponse)
+async def get_notification_feed(
+    request: Request,
+    filter: Annotated[Literal["all", "unread"], Query()] = "all",
+    cursor: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 30,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> NotificationFeedResponse:
+    _, _, engine = dependencies(request)
+    user_id = await current_user(request, token)
+    before = _decode_notification_cursor(cursor) if cursor else None
+    where_unread = "AND n.read_at IS NULL" if filter == "unread" else ""
+    cursor_clause = (
+        "" if before is None else "AND (n.created_at, n.id) < (:before_at, :before_id)"
+    )
+    params: dict[str, object] = {"user": user_id, "limit": limit + 1}
+    if before is not None:
+        params.update(before_at=before[0], before_id=before[1])
+    async with engine.connect() as connection:
+        rows = (
+            await connection.execute(
+                text(
+                    f"""
+                    SELECT n.id,n.kind,n.importance,n.title,n.body,n.deep_link,
+                           n.created_at,n.read_at
+                    FROM communication.notifications n
+                    WHERE n.recipient_user_id=:user
+                      AND (n.expires_at IS NULL OR n.expires_at>now())
+                      {where_unread} {cursor_clause}
+                    ORDER BY n.created_at DESC,n.id DESC LIMIT :limit
+                    """
+                ),
+                params,
+            )
+        ).mappings().all()
+        unread_count = await connection.scalar(
+            text(
+                """
+                SELECT count(*) FROM communication.notifications
+                WHERE recipient_user_id=:user AND read_at IS NULL
+                  AND (expires_at IS NULL OR expires_at>now())
+                """
+            ),
+            {"user": user_id},
+        )
+    page = rows[:limit]
+    next_cursor = (
+        _encode_notification_cursor(page[-1]) if len(rows) > limit and page else None
+    )
+    return NotificationFeedResponse(
+        items=[NotificationResponse.model_validate(row) for row in page],
+        next_cursor=next_cursor,
+        unread_count=int(unread_count or 0),
+    )
+
+
+@router.patch(
+    "/account/notifications/{notification_id}/read", response_model=NotificationResponse
+)
+async def read_notification(
+    notification_id: UUID,
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> NotificationResponse:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    async with engine.begin() as connection:
+        row = (
+            await connection.execute(
+                text(
+                    """
+                    UPDATE communication.notifications
+                    SET read_at=COALESCE(read_at, now())
+                    WHERE id=:id AND recipient_user_id=:user
+                    RETURNING id,kind,importance,title,body,deep_link,created_at,read_at
+                    """
+                ),
+                {"id": notification_id, "user": user_id},
+            )
+        ).mappings().one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="notification_not_found")
+    return NotificationResponse.model_validate(row)
+
+
+@router.post("/account/notifications/read-all")
+async def read_all_notifications(
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+    csrf: Annotated[str | None, Header(alias=CSRF_HEADER)] = None,
+) -> dict[str, int]:
+    settings, _, engine = dependencies(request)
+    validate_origin(request, settings)
+    user_id = await mutation_user(request, token, csrf)
+    async with engine.begin() as connection:
+        result = await connection.execute(
+            text(
+                """
+                UPDATE communication.notifications SET read_at=now()
+                WHERE recipient_user_id=:user AND read_at IS NULL
+                  AND (expires_at IS NULL OR expires_at>now())
+                """
+            ),
+            {"user": user_id},
+        )
+    return {"updated": result.rowcount or 0}
+
+
+@router.get(
+    "/account/notification-settings", response_model=NotificationSettingsResponse
+)
+async def get_notification_settings(
+    request: Request,
+    token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> NotificationSettingsResponse:
+    _, _, engine = dependencies(request)
+    user_id = await current_user(request, token)
+    async with engine.connect() as connection:
+        value = await connection.scalar(
+            text(
+                """
+                SELECT telegram_status FROM communication.notifications
+                WHERE recipient_user_id=:user AND delivery_policy='telegram_and_in_app'
+                ORDER BY created_at DESC LIMIT 1
+                """
+            ),
+            {"user": user_id},
+        )
+    return NotificationSettingsResponse(telegram_status=value or "none")
+
+
+def _encode_notification_cursor(row: object) -> str:
+    mapping = cast(Mapping[str, object], row)
+    created_at = cast(datetime, mapping["created_at"])
+    raw = f"{created_at.isoformat()}|{mapping['id']}".encode()
+    return urlsafe_b64encode(raw).decode().rstrip("=")
+
+
+def _decode_notification_cursor(value: str) -> tuple[datetime, UUID]:
+    try:
+        decoded = urlsafe_b64decode(value + "=" * (-len(value) % 4)).decode()
+        created_at, raw_id = decoded.split("|", 1)
+        return datetime.fromisoformat(created_at), UUID(raw_id)
+    except (UnicodeDecodeError, ValueError) as error:
+        raise HTTPException(
+            status_code=422, detail="notification_cursor_invalid"
+        ) from error
 
 
 @router.post("/profiles/{public_id}/reports", status_code=201)

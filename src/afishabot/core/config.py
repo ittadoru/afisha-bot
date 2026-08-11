@@ -51,6 +51,12 @@ class Settings(BaseSettings):
         validation_alias="ADMIN_PASSWORD",
         repr=False,
     )
+    feature_navigation_v2: bool = True
+    feature_notifications_v2: bool = False
+    feature_safety_cases: bool = False
+    feature_attendance: bool = False
+    feature_private_event_feedback: bool = False
+    feature_reputation_profiles: bool = False
 
     @field_validator("public_base_url", "admin_base_url")
     @classmethod
