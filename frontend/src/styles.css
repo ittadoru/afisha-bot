@@ -981,8 +981,8 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   background: var(--category-color, var(--primary));
   box-shadow: 0 5px 14px rgb(16 39 45 / .28);
 }
-.event-pin-shape::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgb(255 255 255 / .54); border-radius: 50%; }
-.event-pin-shape .marker-label { position: relative; z-index: 1; transform: rotate(45deg); font-size: 8px; font-weight: 900; letter-spacing: -.02em; }
+.event-pin-shape .marker-label { position: relative; z-index: 1; display: grid; place-items: center; width: 20px; height: 20px; transform: rotate(45deg); }
+.event-pin-shape .marker-label svg { display: block; width: 19px; height: 19px; fill: none; stroke: currentcolor; filter: drop-shadow(0 1px 1px rgb(0 0 0 / .15)); }
 .street-event-marker { width: 52px; height: 48px; max-width: none; }
 .street-marker-shape { position: relative; display: grid; place-items: start center; width: 42px; height: 38px; padding-top: 6px; clip-path: polygon(3% 0, 97% 0, 50% 100%); color: #fff; background: var(--primary); filter: drop-shadow(0 5px 8px rgb(16 39 45 / .26)); }
 .street-marker-shape::before { content: ""; position: absolute; inset: 3px 4px 7px; clip-path: polygon(2% 0, 98% 0, 50% 100%); background: color-mix(in srgb, var(--primary) 86%, #fff); }

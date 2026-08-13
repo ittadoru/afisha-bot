@@ -30,7 +30,8 @@ async def _event_list(
                 await connection.execute(
                     text(
                         """
-                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,cat.slug AS category_slug,
+                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,
+                           cat.slug AS category_slug,
                            cat.name AS category,r.title,r.description,
                            r.starts_at,r.ends_at,
                            COALESCE(r.organizer_street,r.street_name) AS street_name,
@@ -93,7 +94,8 @@ async def _event_map(
                     text(
                         """
                     SELECT 'event' AS marker_type,e.id,e.kind,e.event_scope,
-                           cat.slug AS category_slug,cat.name AS category,
+                           cat.slug AS category_slug,cat.icon_key,
+                           cat.name AS category,
                            r.title,r.starts_at,
                            ST_Y(r.location::geometry) AS latitude,
                            ST_X(r.location::geometry) AS longitude,
@@ -127,6 +129,7 @@ async def _event_map(
                         """
                     SELECT 'street' AS marker_type,NULL::uuid AS id,
                            'regular'::text AS kind,NULL::text AS category_slug,
+                           NULL::text AS icon_key,
                            NULL::text AS category,NULL::text AS title,
                            min(r.starts_at) AS starts_at,
                            ST_Y(a.anchor::geometry) AS latitude,
@@ -168,7 +171,8 @@ async def event_detail(
                 await connection.execute(
                     text(
                         """
-                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,e.lifecycle_status,
+                    SELECT e.id,e.approved_revision_id,e.kind,e.event_scope,
+                           e.lifecycle_status,
                            e.cancellation_reason_code,e.capacity,
                            cat.slug AS category_slug,cat.name AS category,
                            city.name AS city,r.title,r.description,
@@ -226,7 +230,8 @@ async def event_detail(
                              WHERE i.event_id=e.id
                                AND i.user_id=CAST(:viewer AS uuid) AND i.active
                            ) AS viewer_interested,
-                           (e.creator_user_id=CAST(:viewer AS uuid)) AS viewer_is_organizer,
+                           (e.creator_user_id=CAST(:viewer AS uuid))
+                             AS viewer_is_organizer,
                            e.chat_enabled,
                            CASE
                              WHEN EXISTS (

@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { appConfig } from "@/config";
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { mapCategoryIconMarkup } from "@/lib/map-category-icon";
 
 interface EventMapProps {
   onBack?: () => void;
@@ -57,6 +58,7 @@ type PublicMarker = {
   kind: "regular" | "special";
   event_scope?: "user" | "community";
   category_slug: string | null;
+  icon_key: string | null;
   category: string | null;
   title: string | null;
   latitude: number;
@@ -203,7 +205,10 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             if (item.marker_type === "street") {
               markerLabel.textContent = String(item.event_count ?? 0);
             } else {
-              markerLabel.textContent = categoryGlyph(item.category_slug);
+              markerLabel.innerHTML = mapCategoryIconMarkup(
+                item.icon_key,
+                item.category_slug,
+              );
             }
             markerContent.append(markerLabel);
             element.append(markerContent);
@@ -275,12 +280,4 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       )}
     </section>
   );
-}
-
-function categoryGlyph(slug: string | null): string {
-  return ({
-    sport: "⚽", games: "◆", meetups: "●", cafe: "●", entertainment: "●",
-    tourism: "▲", walks: "▲", education: "✎", work: "✎", creativity: "✦",
-    cars: "▰", volunteering: "♥", other: "◇",
-  } as Record<string, string>)[slug ?? ""] ?? "◇";
 }

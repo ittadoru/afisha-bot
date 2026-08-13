@@ -38,9 +38,9 @@ export const handlers = [
   http.get("*/events", ({ request }) => {
     const view = new URL(request.url).searchParams.get("view");
     if (view === "map") return HttpResponse.json({ items: [
-      { marker_type: "event", id: mockEvents[0].id, kind: "regular", event_scope: "user", category_slug: "walks", category: "Прогулки", title: mockEvents[0].title, latitude: 42.976, longitude: 47.502, street_name: null, event_count: null, event_ids: null },
-      { marker_type: "event", id: mockEvents[2].id, kind: "regular", event_scope: "user", category_slug: "creativity", category: "Творчество", title: mockEvents[2].title, latitude: 42.969, longitude: 47.513, street_name: null, event_count: null, event_ids: null },
-      { marker_type: "street", id: null, kind: "regular", category_slug: null, category: null, title: null, latitude: 42.991, longitude: 47.486, street_name: "улица Батырая", event_count: 2, event_ids: [mockEvents[1].id, mockEvents[2].id] },
+      { marker_type: "event", id: mockEvents[0].id, kind: "regular", event_scope: "user", category_slug: "walks", icon_key: "mountain", category: "Прогулки", title: mockEvents[0].title, latitude: 42.976, longitude: 47.502, street_name: null, event_count: null, event_ids: null },
+      { marker_type: "event", id: mockEvents[2].id, kind: "regular", event_scope: "user", category_slug: "creativity", icon_key: "palette", category: "Творчество", title: mockEvents[2].title, latitude: 42.969, longitude: 47.513, street_name: null, event_count: null, event_ids: null },
+      { marker_type: "street", id: null, kind: "regular", category_slug: null, icon_key: null, category: null, title: null, latitude: 42.991, longitude: 47.486, street_name: "улица Батырая", event_count: 2, event_ids: [mockEvents[1].id, mockEvents[2].id] },
     ] });
     return HttpResponse.json({ items: mockEvents });
   }),
