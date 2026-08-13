@@ -54,6 +54,13 @@ def test_category_unification_migration_remaps_records_before_deactivation() -> 
         encoding="utf-8"
     )
 
+    release_sort_orders = (
+        "UPDATE discovery.categories SET sort_order = sort_order + 100;"
+    )
+    assign_sort_orders = "color_key = values.color_key, sort_order = values.sort_order"
+
+    assert release_sort_orders in text
+    assert text.index(release_sort_orders) < text.index(assign_sort_orders)
     assert "UPDATE events.events" in text
     assert "UPDATE discovery.looking_posts" in text
     assert "('cafe','entertainment','walks','work')" in text
