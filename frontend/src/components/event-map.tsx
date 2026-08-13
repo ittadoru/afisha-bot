@@ -55,6 +55,7 @@ type PublicMarker = {
   marker_type: "event" | "street";
   id: string | null;
   kind: "regular" | "special";
+  event_scope?: "user" | "community";
   category_slug: string | null;
   category: string | null;
   title: string | null;
@@ -194,7 +195,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             element.type = "button";
             element.className = item.marker_type === "street"
               ? "street-event-marker"
-              : `public-event-marker category-${item.category_slug ?? "other"}${item.kind === "special" ? " special" : ""}`;
+              : `public-event-marker category-${item.category_slug ?? "other"}`;
             const markerContent = document.createElement("span");
             markerContent.className = item.marker_type === "street" ? "street-marker-shape" : "event-pin-shape";
             const markerLabel = document.createElement("span");
@@ -206,8 +207,16 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
             }
             markerContent.append(markerLabel);
             element.append(markerContent);
+            const isCommunity = item.event_scope === "community" || item.kind === "special";
+            if (item.marker_type === "event" && isCommunity) {
+              const badge = document.createElement("span");
+              badge.className = "event-community-badge";
+              badge.textContent = "✦";
+              badge.setAttribute("aria-hidden", "true");
+              element.append(badge);
+            }
             element.title = item.marker_type === "street" ? `${item.street_name} · ${item.event_count}` : item.title ?? item.category ?? "Событие";
-            element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${item.category}: ${item.title}`);
+            element.setAttribute("aria-label", item.marker_type === "street" ? `Общая улица ${item.street_name}, событий ${item.event_count}` : `${isCommunity ? "Общественное событие. " : ""}${item.category}: ${item.title}`);
             element.addEventListener("click", () => item.marker_type === "street" ? callbacksRef.current.onOpenStreetGroup?.(item.event_ids ?? [], item.street_name ?? "Улица") : item.id && callbacksRef.current.onOpenEvent?.(item.id));
             return new MapLibreMarker({ element, anchor: "bottom" })
               .setLngLat([item.longitude, item.latitude]).addTo(map);
@@ -270,8 +279,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
 
 function categoryGlyph(slug: string | null): string {
   return ({
-    sport: "⚽", games: "◆", meetups: "●", cafe: "☕", tourism: "▲",
-    education: "✎", creativity: "✦", cars: "▰", volunteering: "♥",
-    work: "■", entertainment: "★", walks: "↟", other: "◇",
+    sport: "⚽", games: "◆", meetups: "●", cafe: "●", entertainment: "●",
+    tourism: "▲", walks: "▲", education: "✎", work: "✎", creativity: "✦",
+    cars: "▰", volunteering: "♥", other: "◇",
   } as Record<string, string>)[slug ?? ""] ?? "◇";
 }

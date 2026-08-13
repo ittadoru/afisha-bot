@@ -1,0 +1,635 @@
+{
+  "schema": "openai.presentation.layout/v4",
+  "unit": "px",
+  "slide": {
+    "aid": "sl/qv8l7s",
+    "id": "qv8l7s",
+    "slide": 1,
+    "layoutId": "465d793e-222d-4de1-938b-e19039b98134",
+    "layoutName": "Title Slide",
+    "layoutType": "title",
+    "masterLayoutId": "c90ea442-2827-4716-928c-56fb747c0084",
+    "masterLayoutName": "Master",
+    "backgroundColor": "#26365F",
+    "frame": {
+      "left": 0,
+      "top": 0,
+      "width": 1280,
+      "height": 720
+    }
+  },
+  "theme": {
+    "colorSchemeName": "ChatGPT",
+    "colors": {
+      "accent1": "#156082",
+      "accent2": "#E97132",
+      "accent3": "#196B24",
+      "accent4": "#0F9ED5",
+      "accent5": "#A02B93",
+      "accent6": "#4EA72E",
+      "bg1": "#FFFFFF",
+      "bg2": "#000000",
+      "tx1": "#1F1F1F",
+      "tx2": "#FFFFFF",
+      "dk1": "#000000",
+      "lt1": "#FFFFFF",
+      "dk2": "#0E2841",
+      "lt2": "#E8E8E8",
+      "hlink": "#467886",
+      "folHlink": "#96607D"
+    },
+    "typefaces": [
+      "Arial"
+    ]
+  },
+  "inheritedLayers": [
+    {
+      "scope": "layout",
+      "id": "465d793e-222d-4de1-938b-e19039b98134",
+      "name": "Title Slide",
+      "type": "title",
+      "parentLayoutId": "c90ea442-2827-4716-928c-56fb747c0084",
+      "elements": []
+    },
+    {
+      "scope": "master",
+      "id": "c90ea442-2827-4716-928c-56fb747c0084",
+      "name": "Master",
+      "type": "master",
+      "elements": []
+    }
+  ],
+  "elements": [
+    {
+      "order": 1,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/h8z6dsja",
+      "id": "1",
+      "bbox": [
+        850,
+        80,
+        420,
+        420
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#324574",
+      "lineWidth": 0
+    },
+    {
+      "order": 2,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/ulonixkz",
+      "id": "2",
+      "bbox": [
+        940,
+        155,
+        280,
+        280
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#F59E0B",
+      "lineWidth": 0
+    },
+    {
+      "order": 3,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/fmxob21k",
+      "id": "3",
+      "bbox": [
+        980,
+        215,
+        200,
+        125
+      ],
+      "geometry": "rect",
+      "text": "ML",
+      "textPreview": "ML",
+      "resolvedFontSize": 74,
+      "resolvedTextStyle": {
+        "anchor": 2,
+        "fontSize": 74,
+        "typeface": "Arial",
+        "color": "#26365F",
+        "bold": true,
+        "alignment": "center",
+        "verticalAlignment": "middle",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "ML"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "ML",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 74,
+            "typeface": "Arial",
+            "color": "#26365F",
+            "bold": true,
+            "alignment": "center",
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "ML",
+              "fontSize": 74,
+              "typeface": "Arial",
+              "color": "#26365F",
+              "bold": true,
+              "alignment": "center",
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 4,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/4bqpo721",
+      "id": "4",
+      "bbox": [
+        1125,
+        92,
+        18,
+        18
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#FFB84D",
+      "lineWidth": 0
+    },
+    {
+      "order": 5,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/pcz6hcjm",
+      "id": "5",
+      "bbox": [
+        918,
+        465,
+        14,
+        14
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#FFFFFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 6,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/2987mxkv",
+      "id": "6",
+      "bbox": [
+        1220,
+        520,
+        10,
+        10
+      ],
+      "geometry": "ellipse",
+      "fillColor": "#FFB84D",
+      "lineWidth": 0
+    },
+    {
+      "order": 7,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/3ahof21g",
+      "id": "7",
+      "bbox": [
+        66,
+        92,
+        760,
+        190
+      ],
+      "geometry": "rect",
+      "text": "Машинное обучение:\nпонятие, виды",
+      "textPreview": "Машинное обучение: | понятие, виды",
+      "resolvedFontSize": 62,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 62,
+        "typeface": "Arial",
+        "color": "#FFFFFF",
+        "bold": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 2,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Машинное обучение:"
+          },
+          {
+            "index": 2,
+            "text": "понятие, виды"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Машинное обучение:",
+          "lineSpacingPercent": 93000,
+          "resolvedTextStyle": {
+            "fontSize": 62,
+            "typeface": "Arial",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.93
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Машинное обучение:",
+              "fontSize": 62,
+              "typeface": "Arial",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.93
+            }
+          ],
+          "marginLeft": 0
+        },
+        {
+          "index": 2,
+          "text": "понятие, виды",
+          "lineSpacingPercent": 93000,
+          "resolvedTextStyle": {
+            "fontSize": 62,
+            "typeface": "Arial",
+            "color": "#FFFFFF",
+            "bold": true,
+            "alignment": "left",
+            "lineSpacing": 0.93
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "понятие, виды",
+              "fontSize": 62,
+              "typeface": "Arial",
+              "color": "#FFFFFF",
+              "bold": true,
+              "alignment": "left",
+              "lineSpacing": 0.93
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 8,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/kfm5c32x",
+      "id": "8",
+      "bbox": [
+        68,
+        298,
+        420,
+        42
+      ],
+      "geometry": "rect",
+      "text": "Machine learning",
+      "textPreview": "Machine learning",
+      "resolvedFontSize": 27,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 27,
+        "typeface": "Arial",
+        "color": "#FFB84D",
+        "italic": true,
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Machine learning"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Machine learning",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 27,
+            "typeface": "Arial",
+            "color": "#FFB84D",
+            "italic": true,
+            "alignment": "left",
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Machine learning",
+              "fontSize": 27,
+              "typeface": "Arial",
+              "color": "#FFB84D",
+              "italic": true,
+              "alignment": "left",
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 9,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/5gv658ji",
+      "id": "9",
+      "bbox": [
+        68,
+        370,
+        650,
+        2
+      ],
+      "geometry": "rect",
+      "fillColor": "#7180AA",
+      "lineWidth": 0
+    },
+    {
+      "order": 10,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/lkbm58zi",
+      "id": "10",
+      "bbox": [
+        68,
+        396,
+        700,
+        112
+      ],
+      "geometry": "rect",
+      "text": "Цель: изучить понятие и основные виды машинного обучения, различия между обучением с учителем и без учителя, задачи машинного обучения и принципы отбора данных.",
+      "textPreview": "Цель: изучить понятие и основные виды машинного обучения, различия между обучением с учителем и без учителя, задачи машинного обучения и ...",
+      "resolvedFontSize": 22,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 22,
+        "typeface": "Arial",
+        "color": "#DDE3F2",
+        "alignment": "left",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 3,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Цель: изучить понятие и основные виды машинного обучения,"
+          },
+          {
+            "index": 2,
+            "text": "различия между обучением с учителем и без учителя, задачи"
+          },
+          {
+            "index": 3,
+            "text": "машинного обучения и принципы отбора данных."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Цель: изучить понятие и основные виды машинного обучения, различия между обучением с учителем и без учителя, задачи машинного обучения и принципы отбора данных.",
+          "lineSpacingPercent": 112000,
+          "resolvedTextStyle": {
+            "fontSize": 22,
+            "typeface": "Arial",
+            "color": "#DDE3F2",
+            "alignment": "left",
+            "lineSpacing": 1.12
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Цель: изучить понятие и основные виды машинного обучения, различия между обучением с учителем и без учителя, задачи машинного обучения и принципы отбора данных.",
+              "fontSize": 22,
+              "typeface": "Arial",
+              "color": "#DDE3F2",
+              "alignment": "left",
+              "lineSpacing": 1.12
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    },
+    {
+      "order": 11,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/0j25c3yx",
+      "id": "11",
+      "bbox": [
+        68,
+        585,
+        250,
+        46
+      ],
+      "geometry": "roundRect",
+      "text": "Камалудинов Х. М.",
+      "textPreview": "Камалудинов Х. М.",
+      "resolvedFontSize": 18,
+      "resolvedTextStyle": {
+        "anchor": 2,
+        "fontSize": 18,
+        "typeface": "Arial",
+        "color": "#26365F",
+        "bold": true,
+        "alignment": "center",
+        "verticalAlignment": "middle",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 4,
+          "right": 12,
+          "bottom": 4,
+          "left": 12
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "Камалудинов Х. М."
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "Камалудинов Х. М.",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 18,
+            "typeface": "Arial",
+            "color": "#26365F",
+            "bold": true,
+            "alignment": "center",
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "Камалудинов Х. М.",
+              "fontSize": 18,
+              "typeface": "Arial",
+              "color": "#26365F",
+              "bold": true,
+              "alignment": "center",
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "fillColor": "#FFFFFF",
+      "lineWidth": 0
+    },
+    {
+      "order": 12,
+      "kind": "shape",
+      "scope": "slide",
+      "aid": "sh/zit43yhc",
+      "id": "12",
+      "bbox": [
+        1170,
+        671,
+        48,
+        20
+      ],
+      "geometry": "rect",
+      "text": "01",
+      "textPreview": "01",
+      "resolvedFontSize": 14,
+      "resolvedTextStyle": {
+        "anchor": 1,
+        "fontSize": 14,
+        "typeface": "Arial",
+        "color": "#AAB4D4",
+        "bold": true,
+        "alignment": "right",
+        "verticalAlignment": "top",
+        "wrap": "square",
+        "autoFit": "shrinkText",
+        "autoFitScale": 1,
+        "insets": {
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      },
+      "textLayout": {
+        "lineCount": 1,
+        "lines": [
+          {
+            "index": 1,
+            "text": "01"
+          }
+        ]
+      },
+      "paragraphs": [
+        {
+          "index": 1,
+          "text": "01",
+          "lineSpacingPercent": 100000,
+          "resolvedTextStyle": {
+            "fontSize": 14,
+            "typeface": "Arial",
+            "color": "#AAB4D4",
+            "bold": true,
+            "alignment": "right",
+            "lineSpacing": 1
+          },
+          "runs": [
+            {
+              "index": 1,
+              "text": "01",
+              "fontSize": 14,
+              "typeface": "Arial",
+              "color": "#AAB4D4",
+              "bold": true,
+              "alignment": "right",
+              "lineSpacing": 1
+            }
+          ],
+          "marginLeft": 0
+        }
+      ],
+      "lineWidth": 0
+    }
+  ],
+  "composeRuns": []
+}

@@ -34,9 +34,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 34
+    assert len(files) == 35
     assert parents - {None} < revisions
-    assert revisions - parents == {"0034_staff_case_moderation"}
+    assert revisions - parents == {"0035_unify_categories_and_map_markers"}
     assert EXPECTED_MIGRATION_HEAD in revisions - parents
 
 
@@ -47,6 +47,18 @@ def test_profile_background_migration_updates_profiles_reports_and_media() -> No
     assert "ALTER TABLE trust_safety.profile_reports " in text
     assert '"ADD COLUMN background_asset_id uuid"' in text
     assert "profile_background" in text
+
+
+def test_category_unification_migration_remaps_records_before_deactivation() -> None:
+    text = (VERSIONS / "0035_unify_categories_and_map_markers.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "UPDATE events.events" in text
+    assert "UPDATE discovery.looking_posts" in text
+    assert "('cafe','entertainment','walks','work')" in text
+    assert "'Прогулки и поездки'" in text
+    assert "'Обучение и работа'" in text
 
 
 def test_platform_extension_and_seven_owner_schemas_exist() -> None:

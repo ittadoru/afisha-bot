@@ -120,7 +120,6 @@ h1 { margin: 1.25rem 0 1rem; font-size: clamp(3.2rem, 7vw, 6.8rem); line-height:
 .event-marker svg { width: 18px; height: 18px; fill: currentColor; transform: rotate(45deg); }
 .event-marker:focus-visible { outline: 3px solid #173f3a; outline-offset: 3px; }
 .public-event-marker { display: grid; place-items: center; width: 38px; height: 38px; border: 3px solid white; border-radius: 50% 50% 50% 12px; color: white; background: var(--category-color, #08786c); box-shadow: 0 4px 12px rgb(0 0 0 / .25); font-size: 17px; font-weight: 900; }
-.public-event-marker.special { width: 46px; height: 46px; color: #3e2605; background: linear-gradient(145deg, #ffd77a, #d6962d); }
 .street-event-marker { max-width: 180px; padding: 7px 10px; border: 2px solid white; border-radius: 12px; color: #fff; background: #526d69; box-shadow: 0 4px 12px rgb(0 0 0 / .22); font-size: 11px; font-weight: 800; white-space: nowrap; }
 .map-empty-chip { position: absolute; top: 14px; left: 14px; z-index: 2; padding: 8px 11px; border: 1px solid var(--border); border-radius: 999px; color: var(--foreground); background: var(--surface-raised); box-shadow: var(--shadow); font-size: .76rem; font-weight: 750; }
 .category-sport { --category-color: #a75d49; } .category-games { --category-color: #746983; } .category-meetups { --category-color: #9b6970; } .category-cinema { --category-color: #586b82; } .category-cafe { --category-color: #946f4d; } .category-tourism { --category-color: #61795c; } .category-education { --category-color: #577f99; } .category-creativity { --category-color: #926d7c; } .category-cars { --category-color: #606a68; } .category-volunteering { --category-color: #a97855; } .category-work { --category-color: #627b7d; } .category-entertainment { --category-color: #9a6670; } .category-music { --category-color: #786b88; } .category-walks { --category-color: #66805f; } .category-other { --category-color: #717a70; }
@@ -706,7 +705,6 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .map-address strong { font-size: .9rem; }
 .map-address span { font-size: .78rem; line-height: 1.4; }
 .public-event-marker { width: 40px; height: 40px; border-width: 3px; border-radius: 14px; font-size: 10px; letter-spacing: -.02em; }
-.public-event-marker.special { width: 44px; height: 44px; color: var(--warning); background: var(--warning-surface); }
 .street-event-marker { min-height: 38px; max-width: 180px; padding: 7px 10px; border-width: 2px; border-radius: 11px; color: var(--primary-foreground); background: var(--primary); font-size: 10px; }
 .maplibregl-ctrl-group { overflow: hidden; border: 1px solid var(--border); border-radius: 12px !important; background: var(--surface-raised) !important; box-shadow: var(--shadow-1) !important; }
 .maplibregl-ctrl-group button { width: 44px !important; height: 44px !important; }
@@ -985,7 +983,6 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 }
 .event-pin-shape::after { content: ""; position: absolute; inset: 7px; border: 1px solid rgb(255 255 255 / .54); border-radius: 50%; }
 .event-pin-shape .marker-label { position: relative; z-index: 1; transform: rotate(45deg); font-size: 8px; font-weight: 900; letter-spacing: -.02em; }
-.public-event-marker.special .event-pin-shape { width: 38px; height: 38px; color: #58331e; background: var(--sand); }
 .street-event-marker { width: 52px; height: 48px; max-width: none; }
 .street-marker-shape { position: relative; display: grid; place-items: start center; width: 42px; height: 38px; padding-top: 6px; clip-path: polygon(3% 0, 97% 0, 50% 100%); color: #fff; background: var(--primary); filter: drop-shadow(0 5px 8px rgb(16 39 45 / .26)); }
 .street-marker-shape::before { content: ""; position: absolute; inset: 3px 4px 7px; clip-path: polygon(2% 0, 98% 0, 50% 100%); background: color-mix(in srgb, var(--primary) 86%, #fff); }
@@ -1142,21 +1139,22 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   --radius-card: 20px;
   --shadow-1: 0 8px 24px rgb(54 61 45 / .11);
   --shadow-2: 0 18px 44px rgb(54 61 45 / .16);
-  --cat-sport: var(--terracotta);
-  --cat-games: color-mix(in srgb, var(--caspian) 72%, var(--terracotta));
-  --cat-meetups: color-mix(in srgb, var(--terracotta) 72%, var(--pasture));
-  --cat-cinema: color-mix(in srgb, var(--caspian) 82%, #394553);
-  --cat-cafe: color-mix(in srgb, var(--terracotta) 72%, var(--sand));
-  --cat-tourism: var(--pasture);
-  --cat-education: var(--caspian);
-  --cat-creativity: color-mix(in srgb, var(--terracotta) 62%, var(--caspian));
-  --cat-cars: color-mix(in srgb, var(--caspian) 58%, var(--pasture));
-  --cat-volunteering: color-mix(in srgb, var(--pasture) 75%, var(--caspian));
-  --cat-work: color-mix(in srgb, var(--caspian) 65%, #435b4b);
-  --cat-entertainment: color-mix(in srgb, var(--terracotta) 78%, #795862);
-  --cat-music: color-mix(in srgb, var(--caspian) 55%, var(--terracotta));
-  --cat-walks: color-mix(in srgb, var(--pasture) 78%, var(--caspian));
-  --cat-other: #77786a;
+  --cat-sport: #c83e3e;
+  --cat-games: #6948b8;
+  --cat-meetups: #d26022;
+  --cat-tourism: #008577;
+  --cat-education: #1d67b1;
+  --cat-creativity: #b23a82;
+  --cat-cars: #344c6b;
+  --cat-volunteering: #27834f;
+  --cat-other: #62666f;
+  /* Temporary aliases keep old API/cache payloads visually consistent. */
+  --cat-cafe: var(--cat-meetups);
+  --cat-entertainment: var(--cat-meetups);
+  --cat-walks: var(--cat-tourism);
+  --cat-work: var(--cat-education);
+  --cat-cinema: var(--cat-other);
+  --cat-music: var(--cat-other);
 }
 
 .mini-app button, .mini-app input, .mini-app textarea, .mini-app select { touch-action: manipulation; }
@@ -1188,6 +1186,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .event-pin-shape { background: var(--category-color, var(--caspian)); }
 .street-marker-shape { background: var(--caspian); }
 .street-marker-shape::before { background: color-mix(in srgb, var(--caspian) 86%, #fff); }
+.event-community-badge { position: absolute; top: 3px; right: 3px; z-index: 2; display: grid; place-items: center; width: 14px; height: 14px; border: 1.5px solid #fff; border-radius: 50%; color: #fff; background: var(--terracotta); box-shadow: 0 2px 5px rgb(38 24 18 / .28); font-size: 10px; font-weight: 900; line-height: 1; }
 
 /* Editorial events list */
 .home-events-list { width: min(760px, 100%); padding-inline: 16px; }
