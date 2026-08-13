@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -432,37 +433,38 @@ async def _apply_subject_action(
     decision: Decision,
 ) -> None:
     subject_type = case["subject_type"]
+    result = None
     if subject_type == "event":
         if decision == "hide_component" and component == "photo":
-            await connection.execute(
+            result = await connection.execute(
                 text(
                     "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT ep.media_asset_id FROM events.events e JOIN events.event_photos ep ON ep.revision_id=e.approved_revision_id AND ep.position=1 WHERE e.id=:id)"
                 ),
                 {"id": case["subject_id"]},
             )
         else:
-            await connection.execute(
+            result = await connection.execute(
                 text(
                     "UPDATE events.events SET lifecycle_status='hidden',moderation_status=CASE WHEN :hold THEN 'held' ELSE moderation_status END,version=version+1,updated_at=now() WHERE id=:id"
                 ),
                 {"id": case["subject_id"], "hold": decision == "hold_for_correction"},
             )
     elif subject_type == "looking_post":
-        await connection.execute(
+        result = await connection.execute(
             text(
                 "UPDATE discovery.looking_posts SET status='hidden',updated_at=now() WHERE id=:id"
             ),
             {"id": case["subject_id"]},
         )
     elif subject_type == "q_and_a_answer":
-        await connection.execute(
+        result = await connection.execute(
             text(
                 "UPDATE discovery.looking_post_questions SET answer_hidden_at=now() WHERE id=:id"
             ),
             {"id": case["subject_id"]},
         )
     elif subject_type == "chat_message":
-        await connection.execute(
+        result = await connection.execute(
             text(
                 "UPDATE communication.messages SET hidden_at=now(),hidden_by_case_id=:case WHERE id=:id AND hidden_at IS NULL"
             ),
@@ -470,7 +472,7 @@ async def _apply_subject_action(
         )
     elif subject_type == "profile":
         if decision == "hide_subject" and component == "whole":
-            await connection.execute(
+            result = await connection.execute(
                 text(
                     "UPDATE media.assets SET state='deleted',updated_at=now() "
                     "WHERE id IN (SELECT avatar_asset_id FROM accounts.profiles "
@@ -479,7 +481,7 @@ async def _apply_subject_action(
                 ),
                 {"id": case["subject_id"]},
             )
-            await connection.execute(
+            result = await connection.execute(
                 text(
                     "UPDATE accounts.profiles SET display_name='Пользователь',bio=NULL,"
                     "avatar_asset_id=NULL,background_asset_id=NULL,version=version+1,"
@@ -487,6 +489,8 @@ async def _apply_subject_action(
                 ),
                 {"id": case["subject_id"]},
             )
+            if result.rowcount != 1:
+                raise CaseModerationError("subject_action_conflict")
             return
         if component not in {"avatar", "background", "bio", "display_name"}:
             raise CaseModerationError("profile_component_required")
@@ -510,9 +514,11 @@ async def _apply_subject_action(
             statement = "UPDATE accounts.profiles SET bio=NULL,version=version+1,updated_at=now() WHERE user_id=:id"
         else:
             statement = "UPDATE accounts.profiles SET display_name='Пользователь',display_name_changed_at=NULL,version=version+1,updated_at=now() WHERE user_id=:id"
-        await connection.execute(text(statement), {"id": case["subject_id"]})
+        result = await connection.execute(text(statement), {"id": case["subject_id"]})
     else:
         raise CaseModerationError("subject_action_not_supported")
+    if result is None or result.rowcount != 1:
+        raise CaseModerationError("subject_action_conflict")
 
 
 async def decide_appeal(
@@ -836,17 +842,17 @@ async def _notify_owner(
 async def _audit(
     connection: AsyncConnection, actor: UUID, action: str, public_id: str, result: str
 ) -> None:
+    details = json.dumps({"case_public_id": public_id, "decision": result})
     await connection.execute(
         text("""
       INSERT INTO trust_safety.staff_audit_log
         (id,actor_staff_id,action,result,details)
-      VALUES (:id,:actor,:action,'success',jsonb_build_object('case_public_id',:public,'decision',:decision))
+      VALUES (:id,:actor,:action,'success',CAST(:details AS jsonb))
     """),
         {
             "id": uuid4(),
             "actor": actor,
             "action": action,
-            "public": public_id,
-            "decision": result,
+            "details": details,
         },
     )

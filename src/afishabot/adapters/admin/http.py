@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 from redis.asyncio import Redis
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from afishabot.adapters.tasks.celery_app import estimate_storage_savings_task
@@ -647,10 +648,17 @@ async def post_moderation_case_decision(
         )
     except CaseModerationError as error:
         code = str(error)
+        conflict_codes = {
+            "case_version_conflict",
+            "case_evidence_stale",
+            "subject_action_conflict",
+        }
         raise _error(
-            409 if code in {"case_version_conflict", "case_evidence_stale"} else 422,
+            409 if code in conflict_codes else 422,
             code,
         ) from error
+    except SQLAlchemyError as error:
+        raise _error(503, "moderation_decision_unavailable") from error
 
 
 @router.post("/moderation/cases/{case_public_id}/appeal-decision", status_code=204)

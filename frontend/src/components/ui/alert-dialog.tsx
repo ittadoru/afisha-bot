@@ -9,6 +9,7 @@ export function AlertDialog({
   title,
   description,
   confirmLabel = "Удалить",
+  busyLabel = "Сохраняем…",
   busy = false,
   onConfirm,
 }: {
@@ -17,6 +18,7 @@ export function AlertDialog({
   title: ReactNode;
   description: ReactNode;
   confirmLabel?: string;
+  busyLabel?: string;
   busy?: boolean;
   onConfirm: () => void;
 }) {
@@ -29,7 +31,7 @@ export function AlertDialog({
           <Dialog.Description>{description}</Dialog.Description>
           <div className="alert-dialog-actions">
             <Dialog.Close asChild><Button type="button" variant="outline" disabled={busy}>Отмена</Button></Dialog.Close>
-            <Button type="button" variant="destructive" disabled={busy} onClick={onConfirm}>{busy ? "Удаляем…" : confirmLabel}</Button>
+            <Button type="button" variant="destructive" disabled={busy} onClick={onConfirm}>{busy ? busyLabel : confirmLabel}</Button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

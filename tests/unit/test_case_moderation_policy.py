@@ -129,6 +129,46 @@ def test_typed_evidence_migration_resets_prototype_cases_and_hides_chat() -> Non
     assert "hidden_by_case_id" in source
 
 
+def test_case_decision_constraint_accepts_typed_actions() -> None:
+    source = Path("migrations/versions/0037_expand_case_decisions.py").read_text(
+        encoding="utf-8"
+    )
+    for action in ("hide_component", "hold_for_correction", "hide_subject"):
+        assert action in source
+    assert "DELETE FROM trust_safety.case_decisions" not in source
+    assert "SET decision_type='hide_content'" in source
+
+
+def test_case_audit_uses_typed_json_and_subject_conflict() -> None:
+    source = Path(
+        "src/afishabot/modules/trust_safety/application/case_moderation.py"
+    ).read_text(encoding="utf-8")
+    assert "CAST(:details AS jsonb)" in source
+    assert 'CaseModerationError("subject_action_conflict")' in source
+
+
+def test_test_queue_reset_is_ordered_and_irreversible() -> None:
+    source = Path(
+        "migrations/versions/0038_reset_test_moderation_cases.py"
+    ).read_text(encoding="utf-8")
+    ordered_tables = (
+        "profile_restrictions",
+        "profile_violations",
+        "case_decisions",
+        "appeals",
+        "case_timeline_entries",
+        "reports",
+        "moderation_cases",
+        "profile_reports",
+    )
+    positions = [
+        source.index(f"DELETE FROM trust_safety.{table}")
+        for table in ordered_tables
+    ]
+    assert positions == sorted(positions)
+    assert "def downgrade()" in source and "pass" in source
+
+
 def test_staff_evidence_uses_authenticated_immutable_media_route() -> None:
     backend = Path("src/afishabot/adapters/admin/http.py").read_text(encoding="utf-8")
     frontend = Path("frontend/src/admin-app.tsx").read_text(encoding="utf-8")

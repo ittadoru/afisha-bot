@@ -34,9 +34,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 36
+    assert len(files) == 38
     assert parents - {None} < revisions
-    assert revisions - parents == {"0036_typed_moderation_evidence"}
+    assert revisions - parents == {"0038_reset_test_moderation_cases"}
     assert EXPECTED_MIGRATION_HEAD in revisions - parents
 
 
