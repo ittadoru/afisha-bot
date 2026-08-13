@@ -20,8 +20,11 @@ import {
   Plus,
   RefreshCw,
   SearchX,
+  Scale,
   Send,
   Share2,
+  ShieldAlert,
+  LockKeyhole,
   Sparkles,
   Trash2,
   TrendingUp,
@@ -80,7 +83,7 @@ type PublicEvent = {
 };
 
 type LookingPost = { id: string; title: string; body: string; category: string; created_at: string; like_count: number; question_count: number; viewer_liked: boolean; is_author: boolean; status: "active" | "expired" | "hidden"; remaining_seconds: number; author: { public_id: string; display_name: string; avatar_url: string | null; avatar_thumbnail_url?: string | null } };
-type NotificationItem = { id: string; title: string; body: string; importance: string; deep_link: string | null; created_at: string; read_at: string | null };
+type NotificationItem = { id: string; kind: string; title: string; body: string; importance: string; deep_link: string | null; created_at: string; read_at: string | null };
 type NotificationFilter = "all" | "unread";
 
 export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { profile: AccountProfile; csrfToken: string; onProfileUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void> }) {
@@ -615,7 +618,10 @@ function NotificationGroup({ title, items, onRead }: { title: string; items: Not
 }
 
 function Notification({ item, onRead }: { item: NotificationItem; onRead: (item: NotificationItem) => void }) {
-  return <button className={`notification${item.importance === "critical" ? " urgent" : ""}${item.read_at ? " read" : " unread"}`} type="button" onClick={() => void onRead(item)}><span><Bell aria-hidden="true" /></span><div><strong>{item.title}</strong><p>{item.body}</p></div>{!item.read_at && <i className="notification-unread-dot" aria-label="Непрочитано" />}{item.deep_link && <ChevronRight aria-hidden="true" />}</button>;
+  const Icon = item.kind === "moderation_action" || item.kind === "profile_moderation"
+    ? ShieldAlert : item.kind === "moderation_appeal" ? Scale
+      : item.kind === "profile_restriction" ? LockKeyhole : Bell;
+  return <button className={`notification${item.importance === "critical" ? " urgent" : ""}${item.read_at ? " read" : " unread"}`} type="button" onClick={() => void onRead(item)}><span><Icon aria-hidden="true" /></span><div><strong>{item.title}</strong><p>{item.body}</p></div>{!item.read_at && <i className="notification-unread-dot" aria-label="Непрочитано" />}{item.deep_link && <ChevronRight aria-hidden="true" />}</button>;
 }
 
 function Profile({
@@ -958,12 +964,13 @@ function caseSubjectLabel(subjectType: string): string {
 const subjectLabel = caseSubjectLabel;
 
 function CaseDetailScreen({ casePublicId, csrfToken, onBack }: { casePublicId: string; csrfToken: string; onBack: () => void }) {
-  type Detail = CaseSummary & { timeline: Array<{ event_type: string; public_label: string; created_at: string }>; can_appeal: boolean };
-  const [detail, setDetail] = useState<Detail | null>(null); const [error, setError] = useState(false); const [appeal, setAppeal] = useState(""); const [busy, setBusy] = useState(false);
+  type Detail = CaseSummary & { timeline: Array<{ event_type: string; public_label: string; created_at: string }>; can_appeal: boolean; appeal_state: "unavailable" | "available" | "submitted" | "upheld" | "reversed" | "expired"; appeal_deadline: string | null; appeal: { explanation: string; status: string; created_at: string } | null; restoration_state: string };
+  const [detail, setDetail] = useState<Detail | null>(null); const [error, setError] = useState(false); const [appeal, setAppeal] = useState(""); const [busy, setBusy] = useState(false); const [appealError, setAppealError] = useState("");
   const load = useCallback(async () => { try { const response = await fetch(`${appConfig.apiBaseUrl}/account/cases/${casePublicId}`, { credentials: "include" }); if (!response.ok) throw new Error(); setDetail(await response.json() as Detail); } catch { setError(true); } }, [casePublicId]);
   useEffect(() => { void load(); }, [load]);
-  const submitAppeal = async () => { if (!appeal.trim() || busy) return; setBusy(true); const response = await fetch(`${appConfig.apiBaseUrl}/account/cases/${casePublicId}/appeal`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ explanation: appeal.trim() }) }); setBusy(false); if (response.ok) { setAppeal(""); void load(); } };
-  return <main className="mini-app"><SubpageHeader title={casePublicId} onBack={onBack} />{error ? <CompactListState title="Обращение недоступно" action="Назад" onAction={onBack} /> : !detail ? <LoadingScreen variant="section" /> : <section className="feed case-detail"><h1>{detail.status === "resolved" ? "Обращение решено" : "Обращение рассматривается"}</h1><ol className="status-timeline">{detail.timeline.map((entry) => <li key={`${entry.event_type}-${entry.created_at}`}><span aria-hidden="true" /><div><strong>{entry.public_label}</strong><small>{new Date(entry.created_at).toLocaleString("ru-RU")}</small></div></li>)}</ol>{detail.can_appeal && <div className="profile-editor"><label>Апелляция<textarea maxLength={500} value={appeal} onChange={(event) => setAppeal(event.target.value)} /></label><Button disabled={busy || !appeal.trim()} onClick={() => void submitAppeal()}>Отправить апелляцию</Button></div>}</section>}</main>;
+  const submitAppeal = async () => { if (!appeal.trim() || busy) return; setBusy(true); setAppealError(""); const response = await fetch(`${appConfig.apiBaseUrl}/account/cases/${casePublicId}/appeal`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken }, body: JSON.stringify({ explanation: appeal.trim() }) }); setBusy(false); if (response.ok) { setAppeal(""); void load(); } else setAppealError(response.status === 409 ? "Апелляция уже отправлена или срок подачи истёк." : "Не удалось отправить апелляцию. Повторите попытку."); };
+  const appealStep = (value: Detail) => value.appeal_state === "available" ? `Апелляцию можно подать до ${new Date(value.appeal_deadline!).toLocaleString("ru-RU")}` : value.appeal_state === "submitted" ? "Апелляция отправлена и ожидает решения" : value.appeal_state === "reversed" ? "Решение отменено по апелляции" : value.appeal_state === "upheld" ? "Решение оставлено в силе" : value.appeal_state === "expired" ? "Срок апелляции истёк" : "Апелляция недоступна";
+  return <main className="mini-app"><SubpageHeader title={casePublicId} onBack={onBack} />{error ? <CompactListState title="Обращение недоступно" action="Назад" onAction={onBack} /> : !detail ? <LoadingScreen variant="section" /> : <section className="feed case-detail"><h1>{detail.status === "resolved" ? "Обращение решено" : "Обращение рассматривается"}</h1><ol className="status-timeline">{detail.timeline.map((entry) => <li key={`${entry.event_type}-${entry.created_at}`}><span aria-hidden="true" /><div><strong>{entry.public_label}</strong><small>{new Date(entry.created_at).toLocaleString("ru-RU")}</small></div></li>)}</ol><p className={`case-appeal-step ${detail.can_appeal ? "available" : ""}`}>{appealStep(detail)}</p>{detail.can_appeal ? <div className="profile-editor"><label>Апелляция<textarea maxLength={500} value={appeal} onChange={(event) => setAppeal(event.target.value)} /></label>{appealError && <p className="form-error" role="alert">{appealError}</p>}<Button disabled={busy || !appeal.trim()} onClick={() => void submitAppeal()}>{busy ? "Отправляем…" : "Отправить апелляцию"}</Button></div> : detail.appeal ? <section className="case-appeal-readonly"><h2>Апелляция</h2><p>{detail.appeal.explanation}</p><small>Отправлена {new Date(detail.appeal.created_at).toLocaleString("ru-RU")}</small></section> : null}</section>}</main>;
 }
 
 function DemoState({ state, onClose }: { state: Exclude<PreviewState, null>; onClose?: () => void }) {

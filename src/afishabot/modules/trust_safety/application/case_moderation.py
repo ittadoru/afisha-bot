@@ -316,6 +316,17 @@ async def decide_case(
         if case["status"] == "resolved" or case["version"] != expected_version:
             raise CaseModerationError("case_version_conflict")
         chosen = component or case["subject_component"]
+        evidence = cast(
+            dict[str, Any],
+            await connection.scalar(
+                text(
+                    "SELECT evidence_snapshot FROM trust_safety.reports "
+                    "WHERE case_id=:case ORDER BY created_at LIMIT 1"
+                ),
+                {"case": case["id"]},
+            )
+            or {},
+        )
         if decision != "dismiss":
             report_version = int(
                 await connection.scalar(
@@ -330,7 +341,25 @@ async def decide_case(
             current = await _current_subject_version(connection, dict(case))
             if current != report_version:
                 raise CaseModerationError("case_evidence_stale")
+            previous_state = await _sanction_state(connection, dict(case), chosen)
             await _apply_subject_action(connection, dict(case), chosen, decision)
+            version_after = await _current_subject_version(connection, dict(case))
+            await connection.execute(
+                text("""
+                  INSERT INTO trust_safety.moderation_sanctions
+                    (id,case_id,decision_type,subject_component,subject_version_before,
+                     subject_version_after,previous_state)
+                  VALUES (:id,:case,:decision,:component,:before,:after,CAST(:state AS jsonb))
+                """),
+                {
+                    "id": uuid4(), "case": case["id"], "decision": decision,
+                    "component": chosen, "before": report_version,
+                    "after": version_after,
+                    "state": json.dumps(
+                        {**previous_state, "evidence": evidence}, default=str
+                    ),
+                },
+            )
         now = datetime.now(UTC)
         appeal_deadline = now + timedelta(days=3) if decision != "dismiss" else None
         await connection.execute(
@@ -398,7 +427,7 @@ async def decide_case(
             )
         if decision != "dismiss":
             await _notify_owner(
-                connection, dict(case), chosen, public_id, appeal_deadline
+                connection, dict(case), chosen, decision, public_id, appeal_deadline
             )
         await _audit(connection, actor_staff_id, "case.decision", public_id, decision)
 
@@ -438,7 +467,7 @@ async def _apply_subject_action(
         if decision == "hide_component" and component == "photo":
             result = await connection.execute(
                 text(
-                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT ep.media_asset_id FROM events.events e JOIN events.event_photos ep ON ep.revision_id=e.approved_revision_id AND ep.position=1 WHERE e.id=:id)"
+                    "UPDATE media.assets SET state='moderation_hidden',updated_at=now() WHERE id=(SELECT ep.media_asset_id FROM events.events e JOIN events.event_photos ep ON ep.revision_id=e.approved_revision_id AND ep.position=1 WHERE e.id=:id)"
                 ),
                 {"id": case["subject_id"]},
             )
@@ -452,16 +481,21 @@ async def _apply_subject_action(
     elif subject_type == "looking_post":
         result = await connection.execute(
             text(
-                "UPDATE discovery.looking_posts SET status='hidden',updated_at=now() WHERE id=:id"
+                "UPDATE discovery.looking_posts SET status='hidden',closed_at=now(),"
+                "delete_after=CASE WHEN :delete_subject THEN now()+interval '24 hours' "
+                "ELSE NULL END,version=version+1 WHERE id=:id"
             ),
-            {"id": case["subject_id"]},
+            {
+                "id": case["subject_id"],
+                "delete_subject": decision == "hide_subject",
+            },
         )
     elif subject_type == "q_and_a_answer":
         result = await connection.execute(
             text(
-                "UPDATE discovery.looking_post_questions SET answer_hidden_at=now() WHERE id=:id"
+                "UPDATE discovery.looking_post_questions SET answer_hidden_at=now(),answer_hidden_by_case_id=:case WHERE id=:id AND answer_hidden_at IS NULL"
             ),
-            {"id": case["subject_id"]},
+            {"id": case["subject_id"], "case": case["id"]},
         )
     elif subject_type == "chat_message":
         result = await connection.execute(
@@ -474,7 +508,7 @@ async def _apply_subject_action(
         if decision == "hide_subject" and component == "whole":
             result = await connection.execute(
                 text(
-                    "UPDATE media.assets SET state='deleted',updated_at=now() "
+                    "UPDATE media.assets SET state='moderation_hidden',updated_at=now() "
                     "WHERE id IN (SELECT avatar_asset_id FROM accounts.profiles "
                     "WHERE user_id=:id UNION SELECT background_asset_id FROM "
                     "accounts.profiles WHERE user_id=:id)"
@@ -497,7 +531,7 @@ async def _apply_subject_action(
         if component == "avatar":
             await connection.execute(
                 text(
-                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT avatar_asset_id FROM accounts.profiles WHERE user_id=:id)"
+                    "UPDATE media.assets SET state='moderation_hidden',updated_at=now() WHERE id=(SELECT avatar_asset_id FROM accounts.profiles WHERE user_id=:id)"
                 ),
                 {"id": case["subject_id"]},
             )
@@ -505,7 +539,7 @@ async def _apply_subject_action(
         elif component == "background":
             await connection.execute(
                 text(
-                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT background_asset_id FROM accounts.profiles WHERE user_id=:id)"
+                    "UPDATE media.assets SET state='moderation_hidden',updated_at=now() WHERE id=(SELECT background_asset_id FROM accounts.profiles WHERE user_id=:id)"
                 ),
                 {"id": case["subject_id"]},
             )
@@ -519,6 +553,82 @@ async def _apply_subject_action(
         raise CaseModerationError("subject_action_not_supported")
     if result is None or result.rowcount != 1:
         raise CaseModerationError("subject_action_conflict")
+
+
+async def _sanction_state(
+    connection: AsyncConnection, case: dict[str, Any], component: str | None
+) -> dict[str, Any]:
+    """Capture only values necessary to undo this exact action."""
+    subject_type = case["subject_type"]
+    if subject_type == "profile":
+        row = await connection.execute(
+            text("""SELECT display_name,bio,avatar_asset_id,background_asset_id,version
+                    FROM accounts.profiles WHERE user_id=:id"""), {"id": case["subject_id"]}
+        )
+    elif subject_type == "event":
+        row = await connection.execute(
+            text("""SELECT lifecycle_status,moderation_status,version FROM events.events WHERE id=:id"""),
+            {"id": case["subject_id"]},
+        )
+    elif subject_type == "looking_post":
+        row = await connection.execute(
+            text("""SELECT status,closed_at,delete_after,version FROM discovery.looking_posts WHERE id=:id"""),
+            {"id": case["subject_id"]},
+        )
+    else:
+        return {"component": component}
+    value = row.mappings().one_or_none()
+    return dict(value) if value else {"component": component}
+
+
+async def _reverse_sanction(
+    connection: AsyncConnection, row: dict[str, Any]
+) -> str:
+    sanction = (
+        await connection.execute(
+            text("""SELECT * FROM trust_safety.moderation_sanctions
+                    WHERE case_id=:case FOR UPDATE"""), {"case": row["id"]}
+        )
+    ).mappings().one_or_none()
+    if sanction is None:
+        return "not_applicable"
+    state = cast(dict[str, Any], sanction["previous_state"] or {})
+    subject_type, component = row["subject_type"], row["subject_component"]
+    current_version = await _current_subject_version(connection, row)
+    if current_version != sanction["subject_version_after"]:
+        await connection.execute(text("""UPDATE trust_safety.moderation_sanctions
+          SET status='superseded',reversed_at=now() WHERE id=:id"""), {"id": sanction["id"]})
+        return "newer_version_kept"
+    if subject_type == "profile":
+        evidence = cast(dict[str, Any], state.get("evidence") or {})
+        if component == "avatar":
+            asset = evidence.get("value")
+            await connection.execute(text("UPDATE media.assets SET state='ready',updated_at=now() WHERE id=:asset AND state='moderation_hidden'"), {"asset": asset})
+            result = await connection.execute(text("UPDATE accounts.profiles SET avatar_asset_id=:asset,version=version+1,updated_at=now() WHERE user_id=:id"), {"asset": asset, "id": row["subject_id"]})
+        elif component == "background":
+            asset = evidence.get("value")
+            await connection.execute(text("UPDATE media.assets SET state='ready',updated_at=now() WHERE id=:asset AND state='moderation_hidden'"), {"asset": asset})
+            result = await connection.execute(text("UPDATE accounts.profiles SET background_asset_id=:asset,version=version+1,updated_at=now() WHERE user_id=:id"), {"asset": asset, "id": row["subject_id"]})
+        elif component == "bio":
+            result = await connection.execute(text("UPDATE accounts.profiles SET bio=:value,version=version+1,updated_at=now() WHERE user_id=:id"), {"value": evidence.get("value"), "id": row["subject_id"]})
+        else:
+            result = await connection.execute(text("UPDATE accounts.profiles SET display_name=:value,version=version+1,updated_at=now() WHERE user_id=:id"), {"value": evidence.get("value"), "id": row["subject_id"]})
+    elif subject_type == "chat_message":
+        result = await connection.execute(text("UPDATE communication.messages SET hidden_at=NULL,hidden_by_case_id=NULL WHERE id=:id AND hidden_by_case_id=:case"), {"id": row["subject_id"], "case": row["id"]})
+    elif subject_type == "q_and_a_answer":
+        result = await connection.execute(text("UPDATE discovery.looking_post_questions SET answer_hidden_at=NULL,answer_hidden_by_case_id=NULL WHERE id=:id AND answer_hidden_by_case_id=:case"), {"id": row["subject_id"], "case": row["id"]})
+    elif subject_type == "event" and component == "photo":
+        asset = cast(dict[str, Any], state.get("evidence") or {}).get("value")
+        result = await connection.execute(text("UPDATE media.assets SET state='ready',updated_at=now() WHERE id=:asset AND state='moderation_hidden'"), {"asset": asset})
+    elif subject_type == "event":
+        result = await connection.execute(text("UPDATE events.events SET lifecycle_status=:status,moderation_status=:moderation,version=version+1,updated_at=now() WHERE id=:id AND lifecycle_status='hidden'"), {"status": state.get("lifecycle_status"), "moderation": state.get("moderation_status"), "id": row["subject_id"]})
+    elif subject_type == "looking_post":
+        result = await connection.execute(text("UPDATE discovery.looking_posts SET status=:status,closed_at=:closed,delete_after=:delete_after,version=version+1 WHERE id=:id AND status='hidden' AND expires_at>now()"), {"status": state.get("status"), "closed": state.get("closed_at"), "delete_after": state.get("delete_after"), "id": row["subject_id"]})
+    else:
+        return "not_applicable"
+    restored = result.rowcount == 1
+    await connection.execute(text("UPDATE trust_safety.moderation_sanctions SET status=:status,reversed_at=now() WHERE id=:id"), {"status": "restored" if restored else "reversed_without_restore", "id": sanction["id"]})
+    return "restored" if restored else "expired_subject"
 
 
 async def decide_appeal(
@@ -592,12 +702,14 @@ async def decide_appeal(
             {"id": row["id"]},
         )
         if decision == "reversed":
+            await _reverse_sanction(connection, dict(row))
             await connection.execute(
                 text(
-                    "UPDATE trust_safety.profile_violations SET status='reversed',reversed_at=now() WHERE case_id=:case AND status='pending'"
+                    "UPDATE trust_safety.profile_violations SET status='reversed',reversed_at=now() WHERE case_id=:case AND status IN ('pending','confirmed')"
                 ),
                 {"case": row["id"]},
             )
+            await connection.execute(text("DELETE FROM trust_safety.profile_restrictions WHERE source_violation_id IN (SELECT id FROM trust_safety.profile_violations WHERE case_id=:case)"), {"case": row["id"]})
             label = "Решение отменено по апелляции"
         else:
             await _confirm_violation(connection, row["id"])
@@ -743,7 +855,7 @@ async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
         )
         for row in rows:
             snapshot = cast(dict[str, Any], row["evidence_snapshot"] or {})
-            if snapshot.get("component") in {"avatar", "background"} and snapshot.get(
+            if snapshot.get("component") in {"avatar", "background", "photo"} and snapshot.get(
                 "value"
             ):
                 try:
@@ -751,6 +863,11 @@ async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
                 except ValueError:
                     asset_id = None
                 if asset_id:
+                    await connection.execute(
+                        text("UPDATE media.assets SET state='deleted',updated_at=now() "
+                             "WHERE id=:id AND state='moderation_hidden'"),
+                        {"id": asset_id},
+                    )
                     keys = list(
                         (
                             await connection.scalars(
@@ -802,27 +919,38 @@ async def _notify_owner(
     connection: AsyncConnection,
     case: dict[str, Any],
     component: str | None,
+    decision: Decision,
     public_id: str,
     deadline: datetime | None,
 ) -> None:
     owner = case.get("subject_owner_user_id")
     if owner is None:
         return
-    labels: dict[str | None, str] = {
-        "avatar": "Аватар",
-        "background": "Фон профиля",
-        "bio": "Описание профиля",
-        "display_name": "Имя профиля",
-        None: "Контент",
+    labels = {
+        ("profile", "avatar"): "Аватар профиля",
+        ("profile", "background"): "Фон профиля",
+        ("profile", "display_name"): "Имя профиля",
+        ("profile", "bio"): "Описание профиля",
+        ("event", "photo"): "Фотография события",
+        ("event", "title"): "Название события",
+        ("looking_post", "title"): "Название идеи",
+        ("chat_message", "message"): "Сообщение",
+        ("q_and_a_answer", "answer"): "Ответ в Q&A",
     }
-    component_label = labels.get(component, "Контент")
-    body = f"{component_label} скрыт после проверки. Апелляцию можно подать в течение 3 дней. Повторное нарушение может ограничить редактирование профиля."
+    component_label = labels.get((case["subject_type"], component), "Контент")
+    title = (
+        f"{component_label} снято до исправления"
+        if decision == "hold_for_correction"
+        else f"{component_label} скрыт"
+    )
+    deadline_label = deadline.strftime("%d.%m.%Y, %H:%M") if deadline else ""
+    body = f"Решение по обращению {public_id}. Апелляцию можно подать до {deadline_label}."
     await connection.execute(
         text("""
       INSERT INTO communication.notifications
         (id,recipient_user_id,kind,importance,title,body,subject_type,subject_id,
          deep_link,created_at,expires_at,business_key,delivery_policy,telegram_status)
-      VALUES (:id,:user,'profile_moderation','critical','Изменение профиля',:body,
+      VALUES (:id,:user,'moderation_action','critical',:title,:body,
               'moderation_case',:case_id,:link,now(),:expires,:key,
               'telegram_and_in_app','pending')
       ON CONFLICT (business_key) WHERE business_key IS NOT NULL DO NOTHING
@@ -831,6 +959,7 @@ async def _notify_owner(
             "id": uuid4(),
             "user": owner,
             "body": body,
+            "title": title,
             "case_id": case["id"],
             "link": f"/app/cases/{public_id}",
             "expires": deadline,

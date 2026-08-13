@@ -1797,6 +1797,11 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .cases-empty > svg { width: 32px; height: 32px; margin-bottom: 14px; padding: 15px; box-sizing: content-box; border-radius: 50%; color: var(--pasture); background: var(--success-surface); }
 .cases-empty h2 { margin: 0 0 7px; font-size: 20px; }
 .cases-empty p { max-width: 330px; margin: 0; color: var(--muted-foreground); }
+.case-appeal-step { margin: 24px 0 12px; padding: 12px 14px; border-radius: 14px; color: var(--muted-foreground); background: var(--muted); font-weight: 700; }
+.case-appeal-step.available { color: var(--pasture); background: var(--success-surface); }
+.case-appeal-readonly { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
+.case-appeal-readonly h2, .case-appeal-readonly p { margin: 0 0 8px; }
+.case-appeal-readonly small { color: var(--muted-foreground); }
 
 .people-toolbar { padding-top: 8px; }
 .people-toolbar .section-heading { margin-bottom: 2px; }

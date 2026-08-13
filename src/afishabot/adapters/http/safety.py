@@ -358,6 +358,14 @@ async def case_detail(
         )
         if case is None:
             raise HTTPException(status_code=404, detail="case_not_found")
+        appeal = (
+            (await connection.execute(text("SELECT status,explanation,created_at,decided_at FROM trust_safety.appeals WHERE case_id=:case"), {"case": case["id"]}))
+            .mappings().one_or_none()
+        )
+        sanction = (
+            (await connection.execute(text("SELECT status FROM trust_safety.moderation_sanctions WHERE case_id=:case"), {"case": case["id"]}))
+            .mappings().one_or_none()
+        )
         timeline = (
             (
                 await connection.execute(
@@ -374,10 +382,24 @@ async def case_detail(
     result = dict(case)
     result.pop("id", None)
     result["timeline"] = [dict(row) for row in timeline]
+    result["appeal"] = dict(appeal) if appeal else None
+    result["restoration_state"] = (
+        ("pending" if sanction and sanction["status"] == "active" else sanction["status"])
+        if sanction else "not_applicable"
+    )
+    if appeal:
+        result["appeal_state"] = appeal["status"]
+    elif not case["is_subject_owner"] or not case["appeal_deadline"]:
+        result["appeal_state"] = "unavailable"
+    elif datetime.now(UTC) > case["appeal_deadline"]:
+        result["appeal_state"] = "expired"
+    else:
+        result["appeal_state"] = "available"
     result["can_appeal"] = bool(
         case["is_subject_owner"]
         and case["appeal_deadline"]
         and datetime.now(UTC) <= case["appeal_deadline"]
+        and appeal is None
     )
     return result
 

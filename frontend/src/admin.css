@@ -96,7 +96,9 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-case-note textarea { min-height: 100px; resize: vertical; }
 .admin-case-note textarea[aria-invalid="true"] { border-color: #a53636; box-shadow: 0 0 0 3px #f9e8e8; }
 .admin-case-actions { position: sticky; bottom: -30px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 26px -30px -30px; padding: 16px 30px max(16px,env(safe-area-inset-bottom)); border-top: 1px solid #e1e7e4; background: #fff; }
-.admin-case-actions button { min-height: 44px; border: 0; border-radius: 9px; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.admin-case-actions button { min-height: 44px; border-radius: 9px; font: inherit; font-weight: 800; cursor: pointer; }
+.admin-case-actions button[data-variant="outline"] { color: #27443c; border-color: #bfd5cc; background: #fff; }
+.admin-case-actions button:focus-visible { outline: 3px solid #80b7a7; outline-offset: 2px; }
 .admin-case-actions button { padding: 0 18px; }
 .admin-case-actions button:disabled { opacity: .5; cursor: wait; }
 .admin-ghost-decision { color: #52645d !important; background: #edf2f0; }

@@ -145,6 +145,8 @@ def test_case_audit_uses_typed_json_and_subject_conflict() -> None:
     ).read_text(encoding="utf-8")
     assert "CAST(:details AS jsonb)" in source
     assert 'CaseModerationError("subject_action_conflict")' in source
+    assert "status='hidden',closed_at=now()" in source
+    assert "delete_subject" in source
 
 
 def test_test_queue_reset_is_ordered_and_irreversible() -> None:
@@ -167,6 +169,20 @@ def test_test_queue_reset_is_ordered_and_irreversible() -> None:
     ]
     assert positions == sorted(positions)
     assert "def downgrade()" in source and "pass" in source
+
+
+def test_reversible_sanctions_keep_media_until_appeal_is_decided() -> None:
+    migration = Path(
+        "migrations/versions/0039_reversible_moderation_sanctions.py"
+    ).read_text(encoding="utf-8")
+    source = Path(
+        "src/afishabot/modules/trust_safety/application/case_moderation.py"
+    ).read_text(encoding="utf-8")
+    assert "moderation_sanctions" in migration
+    assert "moderation_hidden" in migration
+    assert "answer_hidden_by_case_id" in migration
+    assert "state='moderation_hidden'" in source
+    assert "_reverse_sanction" in source
 
 
 def test_staff_evidence_uses_authenticated_immutable_media_route() -> None:
