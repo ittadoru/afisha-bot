@@ -320,7 +320,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   }, [choosingCity, citySaving, profile.selected_city_id]);
 
   const reportMatch = location.pathname.match(
-    /^\/app\/report\/(event|profile|looking_post|q_and_a_answer|attendance)\/([^/]+)$/,
+    /^\/app\/report\/(event|profile|looking_post|q_and_a_answer|chat_message)\/([^/]+)$/,
   );
   const caseMatch = location.pathname.match(/^\/app\/cases\/([^/]+)$/);
   if (reportMatch) {
@@ -528,7 +528,7 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
       <div className="idea-detail-author"><button type="button" className="idea-author-link" onClick={() => navigate(`/app/profile/${post.author.public_id}`, { state: { returnTo: location.pathname } })} aria-label={`Открыть профиль ${post.author.display_name}`}><UserAvatar name={post.author.display_name} thumbnailUrl={post.author.avatar_thumbnail_url} fallbackUrl={post.author.avatar_url} size={48} lazy={false} /><span><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</small></span></button><span className="category-chip">{post.category}</span></div>
       <div className="idea-detail-intro"><h1>{post.title}</h1><p>{post.body}</p><div className="idea-status-row"><span className="idea-status"><i aria-hidden="true" />{statusText}</span>{!post.is_author && post.status === "active" && <button type="button" className="idea-report-link" onClick={() => navigate(`/app/report/looking_post/${post.id}`, { state: { returnTo: location.pathname } })}>Пожаловаться</button>}</div></div>
       <section className="qa-section"><header><span><MessageCircleQuestion aria-hidden="true" /></span><div><p className="section-kicker">Обсуждение</p><h2>Вопросы и ответы</h2></div><small>{questions.length + pending.length}</small></header>
-        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}>{item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p></div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
+        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}>{item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p>{!post.is_author && <button className="idea-report-link" type="button" onClick={() => navigate(`/app/report/q_and_a_answer/${item.id}`, { state: { returnTo: location.pathname } })}>Пожаловаться на ответ</button>}</div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
         {pending.length > 0 && <div className="qa-pending"><h3>{post.is_author ? "Ждут вашего ответа" : "Ожидает ответа автора"}</h3>{pending.map((item) => <article className="qa-card pending" key={item.id}>{post.is_author && item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong>{post.is_author && post.status === "active" && <div className="qa-answer-form"><label htmlFor={`answer-${item.id}`}>Ваш ответ</label><textarea id={`answer-${item.id}`} value={answers[item.id] ?? ""} onChange={(event) => setAnswers({ ...answers, [item.id]: event.target.value })} maxLength={300} placeholder="Ответьте коротко и по делу" /><Button disabled={busy || !answers[item.id]?.trim()} onClick={() => void answer(item.id)}>Опубликовать ответ</Button></div>}</article>)}</div>}
       </section>
       {message && <p className="inline-feedback" role="status">{message}</p>}
@@ -887,7 +887,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
       {event.kind === "regular" ? <button className="organizer-link" type="button" onClick={openOrganizer}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span className="organizer-copy"><small>Организатор</small><strong>{event.organizer_name}</strong><span>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</span></span><ChevronRight aria-hidden="true" /></button> : <div className="municipal-organizer"><Sparkles aria-hidden="true" /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}
       {message && <p className="inline-feedback" role="status">{message}</p>}{copied && <p className="inline-feedback" role="status">Ссылка скопирована</p>}
     </main></div>
-    {showPrimaryAction && <footer className="event-sticky-cta">{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}{!event.viewer_is_organizer && event.event_scope !== "community" && event.kind !== "special" && <button className="event-report-button" type="button" aria-label="Пожаловаться на событие" onClick={() => navigate(`/app/report/event/${event.id}`, { state: { returnTo: `/app/event/${event.id}` } })}><Flag aria-hidden="true" /></button>}</footer>}</>}
+    {showPrimaryAction && <footer className="event-sticky-cta">{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}{!event.viewer_is_organizer && event.event_scope !== "community" && event.kind !== "special" && <button className="event-report-button" type="button" aria-label="Пожаловаться на событие" onClick={() => navigate(`/app/report/event/${event.id}`, { state: { returnTo: `/app/event/${event.id}`, organizerProfileId: event.organizer_public_id ?? undefined } })}><Flag aria-hidden="true" /></button>}</footer>}</>}
   </section>;
 }
 
@@ -908,23 +908,36 @@ function DecorativeEmpty({ title, text }: { title: string; text: string }) {
 
 function ReportScreen({ subjectType, subjectId, csrfToken, onBack }: { subjectType: string; subjectId: string; csrfToken: string; onBack: () => void }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const organizerProfileId = (location.state as { organizerProfileId?: string } | null)?.organizerProfileId;
+  const choices: Record<string, Array<[string, string]>> = {
+    event: [["photo", "Фотография"], ["title", "Название"], ["description", "Описание"], ["schedule", "Дата и время"], ["location", "Место"], ["whole", "Событие целиком"], ...(organizerProfileId ? [["organizer_avatar", "Аватар организатора"], ["organizer_display_name", "Имя организатора"]] as Array<[string, string]> : [])],
+    profile: [["avatar", "Аватар"], ["background", "Фон"], ["display_name", "Имя"], ["bio", "Описание"]],
+    looking_post: [["title", "Название идеи"], ["body", "Описание идеи"], ["whole", "Идея целиком"]],
+    q_and_a_answer: [["answer", "Ответ автора"]],
+    chat_message: [["message", "Сообщение в чате"]],
+  };
+  const [component, setComponent] = useState(choices[subjectType]?.length === 1 ? choices[subjectType][0][0] : "");
   const [reason, setReason] = useState("safety_risk");
   const [explanation, setExplanation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [caseId, setCaseId] = useState<string | null>(null);
   const submit = async () => {
-    if (busy || (reason === "other" && !explanation.trim())) return;
+    if (busy || !component || (reason === "other" && !explanation.trim())) return;
     setBusy(true); setError("");
+    const organizerTarget = component.startsWith("organizer_");
+    const payload = { subject_type: organizerTarget ? "profile" : subjectType, subject_id: organizerTarget ? organizerProfileId : subjectId, subject_component: organizerTarget ? component.replace("organizer_", "") : component, reason_code: reason, explanation: explanation.trim() || null };
     try {
-      const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ subject_type: subjectType, subject_id: subjectId, reason_code: reason, explanation: explanation.trim() || null }) });
+      const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(payload) });
       if (!response.ok) throw new Error(response.status === 422 ? "На этот объект нельзя пожаловаться." : "Не удалось отправить обращение.");
       setCaseId((await response.json() as { case_public_id: string }).case_public_id);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Не удалось отправить обращение."); }
     finally { setBusy(false); }
   };
   if (caseId) return <main className="mini-app"><SubpageHeader title="Обращение принято" onBack={onBack} /><section className="report-success" role="status"><span className="report-success-icon"><Check aria-hidden="true" /></span><div><h1>Обращение принято</h1><p>Мы сохранили обращение. Изменения статуса появятся в разделе «Мои обращения».</p></div><button className="report-case-number" type="button" onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}><small>Номер обращения</small><strong>{caseId}</strong><span>Открыть</span></button><Button onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}>Открыть обращение</Button><Button variant="outline" onClick={onBack}>Вернуться</Button><button className="report-all-link" type="button" onClick={() => navigate("/app/cases")}>Все обращения</button></section></main>;
-  return <main className="mini-app"><SubpageHeader title="Пожаловаться" onBack={onBack} /><section className="report-screen scroll-focus-container"><div className="report-form"><h1>Что произошло?</h1><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="safety_risk">Угроза безопасности</option><option value="misleading">Вводящие в заблуждение данные</option><option value="spam_or_commerce">Спам или коммерция</option><option value="inappropriate_content">Недопустимый контент</option><option value="other">Другое</option></select></label><label>Пояснение {reason !== "other" && <small>необязательно</small>}<textarea maxLength={500} value={explanation} onChange={(event) => setExplanation(event.target.value)} placeholder="Без личных и чувствительных данных" /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button disabled={busy || (reason === "other" && !explanation.trim())} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить жалобу"}</Button></div></section></main>;
+  const selectedLabel = choices[subjectType]?.find(([value]) => value === component)?.[1];
+  return <main className="mini-app"><SubpageHeader title="Пожаловаться" onBack={onBack} /><section className="report-screen scroll-focus-container"><div className="report-form"><p className="section-kicker">Шаг 1 из 2</p><h1>На что жалоба?</h1><fieldset className="report-targets"><legend className="sr-only">Выберите предмет жалобы</legend>{(choices[subjectType] ?? []).map(([value, label]) => <label key={value} className={component === value ? "selected" : ""}><input type="radio" name="report-component" value={value} checked={component === value} onChange={() => setComponent(value)} /><span><strong>{label}</strong><small>{subjectLabel(subjectType)}</small></span></label>)}</fieldset>{selectedLabel && <div className="report-target-preview"><Flag aria-hidden="true" /><span><small>Вы выбрали</small><strong>{subjectLabel(subjectType)} · {selectedLabel}</strong></span></div>}<p className="section-kicker">Шаг 2 из 2</p><h2>Что произошло?</h2><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="safety_risk">Угроза безопасности</option><option value="misleading">Вводящие в заблуждение данные</option><option value="spam_or_commerce">Спам или коммерция</option><option value="inappropriate_content">Недопустимый контент</option><option value="other">Другое</option></select></label><label>Пояснение {reason !== "other" && <small>необязательно</small>}<textarea maxLength={500} value={explanation} onChange={(event) => setExplanation(event.target.value)} placeholder="Без личных и чувствительных данных" /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button disabled={busy || !component || (reason === "other" && !explanation.trim())} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить жалобу"}</Button></div></section></main>;
 }
 
 type CaseSummary = { public_id: string; subject_type: string; status: string; created_at: string };
@@ -941,6 +954,8 @@ function CasesScreen({ onBack, onOpen }: { onBack: () => void; onOpen: (id: stri
 function caseSubjectLabel(subjectType: string): string {
   return ({ event: "Событие", profile: "Профиль", looking_post: "Идея", q_and_a_answer: "Ответ", attendance: "Посещение" } as Record<string, string>)[subjectType] ?? "Обращение";
 }
+
+const subjectLabel = caseSubjectLabel;
 
 function CaseDetailScreen({ casePublicId, csrfToken, onBack }: { casePublicId: string; csrfToken: string; onBack: () => void }) {
   type Detail = CaseSummary & { timeline: Array<{ event_type: string; public_label: string; created_at: string }>; can_appeal: boolean };

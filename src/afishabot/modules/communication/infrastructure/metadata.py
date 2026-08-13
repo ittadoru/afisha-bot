@@ -11,6 +11,8 @@ messages = Table(
     Column("author_user_id", UUID(as_uuid=True), nullable=False),
     Column("participation_episode_id", UUID(as_uuid=True), nullable=False),
     Column("body", String(500), nullable=False),
+    Column("hidden_at", DateTime(timezone=True)),
+    Column("hidden_by_case_id", UUID(as_uuid=True)),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("delete_after", DateTime(timezone=True), nullable=False),
 )

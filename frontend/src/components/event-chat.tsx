@@ -1,4 +1,4 @@
-import { ArrowLeft, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import { ArrowLeft, Flag, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -16,6 +16,7 @@ interface ChatMessage {
   author_avatar_url: string | null;
   author_is_organizer: boolean;
   author_is_viewer: boolean;
+  hidden?: boolean;
 }
 
 interface EventChatProps {
@@ -201,7 +202,7 @@ export function EventChat({ eventId, csrfToken, onClose }: EventChatProps) {
         const profilePath = item.author_is_viewer ? "/app/profile" : `/app/profile/${item.author_public_id}`;
         return <div className="chat-message-wrap" key={item.id}>{showDay && <time className="chat-day">{messageDayLabel(item.created_at)}</time>}<div className={`chat-message-row${item.author_is_viewer ? " viewer" : ""}${compact ? " compact" : ""}`}>
           {!compact ? <button className="chat-avatar-button" type="button" aria-label={`Открыть профиль ${item.author_display_name}`} onClick={() => navigate(profilePath, { state: { returnTo: location.pathname } })}><UserAvatar name={item.author_display_name} thumbnailUrl={item.author_avatar_thumbnail_url} fallbackUrl={item.author_avatar_url} size={36} /></button> : <span className="chat-avatar-spacer" aria-hidden="true" />}
-          <article className={`chat-message${item.author_is_viewer ? " viewer" : ""}${item.author_is_organizer ? " organizer" : ""}${compact ? " compact" : ""}`}>{!compact && <div className="chat-author"><small>{item.author_is_viewer ? "Вы" : item.author_display_name}{item.author_is_organizer && <span>Организатор</span>}</small></div>}<p>{item.body}</p><time>{messageTime(item.created_at)}</time></article>
+          <article className={`chat-message${item.author_is_viewer ? " viewer" : ""}${item.author_is_organizer ? " organizer" : ""}${compact ? " compact" : ""}${item.hidden ? " hidden" : ""}`}>{!compact && <div className="chat-author"><small>{item.author_is_viewer ? "Вы" : item.author_display_name}{item.author_is_organizer && <span>Организатор</span>}</small></div>}<p>{item.body}</p><footer><time>{messageTime(item.created_at)}</time>{!item.author_is_viewer && !item.hidden && <button type="button" aria-label={`Пожаловаться на сообщение ${item.author_display_name}`} onClick={() => navigate(`/app/report/chat_message/${item.id}`, { state: { returnTo: location.pathname } })}><Flag aria-hidden="true" /></button>}</footer></article>
         </div></div>;
       })}
       {messages.length === 0 && !error && <div className="chat-empty"><MessageCircle aria-hidden="true" /><strong>Начните разговор</strong><p>Уточните детали встречи или просто поздоровайтесь.</p></div>}

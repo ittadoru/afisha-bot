@@ -34,9 +34,9 @@ def test_alembic_chain_has_exactly_one_head() -> None:
     revisions = {revision_value(path, "revision") for path in files}
     parents = {revision_value(path, "down_revision") for path in files}
 
-    assert len(files) == 35
+    assert len(files) == 36
     assert parents - {None} < revisions
-    assert revisions - parents == {"0035_unify_categories_and_map_markers"}
+    assert revisions - parents == {"0036_typed_moderation_evidence"}
     assert EXPECTED_MIGRATION_HEAD in revisions - parents
 
 
@@ -90,7 +90,15 @@ def test_mvp_foundation_tables_are_owned_by_the_expected_schemas() -> None:
             "sessions",
             "age_acceptances",
         },
-        "discovery": {"cities", "categories", "street_anchors", "looking_posts", "looking_post_likes", "looking_post_questions", "looking_post_requests"},
+        "discovery": {
+            "cities",
+            "categories",
+            "street_anchors",
+            "looking_posts",
+            "looking_post_likes",
+            "looking_post_questions",
+            "looking_post_requests",
+        },
         "events": {
             "events",
             "event_revisions",

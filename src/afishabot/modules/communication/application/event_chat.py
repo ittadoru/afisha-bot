@@ -125,7 +125,10 @@ async def _message_payload(
         (
             await connection.execute(
                 text("""
-        SELECT m.body, m.created_at, pr.public_id, pr.display_name,
+        SELECT CASE WHEN m.hidden_at IS NULL THEN m.body
+                    ELSE 'Сообщение скрыто модерацией' END AS body,
+               m.hidden_at IS NOT NULL AS hidden,m.created_at,
+               pr.public_id,pr.display_name,
                pr.avatar_asset_id, pr.version AS profile_version,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
@@ -146,6 +149,7 @@ async def _message_payload(
     return {
         "id": message_id,
         "body": row["body"],
+        "hidden": row["hidden"],
         "created_at": row["created_at"].isoformat(),
         "author_display_name": row["display_name"],
         "author_public_id": row.get("public_id", ""),
@@ -211,7 +215,10 @@ async def list_messages(
             (
                 await connection.execute(
                     text(f"""
-            SELECT m.id, m.body, m.created_at, pr.public_id, pr.display_name,
+            SELECT m.id,CASE WHEN m.hidden_at IS NULL THEN m.body
+                             ELSE 'Сообщение скрыто модерацией' END AS body,
+               m.hidden_at IS NOT NULL AS hidden,m.created_at,
+               pr.public_id,pr.display_name,
                pr.avatar_asset_id, pr.version AS profile_version,
                (m.author_user_id = :creator) AS is_organizer,
                (m.author_user_id = :viewer) AS is_viewer
@@ -232,6 +239,7 @@ async def list_messages(
             {
                 "id": row["id"],
                 "body": row["body"],
+                "hidden": row["hidden"],
                 "created_at": row["created_at"].isoformat(),
                 "author_display_name": row["display_name"],
                 "author_public_id": row["public_id"],

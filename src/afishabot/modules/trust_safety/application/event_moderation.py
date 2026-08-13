@@ -58,7 +58,9 @@ async def review_queue(
                     JOIN discovery.cities c ON c.id=e.city_id
                     JOIN accounts.profiles p ON p.user_id=e.creator_user_id
                     WHERE q.status='pending'
-                      AND e.lifecycle_status IN ('pending','published')
+                      AND (e.lifecycle_status IN ('pending','published') OR
+                           (e.lifecycle_status='hidden'
+                            AND e.moderation_status='held'))
                       AND e.current_revision_id=q.event_revision_id
                     ORDER BY q.submitted_at, q.id
                     LIMIT :limit OFFSET :offset
@@ -174,8 +176,11 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                 name, latitude, longitude = decision.new_street_anchor
                 try:
                     selected_anchor = await create_staff_street_anchor_in_transaction(
-                        connection, city_id=row["city_id"], display_name=name,
-                        latitude=latitude, longitude=longitude,
+                        connection,
+                        city_id=row["city_id"],
+                        display_name=name,
+                        latitude=latitude,
+                        longitude=longitude,
                     )
                 except StreetAnchorError as error:
                     raise ModerationConflict(str(error)) from error
@@ -189,7 +194,12 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                                              'city_id',CAST(:city AS text)))
                         """
                     ),
-                    {"id": uuid4(), "staff": decision.staff_id, "anchor": str(selected_anchor), "city": str(row["city_id"])},
+                    {
+                        "id": uuid4(),
+                        "staff": decision.staff_id,
+                        "anchor": str(selected_anchor),
+                        "city": str(row["city_id"]),
+                    },
                 )
             elif decision.street_anchor_id:
                 selected_anchor = await connection.scalar(
@@ -203,7 +213,9 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
             else:
                 raise ModerationConflict("street_anchor_required")
             anchor_name = await connection.scalar(
-                text("SELECT display_name FROM discovery.street_anchors WHERE id=:anchor"),
+                text(
+                    "SELECT display_name FROM discovery.street_anchors WHERE id=:anchor"
+                ),
                 {"anchor": selected_anchor},
             )
             await connection.execute(
@@ -211,15 +223,29 @@ async def decide_review(engine: AsyncEngine, decision: ReviewDecision) -> None:
                     "UPDATE events.event_revisions SET street_anchor_id=:anchor, "
                     "organizer_street=:street WHERE id=:revision"
                 ),
-                {"anchor": selected_anchor, "street": anchor_name, "revision": decision.revision_id},
+                {
+                    "anchor": selected_anchor,
+                    "street": anchor_name,
+                    "revision": decision.revision_id,
+                },
             )
 
         approved = decision.action == "approve"
         review_status = "approved" if approved else "rejected"
         is_published_change = row["approved_revision_id"] is not None
-        lifecycle = "published" if approved or is_published_change else "rejected"
+        lifecycle = (
+            "published"
+            if approved or (is_published_change and row["lifecycle_status"] != "hidden")
+            else "hidden"
+            if row["lifecycle_status"] == "hidden"
+            else "rejected"
+        )
         event_moderation = (
-            "approved" if is_published_change and not approved else review_status
+            "held"
+            if row["lifecycle_status"] == "hidden" and not approved
+            else "approved"
+            if is_published_change and not approved
+            else review_status
         )
         schedule_changed = is_published_change and (
             row["starts_at"] != row["old_starts_at"]

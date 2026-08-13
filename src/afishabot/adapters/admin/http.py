@@ -143,8 +143,8 @@ class ImageEstimateQueuedResponse(BaseModel):
 class CaseDecisionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    decision: Literal["dismiss", "hide_content"]
-    subject_component: Literal["avatar", "background", "bio", "display_name"] | None = None
+    decision: Literal["dismiss", "hide_component", "hold_for_correction", "hide_subject"]
+    subject_component: str | None = Field(default=None, max_length=32)
     staff_note: str = Field(min_length=2, max_length=1000)
     expected_version: int = Field(ge=1)
 

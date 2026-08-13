@@ -21,8 +21,31 @@ from afishabot.adapters.http.profiles import (
 
 router = APIRouter(tags=["safety"])
 SubjectType = Literal[
-    "event", "profile", "looking_post", "q_and_a_answer", "attendance"
+    "event", "profile", "looking_post", "q_and_a_answer", "chat_message"
 ]
+SubjectComponent = Literal[
+    "photo",
+    "title",
+    "description",
+    "schedule",
+    "location",
+    "whole",
+    "avatar",
+    "background",
+    "bio",
+    "display_name",
+    "body",
+    "answer",
+    "message",
+]
+
+ALLOWED_COMPONENTS: dict[str, set[str]] = {
+    "event": {"photo", "title", "description", "schedule", "location", "whole"},
+    "profile": {"avatar", "background", "bio", "display_name", "whole"},
+    "looking_post": {"title", "body", "whole"},
+    "q_and_a_answer": {"answer"},
+    "chat_message": {"message"},
+}
 
 
 class ReportBody(BaseModel):
@@ -31,7 +54,7 @@ class ReportBody(BaseModel):
     subject_id: str = Field(min_length=1, max_length=64)
     reason_code: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
     explanation: str | None = Field(default=None, max_length=500)
-    subject_component: Literal["avatar", "background", "bio", "display_name"] | None = None
+    subject_component: SubjectComponent | None = None
 
 
 class AppealBody(BaseModel):
@@ -68,7 +91,7 @@ async def _resolve_subject(
         "event": "SELECT id,creator_user_id AS owner,event_scope='community' AS community FROM events.events WHERE id=:id AND lifecycle_status<>'hidden'",
         "looking_post": "SELECT id,author_user_id AS owner,false AS community FROM discovery.looking_posts WHERE id=:id AND status<>'hidden'",
         "q_and_a_answer": "SELECT q.id,p.author_user_id AS owner,false AS community FROM discovery.looking_post_questions q JOIN discovery.looking_posts p ON p.id=q.looking_post_id WHERE q.id=:id AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL",
-        "attendance": "SELECT ep.id,e.creator_user_id AS owner,false AS community FROM events.participation_episodes ep JOIN events.events e ON e.id=ep.event_id WHERE ep.id=:id",
+        "chat_message": "SELECT m.id,m.author_user_id AS owner,false AS community FROM communication.messages m JOIN events.events e ON e.id=m.event_id WHERE m.id=:id AND m.hidden_at IS NULL AND m.delete_after>now()",
     }
     row = (
         (await connection.execute(text(statements[subject_type]), {"id": subject_id}))
@@ -76,6 +99,82 @@ async def _resolve_subject(
         .one_or_none()
     )
     return dict(row) if row else None
+
+
+async def _capture_evidence(
+    connection: AsyncConnection,
+    subject_type: SubjectType,
+    subject_id: UUID,
+    component: str,
+) -> dict[str, Any]:
+    """Capture immutable, bounded evidence before the reported content can change."""
+    queries = {
+        "event": """
+          SELECT e.version,r.title,r.description,r.starts_at,r.ends_at,
+                 COALESCE(r.organizer_address,r.normalized_address) AS location,
+                 ep.media_asset_id AS photo_asset_id,p.display_name AS owner_name
+          FROM events.events e
+          JOIN events.event_revisions r ON r.id=COALESCE(e.approved_revision_id,e.current_revision_id)
+          LEFT JOIN events.event_photos ep ON ep.revision_id=r.id AND ep.position=1
+          LEFT JOIN accounts.profiles p ON p.user_id=e.creator_user_id WHERE e.id=:id
+        """,
+        "profile": """
+          SELECT version,public_id,display_name,bio,avatar_asset_id,background_asset_id,
+                 display_name AS owner_name FROM accounts.profiles WHERE user_id=:id
+        """,
+        "looking_post": """
+          SELECT p.version,p.title,p.body,pr.display_name AS owner_name
+          FROM discovery.looking_posts p LEFT JOIN accounts.profiles pr
+            ON pr.user_id=p.author_user_id WHERE p.id=:id
+        """,
+        "q_and_a_answer": """
+          SELECT 1 AS version,q.answer,p.title AS context_title,pr.display_name AS owner_name
+          FROM discovery.looking_post_questions q JOIN discovery.looking_posts p
+            ON p.id=q.looking_post_id LEFT JOIN accounts.profiles pr
+            ON pr.user_id=p.author_user_id WHERE q.id=:id
+        """,
+        "chat_message": """
+          SELECT 1 AS version,m.body AS message,e.id AS event_id,r.title AS context_title,
+                 pr.display_name AS owner_name
+          FROM communication.messages m JOIN events.events e ON e.id=m.event_id
+          JOIN events.event_revisions r ON r.id=e.approved_revision_id
+          LEFT JOIN accounts.profiles pr ON pr.user_id=m.author_user_id WHERE m.id=:id
+        """,
+    }
+    row = (
+        (await connection.execute(text(queries[subject_type]), {"id": subject_id}))
+        .mappings()
+        .one_or_none()
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="subject_not_found")
+    data = dict(row)
+    value_map: dict[str, object | None] = {
+        "photo": data.get("photo_asset_id"),
+        "avatar": data.get("avatar_asset_id"),
+        "background": data.get("background_asset_id"),
+        "title": data.get("title"),
+        "description": data.get("description"),
+        "body": data.get("body"),
+        "bio": data.get("bio"),
+        "display_name": data.get("display_name"),
+        "answer": data.get("answer"),
+        "message": data.get("message"),
+        "schedule": f"{data.get('starts_at')} — {data.get('ends_at')}",
+        "location": data.get("location"),
+        "whole": data.get("title") or data.get("display_name"),
+    }
+    value = value_map.get(component)
+    return {
+        "schema_version": 1,
+        "subject_type": subject_type,
+        "component": component,
+        "value": str(value) if value is not None else None,
+        "object_version": int(data.get("version") or 1),
+        "owner_name": data.get("owner_name"),
+        "context_title": data.get("context_title"),
+        "captured_at": datetime.now(UTC).isoformat(),
+    }
 
 
 @router.post("/safety/reports", status_code=201)
@@ -118,6 +217,9 @@ async def create_report(
             raise HTTPException(status_code=422, detail="report_not_allowed")
         if subject["owner"] == reporter:
             raise HTTPException(status_code=422, detail="cannot_report_self")
+        component = body.subject_component or "whole"
+        if component not in ALLOWED_COMPONENTS[body.subject_type]:
+            raise HTTPException(status_code=422, detail="subject_component_invalid")
         duplicate = (
             (
                 await connection.execute(
@@ -125,13 +227,15 @@ async def create_report(
           SELECT c.id,c.public_id,c.status FROM trust_safety.moderation_cases c
           JOIN trust_safety.reports r ON r.case_id=c.id
           WHERE r.reporter_user_id=:reporter AND c.subject_type=:type
-            AND c.subject_id=:subject AND r.reason_code=:reason AND c.status<>'resolved'
+            AND c.subject_id=:subject AND c.subject_component=:component
+            AND r.reason_code=:reason AND c.status<>'resolved'
           ORDER BY c.created_at DESC LIMIT 1
         """),
                     {
                         "reporter": reporter,
                         "type": body.subject_type,
                         "subject": subject["id"],
+                        "component": component,
                         "reason": body.reason_code,
                     },
                 )
@@ -144,24 +248,9 @@ async def create_report(
                 "case_public_id": duplicate["public_id"],
                 "status": duplicate["status"],
             }
-        component = body.subject_component
-        if body.subject_type != "profile" and component is not None:
-            raise HTTPException(status_code=422, detail="subject_component_not_allowed")
-        if body.subject_type == "profile" and component is None:
-            component = {
-                "photo": "avatar", "display_name": "display_name", "bio": "bio"
-            }.get(body.reason_code)
-        evidence: dict[str, Any] | None = None
-        if body.subject_type == "profile" and component:
-            field = {
-                "avatar": "avatar_asset_id", "background": "background_asset_id",
-                "bio": "bio", "display_name": "display_name",
-            }[component]
-            value = await connection.scalar(
-                text(f"SELECT {field} FROM accounts.profiles WHERE user_id=:id"),
-                {"id": subject["id"]},
-            )
-            evidence = {"component": component, "value": str(value) if value is not None else None}
+        evidence = await _capture_evidence(
+            connection, body.subject_type, subject["id"], component
+        )
         case_id, report_id, public_id = uuid4(), uuid4(), _public_id()
         await connection.execute(
             text("""
@@ -320,7 +409,10 @@ async def appeal_case(
         )
         if case is None:
             raise HTTPException(status_code=404, detail="case_not_found")
-        if case["appeal_deadline"] is None or datetime.now(UTC) > case["appeal_deadline"]:
+        if (
+            case["appeal_deadline"] is None
+            or datetime.now(UTC) > case["appeal_deadline"]
+        ):
             raise HTTPException(status_code=409, detail="appeal_window_closed")
         exists = await connection.scalar(
             text(

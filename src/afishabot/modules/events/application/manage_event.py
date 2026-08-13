@@ -51,10 +51,12 @@ async def management_view(
 ) -> dict[str, Any]:
     async with engine.connect() as connection:
         row = (
-            await connection.execute(
-                text(
-                    """
-                    SELECT e.id, e.lifecycle_status, e.schedule_changes_used,
+            (
+                await connection.execute(
+                    text(
+                        """
+                    SELECT e.id, e.lifecycle_status, e.moderation_status,
+                           e.schedule_changes_used,
                            e.current_revision_id, e.approved_revision_id,
                            e.category_id, e.city_id, c.name AS category,
                            city.name AS city, r.title, r.description,
@@ -81,16 +83,25 @@ async def management_view(
                     WHERE e.id=:event AND e.creator_user_id=:user
                       AND e.kind='regular'
                     """
-                ),
-                {"event": event_id, "user": user_id},
+                    ),
+                    {"event": event_id, "user": user_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
     if row is None:
         raise EventManagementNotFound
     result = dict(row)
     result["photo_url"] = f"/api/events/{event_id}/manage/photo"
     result["can_edit"] = (
-        row["lifecycle_status"] == "published"
+        (
+            row["lifecycle_status"] == "published"
+            or (
+                row["lifecycle_status"] == "hidden"
+                and row["moderation_status"] == "held"
+            )
+        )
         and row["starts_at"] > datetime.now(UTC)
         and row["pending_status"] != "pending"
     )
@@ -99,9 +110,7 @@ async def management_view(
     return result
 
 
-async def submit_change(
-    engine: AsyncEngine, command: ChangeEventCommand
-) -> UUID:
+async def submit_change(engine: AsyncEngine, command: ChangeEventCommand) -> UUID:
     now = datetime.now(UTC)
     if command.ends_at <= command.starts_at:
         raise EventManagementError("end_must_follow_start")
@@ -116,26 +125,31 @@ async def submit_change(
             {"key": f"event-change:{command.user_id}:{command.idempotency_key}"},
         )
         previous = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT request_fingerprint, revision_id
                     FROM events.change_requests
                     WHERE user_id=:user AND idempotency_key=:key
                     """
-                ),
-                {"user": command.user_id, "key": command.idempotency_key},
+                    ),
+                    {"user": command.user_id, "key": command.idempotency_key},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if previous is not None:
             if previous["request_fingerprint"] != command.request_fingerprint:
                 raise EventManagementConflict("idempotency_key_reused")
             return previous["revision_id"]
 
         event = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT e.id, e.current_revision_id, e.approved_revision_id,
                            e.schedule_changes_used, r.starts_at AS old_starts,
                            r.ends_at AS old_ends, ep.media_asset_id AS old_photo
@@ -144,13 +158,19 @@ async def submit_change(
                     JOIN events.event_photos ep
                       ON ep.revision_id=r.id AND ep.position=1
                     WHERE e.id=:event AND e.creator_user_id=:user
-                      AND e.kind='regular' AND e.lifecycle_status='published'
+                      AND e.kind='regular'
+                      AND (e.lifecycle_status='published' OR
+                           (e.lifecycle_status='hidden'
+                            AND e.moderation_status='held'))
                     FOR UPDATE OF e
                     """
-                ),
-                {"event": command.event_id, "user": command.user_id},
+                    ),
+                    {"event": command.event_id, "user": command.user_id},
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if event is None:
             raise EventManagementNotFound
         if event["old_starts"] <= now:
@@ -193,18 +213,22 @@ async def submit_change(
                 raise EventManagementError("photo_not_available")
 
         approved = (
-            await connection.execute(
-                text(
-                    """
+            (
+                await connection.execute(
+                    text(
+                        """
                     SELECT r.*, ST_Y(r.location::geometry) AS latitude,
                            ST_X(r.location::geometry) AS longitude
                     FROM events.event_revisions r
                     WHERE r.id=:revision
                     """
-                ),
-                {"revision": event["approved_revision_id"]},
+                    ),
+                    {"revision": event["approved_revision_id"]},
+                )
             )
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
         if (
             " ".join(command.title.split()) == approved["title"]
             and command.description.strip() == approved["description"]
@@ -265,8 +289,12 @@ async def submit_change(
                 VALUES (:id,:event,:revision,:photo,1)
                 """
             ),
-            {"id": uuid4(), "event": command.event_id,
-             "revision": revision_id, "photo": photo_id},
+            {
+                "id": uuid4(),
+                "event": command.event_id,
+                "revision": revision_id,
+                "photo": photo_id,
+            },
         )
         if command.photo_upload_id is not None:
             await connection.execute(
@@ -282,8 +310,12 @@ async def submit_change(
                 VALUES (:id,:event,:revision,:user)
                 """
             ),
-            {"id": review_id, "event": command.event_id,
-             "revision": revision_id, "user": command.user_id},
+            {
+                "id": review_id,
+                "event": command.event_id,
+                "revision": revision_id,
+                "user": command.user_id,
+            },
         )
         await connection.execute(
             text(
@@ -301,9 +333,13 @@ async def submit_change(
                 VALUES (:user,:key,:fingerprint,:event,:revision)
                 """
             ),
-            {"user": command.user_id, "key": command.idempotency_key,
-             "fingerprint": command.request_fingerprint,
-             "event": command.event_id, "revision": revision_id},
+            {
+                "user": command.user_id,
+                "key": command.idempotency_key,
+                "fingerprint": command.request_fingerprint,
+                "event": command.event_id,
+                "revision": revision_id,
+            },
         )
     return revision_id
 

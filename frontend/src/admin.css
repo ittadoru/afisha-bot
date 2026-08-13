@@ -63,7 +63,10 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-priority.high { color: #8a6122; background: #fbf0d8; }
 .admin-priority.critical { color: #9b3c3c; background: #f9e8e8; }
 .admin-drawer-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: flex-end; background: rgb(12 27 22 / .42); }
-.admin-case-drawer { position: relative; width: min(100%, 560px); height: 100%; box-sizing: border-box; overflow-y: auto; padding: 30px; background: #fff; box-shadow: -18px 0 60px rgb(0 0 0 / .18); }
+.admin-case-drawer { position: fixed; inset: 0 0 0 auto; width: min(100%, 780px); height: 100%; box-sizing: border-box; overflow-y: auto; padding: 30px; border: 0; border-radius: 0; background: #fff; box-shadow: -18px 0 60px rgb(0 0 0 / .18); }
+.admin-case-drawer .sheet-grabber { display: none; }
+.admin-case-drawer .sheet-close { top: 16px; right: 16px; width: 44px; height: 44px; }
+.admin-case-drawer .sheet-description { margin: -14px 52px 22px 0; color: #62726c; }
 .admin-case-drawer h2 { margin: 4px 44px 22px 0; font-size: 28px; }
 .admin-case-drawer h3 { margin: 24px 0 8px; font-size: 14px; }
 .admin-case-drawer dl { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
@@ -71,6 +74,17 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-case-drawer dt { color: #708079; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .admin-case-drawer dd { margin: 4px 0 0; font-size: 13px; }
 .admin-case-text, .admin-case-snapshot { margin: 0; padding: 13px; border-radius: 10px; background: #f5f8f6; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 13px; }
+.admin-evidence-warning { padding: 12px 14px; border: 1px solid #e7bf75; border-radius: 10px; color: #704c16; background: #fff7e7; font-size: 13px; }
+.admin-evidence-card { margin: 0; padding: 18px; border: 1px solid #dbe4e0; border-radius: 14px; background: #f7faf8; }
+.admin-evidence-card.text > span { display: block; font-size: 17px; line-height: 1.55; white-space: pre-wrap; }
+.admin-evidence-card.message { width: min(82%, 480px); margin-left: auto; border-color: #bcd8ce; border-radius: 16px 16px 4px 16px; background: #e7f3ef; }
+.admin-evidence-card.message > span { display: block; font-size: 15px; line-height: 1.5; }
+.admin-evidence-card footer, .admin-evidence-card figcaption { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; color: #63736d; font-size: 11px; }
+.admin-evidence-card.media img { display: block; width: 100%; max-height: 420px; border-radius: 10px; object-fit: contain; background: #e9eeec; }
+.admin-case-secondary { margin-top: 24px; padding: 14px 0; border-block: 1px solid #e3e9e6; }
+.admin-case-secondary summary { min-height: 44px; display: flex; align-items: center; font-weight: 800; cursor: pointer; }
+.admin-case-secondary[open] summary { margin-bottom: 14px; }
+.admin-case-note small { color: #687771; font-weight: 500; line-height: 1.45; }
 .admin-case-timeline { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .admin-case-timeline li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; }
 .admin-case-timeline li > span { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: #176b59; }
@@ -79,8 +93,9 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-case-note { display: grid; gap: 7px; margin-top: 20px; font-size: 12px; font-weight: 800; }
 .admin-case-note textarea, .admin-case-note select { min-height: 44px; box-sizing: border-box; padding: 11px; border: 1px solid #cbd7d2; border-radius: 9px; font: inherit; }
 .admin-case-note textarea { min-height: 100px; resize: vertical; }
-.admin-case-actions { position: sticky; bottom: -30px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 26px -30px -30px; padding: 16px 30px max(16px,env(safe-area-inset-bottom)); border-top: 1px solid #e1e7e4; background: #fff; }
+.admin-case-actions { position: sticky; bottom: -30px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; margin: 26px -30px -30px; padding: 16px 30px max(16px,env(safe-area-inset-bottom)); border-top: 1px solid #e1e7e4; background: #fff; }
 .admin-case-actions button { min-height: 44px; border: 0; border-radius: 9px; color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+.admin-case-actions button { padding: 0 18px; }
 .admin-case-actions button:disabled { opacity: .5; cursor: wait; }
 .admin-ghost-decision { color: #52645d !important; background: #edf2f0; }
 .admin-danger-decision { background: #a53636; }

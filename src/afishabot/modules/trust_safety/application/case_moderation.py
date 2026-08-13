@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 QueueName = Literal["reports", "appeals"]
-Decision = Literal["dismiss", "hide_content"]
+Decision = Literal["dismiss", "hide_component", "hold_for_correction", "hide_subject"]
 AppealDecision = Literal["upheld", "reversed"]
 ProfileComponent = Literal["avatar", "background", "bio", "display_name"]
 
@@ -69,7 +69,14 @@ async def moderation_queue(
         statement = f"""
           SELECT c.public_id,c.subject_type,c.subject_component,c.priority,c.version,
                  c.created_at,c.updated_at,r.reason_code,a.created_at AS appeal_created_at,
-                 a.status AS appeal_status
+                 a.status AS appeal_status,
+                 CASE c.subject_type
+                   WHEN 'event' THEN (SELECT er.title FROM events.events e JOIN events.event_revisions er ON er.id=COALESCE(e.approved_revision_id,e.current_revision_id) WHERE e.id=c.subject_id)
+                   WHEN 'profile' THEN (SELECT p.display_name FROM accounts.profiles p WHERE p.user_id=c.subject_id)
+                   WHEN 'looking_post' THEN (SELECT p.title FROM discovery.looking_posts p WHERE p.id=c.subject_id)
+                   WHEN 'q_and_a_answer' THEN (SELECT left(q.answer,80) FROM discovery.looking_post_questions q WHERE q.id=c.subject_id)
+                   WHEN 'chat_message' THEN (SELECT left(m.body,80) FROM communication.messages m WHERE m.id=c.subject_id)
+                 END AS target_title
           FROM trust_safety.appeals a
           JOIN trust_safety.moderation_cases c ON c.id=a.case_id
           LEFT JOIN LATERAL (
@@ -83,7 +90,14 @@ async def moderation_queue(
         statement = f"""
           SELECT c.public_id,c.subject_type,c.subject_component,c.priority,c.version,
                  c.created_at,c.updated_at,r.reason_code,NULL::timestamptz AS appeal_created_at,
-                 NULL::varchar AS appeal_status
+                 NULL::varchar AS appeal_status,
+                 CASE c.subject_type
+                   WHEN 'event' THEN (SELECT er.title FROM events.events e JOIN events.event_revisions er ON er.id=COALESCE(e.approved_revision_id,e.current_revision_id) WHERE e.id=c.subject_id)
+                   WHEN 'profile' THEN (SELECT p.display_name FROM accounts.profiles p WHERE p.user_id=c.subject_id)
+                   WHEN 'looking_post' THEN (SELECT p.title FROM discovery.looking_posts p WHERE p.id=c.subject_id)
+                   WHEN 'q_and_a_answer' THEN (SELECT left(q.answer,80) FROM discovery.looking_post_questions q WHERE q.id=c.subject_id)
+                   WHEN 'chat_message' THEN (SELECT left(m.body,80) FROM communication.messages m WHERE m.id=c.subject_id)
+                 END AS target_title
           FROM trust_safety.moderation_cases c
           LEFT JOIN LATERAL (
             SELECT reason_code FROM trust_safety.reports
@@ -184,11 +198,46 @@ async def case_detail(engine: AsyncEngine, public_id: str) -> dict[str, Any]:
     result.pop("id", None)
     result.pop("subject_owner_user_id", None)
     result["subject"] = subject
+    evidence = cast(dict[str, Any], case["evidence_snapshot"] or {})
+    current_version = int((subject or {}).get("version") or 1)
+    evidence_version = int(evidence.get("object_version") or 1)
+    component = str(case["subject_component"] or "whole")
+    result["target"] = {
+        "subject_type": case["subject_type"],
+        "component": component,
+        "subject_id": str(case["subject_id"]),
+        "title": (subject or {}).get("title")
+        or (subject or {}).get("display_name")
+        or evidence.get("context_title")
+        or evidence.get("owner_name"),
+        "owner_name": (subject or {}).get("owner_name") or evidence.get("owner_name"),
+    }
+    result["evidence"] = evidence
+    result["current_state"] = subject
+    result["evidence_state"] = (
+        "changed" if current_version != evidence_version else "current"
+    )
+    result["available_actions"] = _available_actions(case["subject_type"], component)
     result["timeline"] = [dict(row) for row in timeline]
     result["decisions"] = [dict(row) for row in decisions]
     result["appeal"] = dict(appeal) if appeal else None
     result["previous_violations"] = previous
     return result
+
+
+def _available_actions(subject_type: str, component: str) -> list[str]:
+    if subject_type == "event":
+        if component in {"title", "description", "schedule", "location"}:
+            return ["dismiss", "hold_for_correction", "hide_subject"]
+        return ["dismiss", "hide_component" if component == "photo" else "hide_subject"]
+    if subject_type == "looking_post":
+        return [
+            "dismiss",
+            "hold_for_correction" if component != "whole" else "hide_subject",
+        ]
+    if subject_type in {"profile", "q_and_a_answer", "chat_message"}:
+        return ["dismiss", "hide_subject" if component == "whole" else "hide_component"]
+    return ["dismiss"]
 
 
 async def _subject_projection(
@@ -197,15 +246,19 @@ async def _subject_projection(
     subject_type, subject_id = case["subject_type"], case["subject_id"]
     statements = {
         "event": """
-            SELECT r.title,e.lifecycle_status AS status
+            SELECT r.title,r.description,r.starts_at,r.ends_at,
+                   COALESCE(r.organizer_address,r.normalized_address) AS location,
+                   e.lifecycle_status AS status,e.version,p.display_name AS owner_name
             FROM events.events e
             LEFT JOIN events.event_revisions r
               ON r.id=COALESCE(e.approved_revision_id,e.current_revision_id)
+            LEFT JOIN accounts.profiles p ON p.user_id=e.creator_user_id
             WHERE e.id=:id
         """,
-        "looking_post": "SELECT title,status FROM discovery.looking_posts WHERE id=:id",
-        "q_and_a_answer": "SELECT answer,answer_hidden_at IS NOT NULL AS hidden FROM discovery.looking_post_questions WHERE id=:id",
-        "profile": "SELECT public_id,display_name,bio,avatar_asset_id IS NOT NULL AS has_avatar,background_asset_id IS NOT NULL AS has_background FROM accounts.profiles WHERE user_id=:id",
+        "looking_post": "SELECT p.title,p.body,p.status,p.version,pr.display_name AS owner_name FROM discovery.looking_posts p LEFT JOIN accounts.profiles pr ON pr.user_id=p.author_user_id WHERE p.id=:id",
+        "q_and_a_answer": "SELECT q.answer,q.answer_hidden_at IS NOT NULL AS hidden,1 AS version,p.title,pr.display_name AS owner_name FROM discovery.looking_post_questions q JOIN discovery.looking_posts p ON p.id=q.looking_post_id LEFT JOIN accounts.profiles pr ON pr.user_id=p.author_user_id WHERE q.id=:id",
+        "chat_message": "SELECT CASE WHEN m.hidden_at IS NULL THEN m.body ELSE 'Сообщение скрыто модерацией' END AS message,m.hidden_at IS NOT NULL AS hidden,1 AS version,r.title,pr.display_name AS owner_name FROM communication.messages m JOIN events.events e ON e.id=m.event_id JOIN events.event_revisions r ON r.id=e.approved_revision_id LEFT JOIN accounts.profiles pr ON pr.user_id=m.author_user_id WHERE m.id=:id",
+        "profile": "SELECT public_id,display_name,bio,avatar_asset_id IS NOT NULL AS has_avatar,background_asset_id IS NOT NULL AS has_background,version,display_name AS owner_name FROM accounts.profiles WHERE user_id=:id",
     }
     statement = statements.get(subject_type)
     if statement is None:
@@ -262,12 +315,23 @@ async def decide_case(
         if case["status"] == "resolved" or case["version"] != expected_version:
             raise CaseModerationError("case_version_conflict")
         chosen = component or case["subject_component"]
-        if decision == "hide_content":
-            await _hide_subject(connection, dict(case), chosen)
+        if decision != "dismiss":
+            report_version = int(
+                await connection.scalar(
+                    text(
+                        "SELECT COALESCE((evidence_snapshot->>'object_version')::integer,1) "
+                        "FROM trust_safety.reports WHERE case_id=:case ORDER BY created_at LIMIT 1"
+                    ),
+                    {"case": case["id"]},
+                )
+                or 1
+            )
+            current = await _current_subject_version(connection, dict(case))
+            if current != report_version:
+                raise CaseModerationError("case_evidence_stale")
+            await _apply_subject_action(connection, dict(case), chosen, decision)
         now = datetime.now(UTC)
-        appeal_deadline = (
-            now + timedelta(days=3) if decision == "hide_content" else None
-        )
+        appeal_deadline = now + timedelta(days=3) if decision != "dismiss" else None
         await connection.execute(
             text("""
             INSERT INTO trust_safety.case_decisions
@@ -306,19 +370,17 @@ async def decide_case(
             WHERE id=:id AND status IN ('pending','reviewed')
             """),
             {
-                "status": "actioned" if decision == "hide_content" else "dismissed",
+                "status": "actioned" if decision != "dismiss" else "dismissed",
                 "now": now,
                 "id": case["id"],
             },
         )
         label = (
-            "Нарушение подтверждено"
-            if decision == "hide_content"
-            else "Жалоба отклонена"
+            "Нарушение подтверждено" if decision != "dismiss" else "Жалоба отклонена"
         )
         await _timeline(connection, case["id"], "resolved", label)
         direction = _direction(chosen) if case["subject_type"] == "profile" else None
-        if decision == "hide_content" and direction:
+        if decision != "dismiss" and direction:
             await connection.execute(
                 text("""
                 INSERT INTO trust_safety.profile_violations
@@ -333,24 +395,58 @@ async def decide_case(
                     "after": appeal_deadline,
                 },
             )
-        if decision == "hide_content":
+        if decision != "dismiss":
             await _notify_owner(
                 connection, dict(case), chosen, public_id, appeal_deadline
             )
         await _audit(connection, actor_staff_id, "case.decision", public_id, decision)
 
 
-async def _hide_subject(
-    connection: AsyncConnection, case: dict[str, Any], component: str | None
-) -> None:
-    subject_type = case["subject_type"]
-    if subject_type == "event":
-        await connection.execute(
+async def _current_subject_version(
+    connection: AsyncConnection, case: dict[str, Any]
+) -> int:
+    table = {
+        "event": "events.events",
+        "profile": "accounts.profiles",
+        "looking_post": "discovery.looking_posts",
+    }.get(case["subject_type"])
+    if table is None:
+        return 1
+    return int(
+        await connection.scalar(
             text(
-                "UPDATE events.events SET lifecycle_status='hidden',updated_at=now() WHERE id=:id"
+                f"SELECT version FROM {table} WHERE id=:id"
+                if table != "accounts.profiles"
+                else f"SELECT version FROM {table} WHERE user_id=:id"
             ),
             {"id": case["subject_id"]},
         )
+        or 1
+    )
+
+
+async def _apply_subject_action(
+    connection: AsyncConnection,
+    case: dict[str, Any],
+    component: str | None,
+    decision: Decision,
+) -> None:
+    subject_type = case["subject_type"]
+    if subject_type == "event":
+        if decision == "hide_component" and component == "photo":
+            await connection.execute(
+                text(
+                    "UPDATE media.assets SET state='deleted',updated_at=now() WHERE id=(SELECT ep.media_asset_id FROM events.events e JOIN events.event_photos ep ON ep.revision_id=e.approved_revision_id AND ep.position=1 WHERE e.id=:id)"
+                ),
+                {"id": case["subject_id"]},
+            )
+        else:
+            await connection.execute(
+                text(
+                    "UPDATE events.events SET lifecycle_status='hidden',moderation_status=CASE WHEN :hold THEN 'held' ELSE moderation_status END,version=version+1,updated_at=now() WHERE id=:id"
+                ),
+                {"id": case["subject_id"], "hold": decision == "hold_for_correction"},
+            )
     elif subject_type == "looking_post":
         await connection.execute(
             text(
@@ -365,7 +461,33 @@ async def _hide_subject(
             ),
             {"id": case["subject_id"]},
         )
+    elif subject_type == "chat_message":
+        await connection.execute(
+            text(
+                "UPDATE communication.messages SET hidden_at=now(),hidden_by_case_id=:case WHERE id=:id AND hidden_at IS NULL"
+            ),
+            {"id": case["subject_id"], "case": case["id"]},
+        )
     elif subject_type == "profile":
+        if decision == "hide_subject" and component == "whole":
+            await connection.execute(
+                text(
+                    "UPDATE media.assets SET state='deleted',updated_at=now() "
+                    "WHERE id IN (SELECT avatar_asset_id FROM accounts.profiles "
+                    "WHERE user_id=:id UNION SELECT background_asset_id FROM "
+                    "accounts.profiles WHERE user_id=:id)"
+                ),
+                {"id": case["subject_id"]},
+            )
+            await connection.execute(
+                text(
+                    "UPDATE accounts.profiles SET display_name='Пользователь',bio=NULL,"
+                    "avatar_asset_id=NULL,background_asset_id=NULL,version=version+1,"
+                    "updated_at=now() WHERE user_id=:id"
+                ),
+                {"id": case["subject_id"]},
+            )
+            return
         if component not in {"avatar", "background", "bio", "display_name"}:
             raise CaseModerationError("profile_component_required")
         if component == "avatar":

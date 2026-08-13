@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 
 from asyncpg.pgproto.pgproto import UUID as PgUUID
 
@@ -50,6 +51,7 @@ class _MessageConnection:
         return _MappingResult(
             {
                 "body": "Добро пожаловать",
+                "hidden": False,
                 "created_at": datetime(2026, 8, 10, 12, 0, tzinfo=UTC),
                 "display_name": "Амина",
                 "is_organizer": self.is_organizer,
@@ -78,3 +80,11 @@ async def test_message_payload_keeps_organizer_and_viewer_roles_independent() ->
     )
     assert payload["author_is_viewer"] is False
     assert payload["author_is_organizer"] is True
+
+
+def test_hidden_chat_message_uses_safe_public_placeholder() -> None:
+    source = Path(
+        "src/afishabot/modules/communication/application/event_chat.py"
+    ).read_text(encoding="utf-8")
+    assert "Сообщение скрыто модерацией" in source
+    assert '"hidden": row["hidden"]' in source
