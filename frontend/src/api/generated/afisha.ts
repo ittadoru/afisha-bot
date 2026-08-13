@@ -5,9 +5,109 @@
  * OpenAPI spec version: 0.1.0
  */
 import type {
+  AfishabotAdaptersAdminHttpBootstrapResponse,
+  AfishabotAdaptersHttpAuthBootstrapResponse,
+  AfishabotAdaptersHttpLookingPostsReportRequest,
+  AfishabotAdaptersHttpProfilesReportRequest,
+  AnonymousProfileAvatarPublicProfilesPublicIdAvatarGetParams,
+  AnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetParams,
+  AnonymousPublicProfileResponse,
+  AnswerRequest,
+  AppealBody,
+  AppealCaseAccountCasesCasePublicIdAppealPost201,
+  AppealDecisionRequest,
+  AuditAdminAuditGetParams,
+  AuditPageResponse,
+  AvatarProfilesPublicIdAvatarGetParams,
+  CancelEventRequest,
+  CancelSpecialRequest,
+  CaseDecisionRequest,
+  CaseDetailAccountCasesCasePublicIdGet200,
+  CasesFeedAccountCasesGet200,
+  CasesFeedAccountCasesGetParams,
+  CatalogResponse,
+  ChangeEventRequest,
+  ChatMessageRequest,
+  ChatStateRequest,
+  CreateEventRequest,
+  CreateEventResponse,
+  CreateLookingPostsPost201,
+  CreateReportSafetyReportsPost201,
+  CreateSpecialRequest,
+  CreateStreetAnchorAdminStreetAnchorsPost201,
+  CreatedSpecialResponse,
+  DashboardResponse,
+  DetailLookingPostsPostIdGet200,
+  EventPhotoResponse,
+  EventReviewDetailAdminEventsReviewsReviewIdGet200,
+  EventReviewsAdminEventsReviewsGet200,
+  EventReviewsAdminEventsReviewsGetParams,
+  EventsResponse,
+  ExchangeRequest,
+  ExcludeParticipantRequest,
+  FeatureManifest,
+  FeedLookingPostsGet200,
+  FeedLookingPostsGetParams,
+  GetAccountEventsAccountEventsGetParams,
+  GetAccountNotificationsAccountNotificationsGetParams,
+  GetEventManagementEventsEventIdManageGet200,
+  GetEventRosterEventsEventIdManageRosterGet200,
+  GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200,
+  GetModerationCasesAdminModerationCasesGet200,
+  GetModerationCasesAdminModerationCasesGetParams,
+  GetModerationCountsAdminModerationCountsGet200,
+  GetNotificationFeedAccountNotificationsFeedGetParams,
+  GetProfileEventsProfilesPublicIdEventsGetParams,
+  HTTPValidationError,
   HealthResponse,
+  ImageAnalysisResponse,
+  ImageEstimateQueuedResponse,
+  JoinPublishedEventEventsEventIdJoinPost200,
+  LeavePublishedEventEventsEventIdLeavePost200,
+  LikeLookingPostsPostIdLikePut200,
+  LoginRequest,
+  LoginResponse,
+  LookingPostRequest,
+  MarkEventInterestingEventsEventIdInterestPut200,
+  MessagesEventsEventIdChatGet200,
+  MessagesEventsEventIdChatGetParams,
+  NotificationFeedResponse,
+  NotificationResponse,
+  NotificationSettingsResponse,
+  OnboardingRequest,
+  OwnProfileResponse,
+  ProfileBackgroundProfilesPublicIdBackgroundGetParams,
+  ProfileResponse,
+  PublicProfileResponse,
+  PublishedEventDetailEventsEventIdGet200,
+  PublishedEventPhotoEventsEventIdPhotoGetParams,
+  PublishedEventsEventsGet200,
+  PublishedEventsEventsGetParams,
+  QuestionRequest,
+  QuestionsLookingPostsPostIdQuestionsGet200,
+  ReadAllNotificationsAccountNotificationsReadAllPost200,
+  ReportBody,
+  ReportLookingPostsPostIdReportsPost201,
+  ReportProfileProfilesPublicIdReportsPost201,
+  ResolveEventLocationGeoResolveGetParams,
   ReverseGeocodeGeoReverseGetParams,
-  ReverseGeocodingResponse
+  ReverseGeocodingResponse,
+  ReviewDecisionRequest,
+  RevisePublishedEventEventsEventIdRevisionsPost202,
+  SendEventsEventIdChatPost201,
+  SessionResponse,
+  SetStateEventsEventIdChatPut200,
+  SpecialEventsAdminEventsSpecialGet200,
+  StaffResponse,
+  StreetAnchorCreateRequest,
+  StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200,
+  StreetAnchorUpdateRequest,
+  StreetAnchorsAdminStreetAnchorsGet200,
+  StreetAnchorsAdminStreetAnchorsGetParams,
+  SystemMetricsResponse,
+  UnmarkEventInterestingEventsEventIdInterestDelete200,
+  UpdateProfileCityRequest,
+  UpdateProfileRequest
 } from './models';
 
 import {
@@ -42,6 +142,9 @@ export const getLivenessHealthLiveGetUrl = () => {
   return `/health/live`
 }
 
+/**
+ * @summary Liveness
+ */
 export const livenessHealthLiveGet = async ( options?: RequestInit): Promise<livenessHealthLiveGetResponse> => {
 
   const res = await fetch(getLivenessHealthLiveGetUrl(),
@@ -62,20 +165,157 @@ export const livenessHealthLiveGet = async ( options?: RequestInit): Promise<liv
 
 
 
+export type readinessHealthReadyGetResponse200 = {
+  data: HealthResponse
+  status: 200
+}
+
+export type readinessHealthReadyGetResponse503 = {
+  data: HealthResponse
+  status: 503
+}
+
+export type readinessHealthReadyGetResponseSuccess = (readinessHealthReadyGetResponse200) & {
+  headers: Headers;
+};
+export type readinessHealthReadyGetResponseError = (readinessHealthReadyGetResponse503) & {
+  headers: Headers;
+};
+
+export type readinessHealthReadyGetResponse = (readinessHealthReadyGetResponseSuccess | readinessHealthReadyGetResponseError)
+
+export const getReadinessHealthReadyGetUrl = () => {
+
+
+
+
+  return `/health/ready`
+}
+
+/**
+ * @summary Readiness
+ */
+export const readinessHealthReadyGet = async ( options?: RequestInit): Promise<readinessHealthReadyGetResponse> => {
+
+  const res = await fetch(getReadinessHealthReadyGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: readinessHealthReadyGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as readinessHealthReadyGetResponse
+}
+
+
+
+export type featuresFeaturesGetResponse200 = {
+  data: FeatureManifest
+  status: 200
+}
+
+export type featuresFeaturesGetResponseSuccess = (featuresFeaturesGetResponse200) & {
+  headers: Headers;
+};
+;
+
+export type featuresFeaturesGetResponse = (featuresFeaturesGetResponseSuccess)
+
+export const getFeaturesFeaturesGetUrl = () => {
+
+
+
+
+  return `/features`
+}
+
+/**
+ * Expose only safe rollout switches; every mutation still checks its flag server-side.
+ * @summary Features
+ */
+export const featuresFeaturesGet = async ( options?: RequestInit): Promise<featuresFeaturesGetResponse> => {
+
+  const res = await fetch(getFeaturesFeaturesGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: featuresFeaturesGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as featuresFeaturesGetResponse
+}
+
+
+
+export type catalogGeoCatalogGetResponse200 = {
+  data: CatalogResponse
+  status: 200
+}
+
+export type catalogGeoCatalogGetResponseSuccess = (catalogGeoCatalogGetResponse200) & {
+  headers: Headers;
+};
+;
+
+export type catalogGeoCatalogGetResponse = (catalogGeoCatalogGetResponseSuccess)
+
+export const getCatalogGeoCatalogGetUrl = () => {
+
+
+
+
+  return `/geo/catalog`
+}
+
+/**
+ * @summary Catalog
+ */
+export const catalogGeoCatalogGet = async ( options?: RequestInit): Promise<catalogGeoCatalogGetResponse> => {
+
+  const res = await fetch(getCatalogGeoCatalogGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: catalogGeoCatalogGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as catalogGeoCatalogGetResponse
+}
+
+
+
 export type reverseGeocodeGeoReverseGetResponse200 = {
   data: ReverseGeocodingResponse
   status: 200
 }
 
-export type reverseGeocodeGeoReverseGetResponse503 = {
-  data: void
-  status: 503
+export type reverseGeocodeGeoReverseGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
 }
 
 export type reverseGeocodeGeoReverseGetResponseSuccess = (reverseGeocodeGeoReverseGetResponse200) & {
   headers: Headers;
 };
-export type reverseGeocodeGeoReverseGetResponseError = (reverseGeocodeGeoReverseGetResponse503) & {
+export type reverseGeocodeGeoReverseGetResponseError = (reverseGeocodeGeoReverseGetResponse422) & {
   headers: Headers;
 };
 
@@ -96,6 +336,9 @@ export const getReverseGeocodeGeoReverseGetUrl = (params: ReverseGeocodeGeoRever
   return stringifiedParams.length > 0 ? `/geo/reverse?${stringifiedParams}` : `/geo/reverse`
 }
 
+/**
+ * @summary Reverse Geocode
+ */
 export const reverseGeocodeGeoReverseGet = async (params: ReverseGeocodeGeoReverseGetParams, options?: RequestInit): Promise<reverseGeocodeGeoReverseGetResponse> => {
 
   const res = await fetch(getReverseGeocodeGeoReverseGetUrl(params),
@@ -115,9 +358,4896 @@ export const reverseGeocodeGeoReverseGet = async (params: ReverseGeocodeGeoRever
 }
 
 
+
+export type resolveEventLocationGeoResolveGetResponse200 = {
+  data: ReverseGeocodingResponse
+  status: 200
+}
+
+export type resolveEventLocationGeoResolveGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type resolveEventLocationGeoResolveGetResponseSuccess = (resolveEventLocationGeoResolveGetResponse200) & {
+  headers: Headers;
+};
+export type resolveEventLocationGeoResolveGetResponseError = (resolveEventLocationGeoResolveGetResponse422) & {
+  headers: Headers;
+};
+
+export type resolveEventLocationGeoResolveGetResponse = (resolveEventLocationGeoResolveGetResponseSuccess | resolveEventLocationGeoResolveGetResponseError)
+
+export const getResolveEventLocationGeoResolveGetUrl = (params: ResolveEventLocationGeoResolveGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/geo/resolve?${stringifiedParams}` : `/geo/resolve`
+}
+
+/**
+ * @summary Resolve Event Location
+ */
+export const resolveEventLocationGeoResolveGet = async (params: ResolveEventLocationGeoResolveGetParams, options?: RequestInit): Promise<resolveEventLocationGeoResolveGetResponse> => {
+
+  const res = await fetch(getResolveEventLocationGeoResolveGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: resolveEventLocationGeoResolveGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as resolveEventLocationGeoResolveGetResponse
+}
+
+
+
+export type bootstrapAuthMiniBootstrapPostResponse200 = {
+  data: AfishabotAdaptersHttpAuthBootstrapResponse
+  status: 200
+}
+
+export type bootstrapAuthMiniBootstrapPostResponseSuccess = (bootstrapAuthMiniBootstrapPostResponse200) & {
+  headers: Headers;
+};
+;
+
+export type bootstrapAuthMiniBootstrapPostResponse = (bootstrapAuthMiniBootstrapPostResponseSuccess)
+
+export const getBootstrapAuthMiniBootstrapPostUrl = () => {
+
+
+
+
+  return `/auth/mini/bootstrap`
+}
+
+/**
+ * @summary Bootstrap
+ */
+export const bootstrapAuthMiniBootstrapPost = async ( options?: RequestInit): Promise<bootstrapAuthMiniBootstrapPostResponse> => {
+
+  const res = await fetch(getBootstrapAuthMiniBootstrapPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: bootstrapAuthMiniBootstrapPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as bootstrapAuthMiniBootstrapPostResponse
+}
+
+
+
+export type exchangeAuthMiniExchangePostResponse200 = {
+  data: SessionResponse
+  status: 200
+}
+
+export type exchangeAuthMiniExchangePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type exchangeAuthMiniExchangePostResponseSuccess = (exchangeAuthMiniExchangePostResponse200) & {
+  headers: Headers;
+};
+export type exchangeAuthMiniExchangePostResponseError = (exchangeAuthMiniExchangePostResponse422) & {
+  headers: Headers;
+};
+
+export type exchangeAuthMiniExchangePostResponse = (exchangeAuthMiniExchangePostResponseSuccess | exchangeAuthMiniExchangePostResponseError)
+
+export const getExchangeAuthMiniExchangePostUrl = () => {
+
+
+
+
+  return `/auth/mini/exchange`
+}
+
+/**
+ * @summary Exchange
+ */
+export const exchangeAuthMiniExchangePost = async (exchangeRequest: ExchangeRequest, options?: RequestInit): Promise<exchangeAuthMiniExchangePostResponse> => {
+
+  const res = await fetch(getExchangeAuthMiniExchangePostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(exchangeRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: exchangeAuthMiniExchangePostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as exchangeAuthMiniExchangePostResponse
+}
+
+
+
+export type meAccountMeGetResponse200 = {
+  data: ProfileResponse
+  status: 200
+}
+
+export type meAccountMeGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type meAccountMeGetResponseSuccess = (meAccountMeGetResponse200) & {
+  headers: Headers;
+};
+export type meAccountMeGetResponseError = (meAccountMeGetResponse422) & {
+  headers: Headers;
+};
+
+export type meAccountMeGetResponse = (meAccountMeGetResponseSuccess | meAccountMeGetResponseError)
+
+export const getMeAccountMeGetUrl = () => {
+
+
+
+
+  return `/account/me`
+}
+
+/**
+ * @summary Me
+ */
+export const meAccountMeGet = async ( options?: RequestInit): Promise<meAccountMeGetResponse> => {
+
+  const res = await fetch(getMeAccountMeGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: meAccountMeGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as meAccountMeGetResponse
+}
+
+
+
+export type ageConsentAccountAgeConsentPostResponse200 = {
+  data: ProfileResponse
+  status: 200
+}
+
+export type ageConsentAccountAgeConsentPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type ageConsentAccountAgeConsentPostResponseSuccess = (ageConsentAccountAgeConsentPostResponse200) & {
+  headers: Headers;
+};
+export type ageConsentAccountAgeConsentPostResponseError = (ageConsentAccountAgeConsentPostResponse422) & {
+  headers: Headers;
+};
+
+export type ageConsentAccountAgeConsentPostResponse = (ageConsentAccountAgeConsentPostResponseSuccess | ageConsentAccountAgeConsentPostResponseError)
+
+export const getAgeConsentAccountAgeConsentPostUrl = () => {
+
+
+
+
+  return `/account/age-consent`
+}
+
+/**
+ * @summary Age Consent
+ */
+export const ageConsentAccountAgeConsentPost = async ( options?: RequestInit): Promise<ageConsentAccountAgeConsentPostResponse> => {
+
+  const res = await fetch(getAgeConsentAccountAgeConsentPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: ageConsentAccountAgeConsentPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as ageConsentAccountAgeConsentPostResponse
+}
+
+
+
+export type onboardingAccountOnboardingPostResponse200 = {
+  data: ProfileResponse
+  status: 200
+}
+
+export type onboardingAccountOnboardingPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type onboardingAccountOnboardingPostResponseSuccess = (onboardingAccountOnboardingPostResponse200) & {
+  headers: Headers;
+};
+export type onboardingAccountOnboardingPostResponseError = (onboardingAccountOnboardingPostResponse422) & {
+  headers: Headers;
+};
+
+export type onboardingAccountOnboardingPostResponse = (onboardingAccountOnboardingPostResponseSuccess | onboardingAccountOnboardingPostResponseError)
+
+export const getOnboardingAccountOnboardingPostUrl = () => {
+
+
+
+
+  return `/account/onboarding`
+}
+
+/**
+ * @summary Onboarding
+ */
+export const onboardingAccountOnboardingPost = async (onboardingRequest: OnboardingRequest, options?: RequestInit): Promise<onboardingAccountOnboardingPostResponse> => {
+
+  const res = await fetch(getOnboardingAccountOnboardingPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(onboardingRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: onboardingAccountOnboardingPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as onboardingAccountOnboardingPostResponse
+}
+
+
+
+export type logoutAuthLogoutPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type logoutAuthLogoutPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type logoutAuthLogoutPostResponseSuccess = (logoutAuthLogoutPostResponse204) & {
+  headers: Headers;
+};
+export type logoutAuthLogoutPostResponseError = (logoutAuthLogoutPostResponse422) & {
+  headers: Headers;
+};
+
+export type logoutAuthLogoutPostResponse = (logoutAuthLogoutPostResponseSuccess | logoutAuthLogoutPostResponseError)
+
+export const getLogoutAuthLogoutPostUrl = () => {
+
+
+
+
+  return `/auth/logout`
+}
+
+/**
+ * @summary Logout
+ */
+export const logoutAuthLogoutPost = async ( options?: RequestInit): Promise<logoutAuthLogoutPostResponse> => {
+
+  const res = await fetch(getLogoutAuthLogoutPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: logoutAuthLogoutPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as logoutAuthLogoutPostResponse
+}
+
+
+
+export type publishedEventsEventsGetResponse200 = {
+  data: PublishedEventsEventsGet200
+  status: 200
+}
+
+export type publishedEventsEventsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type publishedEventsEventsGetResponseSuccess = (publishedEventsEventsGetResponse200) & {
+  headers: Headers;
+};
+export type publishedEventsEventsGetResponseError = (publishedEventsEventsGetResponse422) & {
+  headers: Headers;
+};
+
+export type publishedEventsEventsGetResponse = (publishedEventsEventsGetResponseSuccess | publishedEventsEventsGetResponseError)
+
+export const getPublishedEventsEventsGetUrl = (params: PublishedEventsEventsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/events?${stringifiedParams}` : `/events`
+}
+
+/**
+ * @summary Published Events
+ */
+export const publishedEventsEventsGet = async (params: PublishedEventsEventsGetParams, options?: RequestInit): Promise<publishedEventsEventsGetResponse> => {
+
+  const res = await fetch(getPublishedEventsEventsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: publishedEventsEventsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as publishedEventsEventsGetResponse
+}
+
+
+
+export type submitEventEventsPostResponse201 = {
+  data: CreateEventResponse
+  status: 201
+}
+
+export type submitEventEventsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type submitEventEventsPostResponseSuccess = (submitEventEventsPostResponse201) & {
+  headers: Headers;
+};
+export type submitEventEventsPostResponseError = (submitEventEventsPostResponse422) & {
+  headers: Headers;
+};
+
+export type submitEventEventsPostResponse = (submitEventEventsPostResponseSuccess | submitEventEventsPostResponseError)
+
+export const getSubmitEventEventsPostUrl = () => {
+
+
+
+
+  return `/events`
+}
+
+/**
+ * @summary Submit Event
+ */
+export const submitEventEventsPost = async (createEventRequest: CreateEventRequest, options?: RequestInit): Promise<submitEventEventsPostResponse> => {
+
+  const res = await fetch(getSubmitEventEventsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createEventRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: submitEventEventsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as submitEventEventsPostResponse
+}
+
+
+
+export type publishedEventDetailEventsEventIdGetResponse200 = {
+  data: PublishedEventDetailEventsEventIdGet200
+  status: 200
+}
+
+export type publishedEventDetailEventsEventIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type publishedEventDetailEventsEventIdGetResponseSuccess = (publishedEventDetailEventsEventIdGetResponse200) & {
+  headers: Headers;
+};
+export type publishedEventDetailEventsEventIdGetResponseError = (publishedEventDetailEventsEventIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type publishedEventDetailEventsEventIdGetResponse = (publishedEventDetailEventsEventIdGetResponseSuccess | publishedEventDetailEventsEventIdGetResponseError)
+
+export const getPublishedEventDetailEventsEventIdGetUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}`
+}
+
+/**
+ * @summary Published Event Detail
+ */
+export const publishedEventDetailEventsEventIdGet = async (eventId: string, options?: RequestInit): Promise<publishedEventDetailEventsEventIdGetResponse> => {
+
+  const res = await fetch(getPublishedEventDetailEventsEventIdGetUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: publishedEventDetailEventsEventIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as publishedEventDetailEventsEventIdGetResponse
+}
+
+
+
+export type publishedEventPhotoEventsEventIdPhotoGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type publishedEventPhotoEventsEventIdPhotoGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type publishedEventPhotoEventsEventIdPhotoGetResponseSuccess = (publishedEventPhotoEventsEventIdPhotoGetResponse200) & {
+  headers: Headers;
+};
+export type publishedEventPhotoEventsEventIdPhotoGetResponseError = (publishedEventPhotoEventsEventIdPhotoGetResponse422) & {
+  headers: Headers;
+};
+
+export type publishedEventPhotoEventsEventIdPhotoGetResponse = (publishedEventPhotoEventsEventIdPhotoGetResponseSuccess | publishedEventPhotoEventsEventIdPhotoGetResponseError)
+
+export const getPublishedEventPhotoEventsEventIdPhotoGetUrl = (eventId: string,
+    params?: PublishedEventPhotoEventsEventIdPhotoGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/events/${eventId}/photo?${stringifiedParams}` : `/events/${eventId}/photo`
+}
+
+/**
+ * @summary Published Event Photo
+ */
+export const publishedEventPhotoEventsEventIdPhotoGet = async (eventId: string,
+    params?: PublishedEventPhotoEventsEventIdPhotoGetParams, options?: RequestInit): Promise<publishedEventPhotoEventsEventIdPhotoGetResponse> => {
+
+  const res = await fetch(getPublishedEventPhotoEventsEventIdPhotoGetUrl(eventId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: publishedEventPhotoEventsEventIdPhotoGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as publishedEventPhotoEventsEventIdPhotoGetResponse
+}
+
+
+
+export type markEventInterestingEventsEventIdInterestPutResponse200 = {
+  data: MarkEventInterestingEventsEventIdInterestPut200
+  status: 200
+}
+
+export type markEventInterestingEventsEventIdInterestPutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type markEventInterestingEventsEventIdInterestPutResponseSuccess = (markEventInterestingEventsEventIdInterestPutResponse200) & {
+  headers: Headers;
+};
+export type markEventInterestingEventsEventIdInterestPutResponseError = (markEventInterestingEventsEventIdInterestPutResponse422) & {
+  headers: Headers;
+};
+
+export type markEventInterestingEventsEventIdInterestPutResponse = (markEventInterestingEventsEventIdInterestPutResponseSuccess | markEventInterestingEventsEventIdInterestPutResponseError)
+
+export const getMarkEventInterestingEventsEventIdInterestPutUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/interest`
+}
+
+/**
+ * @summary Mark Event Interesting
+ */
+export const markEventInterestingEventsEventIdInterestPut = async (eventId: string, options?: RequestInit): Promise<markEventInterestingEventsEventIdInterestPutResponse> => {
+
+  const res = await fetch(getMarkEventInterestingEventsEventIdInterestPutUrl(eventId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: markEventInterestingEventsEventIdInterestPutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as markEventInterestingEventsEventIdInterestPutResponse
+}
+
+
+
+export type unmarkEventInterestingEventsEventIdInterestDeleteResponse200 = {
+  data: UnmarkEventInterestingEventsEventIdInterestDelete200
+  status: 200
+}
+
+export type unmarkEventInterestingEventsEventIdInterestDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type unmarkEventInterestingEventsEventIdInterestDeleteResponseSuccess = (unmarkEventInterestingEventsEventIdInterestDeleteResponse200) & {
+  headers: Headers;
+};
+export type unmarkEventInterestingEventsEventIdInterestDeleteResponseError = (unmarkEventInterestingEventsEventIdInterestDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type unmarkEventInterestingEventsEventIdInterestDeleteResponse = (unmarkEventInterestingEventsEventIdInterestDeleteResponseSuccess | unmarkEventInterestingEventsEventIdInterestDeleteResponseError)
+
+export const getUnmarkEventInterestingEventsEventIdInterestDeleteUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/interest`
+}
+
+/**
+ * @summary Unmark Event Interesting
+ */
+export const unmarkEventInterestingEventsEventIdInterestDelete = async (eventId: string, options?: RequestInit): Promise<unmarkEventInterestingEventsEventIdInterestDeleteResponse> => {
+
+  const res = await fetch(getUnmarkEventInterestingEventsEventIdInterestDeleteUrl(eventId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: unmarkEventInterestingEventsEventIdInterestDeleteResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as unmarkEventInterestingEventsEventIdInterestDeleteResponse
+}
+
+
+
+export type joinPublishedEventEventsEventIdJoinPostResponse200 = {
+  data: JoinPublishedEventEventsEventIdJoinPost200
+  status: 200
+}
+
+export type joinPublishedEventEventsEventIdJoinPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type joinPublishedEventEventsEventIdJoinPostResponseSuccess = (joinPublishedEventEventsEventIdJoinPostResponse200) & {
+  headers: Headers;
+};
+export type joinPublishedEventEventsEventIdJoinPostResponseError = (joinPublishedEventEventsEventIdJoinPostResponse422) & {
+  headers: Headers;
+};
+
+export type joinPublishedEventEventsEventIdJoinPostResponse = (joinPublishedEventEventsEventIdJoinPostResponseSuccess | joinPublishedEventEventsEventIdJoinPostResponseError)
+
+export const getJoinPublishedEventEventsEventIdJoinPostUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/join`
+}
+
+/**
+ * @summary Join Published Event
+ */
+export const joinPublishedEventEventsEventIdJoinPost = async (eventId: string, options?: RequestInit): Promise<joinPublishedEventEventsEventIdJoinPostResponse> => {
+
+  const res = await fetch(getJoinPublishedEventEventsEventIdJoinPostUrl(eventId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: joinPublishedEventEventsEventIdJoinPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as joinPublishedEventEventsEventIdJoinPostResponse
+}
+
+
+
+export type leavePublishedEventEventsEventIdLeavePostResponse200 = {
+  data: LeavePublishedEventEventsEventIdLeavePost200
+  status: 200
+}
+
+export type leavePublishedEventEventsEventIdLeavePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type leavePublishedEventEventsEventIdLeavePostResponseSuccess = (leavePublishedEventEventsEventIdLeavePostResponse200) & {
+  headers: Headers;
+};
+export type leavePublishedEventEventsEventIdLeavePostResponseError = (leavePublishedEventEventsEventIdLeavePostResponse422) & {
+  headers: Headers;
+};
+
+export type leavePublishedEventEventsEventIdLeavePostResponse = (leavePublishedEventEventsEventIdLeavePostResponseSuccess | leavePublishedEventEventsEventIdLeavePostResponseError)
+
+export const getLeavePublishedEventEventsEventIdLeavePostUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/leave`
+}
+
+/**
+ * @summary Leave Published Event
+ */
+export const leavePublishedEventEventsEventIdLeavePost = async (eventId: string, options?: RequestInit): Promise<leavePublishedEventEventsEventIdLeavePostResponse> => {
+
+  const res = await fetch(getLeavePublishedEventEventsEventIdLeavePostUrl(eventId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: leavePublishedEventEventsEventIdLeavePostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as leavePublishedEventEventsEventIdLeavePostResponse
+}
+
+
+
+export type getEventManagementEventsEventIdManageGetResponse200 = {
+  data: GetEventManagementEventsEventIdManageGet200
+  status: 200
+}
+
+export type getEventManagementEventsEventIdManageGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getEventManagementEventsEventIdManageGetResponseSuccess = (getEventManagementEventsEventIdManageGetResponse200) & {
+  headers: Headers;
+};
+export type getEventManagementEventsEventIdManageGetResponseError = (getEventManagementEventsEventIdManageGetResponse422) & {
+  headers: Headers;
+};
+
+export type getEventManagementEventsEventIdManageGetResponse = (getEventManagementEventsEventIdManageGetResponseSuccess | getEventManagementEventsEventIdManageGetResponseError)
+
+export const getGetEventManagementEventsEventIdManageGetUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/manage`
+}
+
+/**
+ * @summary Get Event Management
+ */
+export const getEventManagementEventsEventIdManageGet = async (eventId: string, options?: RequestInit): Promise<getEventManagementEventsEventIdManageGetResponse> => {
+
+  const res = await fetch(getGetEventManagementEventsEventIdManageGetUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getEventManagementEventsEventIdManageGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getEventManagementEventsEventIdManageGetResponse
+}
+
+
+
+export type getEventRosterEventsEventIdManageRosterGetResponse200 = {
+  data: GetEventRosterEventsEventIdManageRosterGet200
+  status: 200
+}
+
+export type getEventRosterEventsEventIdManageRosterGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getEventRosterEventsEventIdManageRosterGetResponseSuccess = (getEventRosterEventsEventIdManageRosterGetResponse200) & {
+  headers: Headers;
+};
+export type getEventRosterEventsEventIdManageRosterGetResponseError = (getEventRosterEventsEventIdManageRosterGetResponse422) & {
+  headers: Headers;
+};
+
+export type getEventRosterEventsEventIdManageRosterGetResponse = (getEventRosterEventsEventIdManageRosterGetResponseSuccess | getEventRosterEventsEventIdManageRosterGetResponseError)
+
+export const getGetEventRosterEventsEventIdManageRosterGetUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/manage/roster`
+}
+
+/**
+ * @summary Get Event Roster
+ */
+export const getEventRosterEventsEventIdManageRosterGet = async (eventId: string, options?: RequestInit): Promise<getEventRosterEventsEventIdManageRosterGetResponse> => {
+
+  const res = await fetch(getGetEventRosterEventsEventIdManageRosterGetUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getEventRosterEventsEventIdManageRosterGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getEventRosterEventsEventIdManageRosterGetResponse
+}
+
+
+
+export type excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponseSuccess = (excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse204) & {
+  headers: Headers;
+};
+export type excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponseError = (excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse422) & {
+  headers: Headers;
+};
+
+export type excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse = (excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponseSuccess | excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponseError)
+
+export const getExcludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostUrl = (eventId: string,
+    participationId: string,) => {
+
+
+
+
+  return `/events/${eventId}/participants/${participationId}/exclude`
+}
+
+/**
+ * @summary Exclude Event Participant
+ */
+export const excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePost = async (eventId: string,
+    participationId: string,
+    excludeParticipantRequest: ExcludeParticipantRequest, options?: RequestInit): Promise<excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse> => {
+
+  const res = await fetch(getExcludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostUrl(eventId,participationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(excludeParticipantRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as excludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostResponse
+}
+
+
+
+export type getManagedEventPhotoEventsEventIdManagePhotoGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type getManagedEventPhotoEventsEventIdManagePhotoGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getManagedEventPhotoEventsEventIdManagePhotoGetResponseSuccess = (getManagedEventPhotoEventsEventIdManagePhotoGetResponse200) & {
+  headers: Headers;
+};
+export type getManagedEventPhotoEventsEventIdManagePhotoGetResponseError = (getManagedEventPhotoEventsEventIdManagePhotoGetResponse422) & {
+  headers: Headers;
+};
+
+export type getManagedEventPhotoEventsEventIdManagePhotoGetResponse = (getManagedEventPhotoEventsEventIdManagePhotoGetResponseSuccess | getManagedEventPhotoEventsEventIdManagePhotoGetResponseError)
+
+export const getGetManagedEventPhotoEventsEventIdManagePhotoGetUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/manage/photo`
+}
+
+/**
+ * @summary Get Managed Event Photo
+ */
+export const getManagedEventPhotoEventsEventIdManagePhotoGet = async (eventId: string, options?: RequestInit): Promise<getManagedEventPhotoEventsEventIdManagePhotoGetResponse> => {
+
+  const res = await fetch(getGetManagedEventPhotoEventsEventIdManagePhotoGetUrl(eventId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getManagedEventPhotoEventsEventIdManagePhotoGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getManagedEventPhotoEventsEventIdManagePhotoGetResponse
+}
+
+
+
+export type revisePublishedEventEventsEventIdRevisionsPostResponse202 = {
+  data: RevisePublishedEventEventsEventIdRevisionsPost202
+  status: 202
+}
+
+export type revisePublishedEventEventsEventIdRevisionsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type revisePublishedEventEventsEventIdRevisionsPostResponseSuccess = (revisePublishedEventEventsEventIdRevisionsPostResponse202) & {
+  headers: Headers;
+};
+export type revisePublishedEventEventsEventIdRevisionsPostResponseError = (revisePublishedEventEventsEventIdRevisionsPostResponse422) & {
+  headers: Headers;
+};
+
+export type revisePublishedEventEventsEventIdRevisionsPostResponse = (revisePublishedEventEventsEventIdRevisionsPostResponseSuccess | revisePublishedEventEventsEventIdRevisionsPostResponseError)
+
+export const getRevisePublishedEventEventsEventIdRevisionsPostUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/revisions`
+}
+
+/**
+ * @summary Revise Published Event
+ */
+export const revisePublishedEventEventsEventIdRevisionsPost = async (eventId: string,
+    changeEventRequest: ChangeEventRequest, options?: RequestInit): Promise<revisePublishedEventEventsEventIdRevisionsPostResponse> => {
+
+  const res = await fetch(getRevisePublishedEventEventsEventIdRevisionsPostUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(changeEventRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: revisePublishedEventEventsEventIdRevisionsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as revisePublishedEventEventsEventIdRevisionsPostResponse
+}
+
+
+
+export type cancelPublishedEventEventsEventIdCancelPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type cancelPublishedEventEventsEventIdCancelPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type cancelPublishedEventEventsEventIdCancelPostResponseSuccess = (cancelPublishedEventEventsEventIdCancelPostResponse204) & {
+  headers: Headers;
+};
+export type cancelPublishedEventEventsEventIdCancelPostResponseError = (cancelPublishedEventEventsEventIdCancelPostResponse422) & {
+  headers: Headers;
+};
+
+export type cancelPublishedEventEventsEventIdCancelPostResponse = (cancelPublishedEventEventsEventIdCancelPostResponseSuccess | cancelPublishedEventEventsEventIdCancelPostResponseError)
+
+export const getCancelPublishedEventEventsEventIdCancelPostUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/cancel`
+}
+
+/**
+ * @summary Cancel Published Event
+ */
+export const cancelPublishedEventEventsEventIdCancelPost = async (eventId: string,
+    cancelEventRequest: CancelEventRequest, options?: RequestInit): Promise<cancelPublishedEventEventsEventIdCancelPostResponse> => {
+
+  const res = await fetch(getCancelPublishedEventEventsEventIdCancelPostUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cancelEventRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: cancelPublishedEventEventsEventIdCancelPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as cancelPublishedEventEventsEventIdCancelPostResponse
+}
+
+
+
+export type messagesEventsEventIdChatGetResponse200 = {
+  data: MessagesEventsEventIdChatGet200
+  status: 200
+}
+
+export type messagesEventsEventIdChatGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type messagesEventsEventIdChatGetResponseSuccess = (messagesEventsEventIdChatGetResponse200) & {
+  headers: Headers;
+};
+export type messagesEventsEventIdChatGetResponseError = (messagesEventsEventIdChatGetResponse422) & {
+  headers: Headers;
+};
+
+export type messagesEventsEventIdChatGetResponse = (messagesEventsEventIdChatGetResponseSuccess | messagesEventsEventIdChatGetResponseError)
+
+export const getMessagesEventsEventIdChatGetUrl = (eventId: string,
+    params?: MessagesEventsEventIdChatGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/events/${eventId}/chat?${stringifiedParams}` : `/events/${eventId}/chat`
+}
+
+/**
+ * @summary Messages
+ */
+export const messagesEventsEventIdChatGet = async (eventId: string,
+    params?: MessagesEventsEventIdChatGetParams, options?: RequestInit): Promise<messagesEventsEventIdChatGetResponse> => {
+
+  const res = await fetch(getMessagesEventsEventIdChatGetUrl(eventId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: messagesEventsEventIdChatGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as messagesEventsEventIdChatGetResponse
+}
+
+
+
+export type sendEventsEventIdChatPostResponse201 = {
+  data: SendEventsEventIdChatPost201
+  status: 201
+}
+
+export type sendEventsEventIdChatPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type sendEventsEventIdChatPostResponseSuccess = (sendEventsEventIdChatPostResponse201) & {
+  headers: Headers;
+};
+export type sendEventsEventIdChatPostResponseError = (sendEventsEventIdChatPostResponse422) & {
+  headers: Headers;
+};
+
+export type sendEventsEventIdChatPostResponse = (sendEventsEventIdChatPostResponseSuccess | sendEventsEventIdChatPostResponseError)
+
+export const getSendEventsEventIdChatPostUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/chat`
+}
+
+/**
+ * @summary Send
+ */
+export const sendEventsEventIdChatPost = async (eventId: string,
+    chatMessageRequest: ChatMessageRequest, options?: RequestInit): Promise<sendEventsEventIdChatPostResponse> => {
+
+  const res = await fetch(getSendEventsEventIdChatPostUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatMessageRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: sendEventsEventIdChatPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as sendEventsEventIdChatPostResponse
+}
+
+
+
+export type setStateEventsEventIdChatPutResponse200 = {
+  data: SetStateEventsEventIdChatPut200
+  status: 200
+}
+
+export type setStateEventsEventIdChatPutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type setStateEventsEventIdChatPutResponseSuccess = (setStateEventsEventIdChatPutResponse200) & {
+  headers: Headers;
+};
+export type setStateEventsEventIdChatPutResponseError = (setStateEventsEventIdChatPutResponse422) & {
+  headers: Headers;
+};
+
+export type setStateEventsEventIdChatPutResponse = (setStateEventsEventIdChatPutResponseSuccess | setStateEventsEventIdChatPutResponseError)
+
+export const getSetStateEventsEventIdChatPutUrl = (eventId: string,) => {
+
+
+
+
+  return `/events/${eventId}/chat`
+}
+
+/**
+ * @summary Set State
+ */
+export const setStateEventsEventIdChatPut = async (eventId: string,
+    chatStateRequest: ChatStateRequest, options?: RequestInit): Promise<setStateEventsEventIdChatPutResponse> => {
+
+  const res = await fetch(getSetStateEventsEventIdChatPutUrl(eventId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(chatStateRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: setStateEventsEventIdChatPutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as setStateEventsEventIdChatPutResponse
+}
+
+
+
+export type feedLookingPostsGetResponse200 = {
+  data: FeedLookingPostsGet200
+  status: 200
+}
+
+export type feedLookingPostsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type feedLookingPostsGetResponseSuccess = (feedLookingPostsGetResponse200) & {
+  headers: Headers;
+};
+export type feedLookingPostsGetResponseError = (feedLookingPostsGetResponse422) & {
+  headers: Headers;
+};
+
+export type feedLookingPostsGetResponse = (feedLookingPostsGetResponseSuccess | feedLookingPostsGetResponseError)
+
+export const getFeedLookingPostsGetUrl = (params: FeedLookingPostsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/looking-posts?${stringifiedParams}` : `/looking-posts`
+}
+
+/**
+ * @summary Feed
+ */
+export const feedLookingPostsGet = async (params: FeedLookingPostsGetParams, options?: RequestInit): Promise<feedLookingPostsGetResponse> => {
+
+  const res = await fetch(getFeedLookingPostsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: feedLookingPostsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as feedLookingPostsGetResponse
+}
+
+
+
+export type createLookingPostsPostResponse201 = {
+  data: CreateLookingPostsPost201
+  status: 201
+}
+
+export type createLookingPostsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createLookingPostsPostResponseSuccess = (createLookingPostsPostResponse201) & {
+  headers: Headers;
+};
+export type createLookingPostsPostResponseError = (createLookingPostsPostResponse422) & {
+  headers: Headers;
+};
+
+export type createLookingPostsPostResponse = (createLookingPostsPostResponseSuccess | createLookingPostsPostResponseError)
+
+export const getCreateLookingPostsPostUrl = () => {
+
+
+
+
+  return `/looking-posts`
+}
+
+/**
+ * @summary Create
+ */
+export const createLookingPostsPost = async (lookingPostRequest: LookingPostRequest, options?: RequestInit): Promise<createLookingPostsPostResponse> => {
+
+  const res = await fetch(getCreateLookingPostsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(lookingPostRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createLookingPostsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createLookingPostsPostResponse
+}
+
+
+
+export type detailLookingPostsPostIdGetResponse200 = {
+  data: DetailLookingPostsPostIdGet200
+  status: 200
+}
+
+export type detailLookingPostsPostIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type detailLookingPostsPostIdGetResponseSuccess = (detailLookingPostsPostIdGetResponse200) & {
+  headers: Headers;
+};
+export type detailLookingPostsPostIdGetResponseError = (detailLookingPostsPostIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type detailLookingPostsPostIdGetResponse = (detailLookingPostsPostIdGetResponseSuccess | detailLookingPostsPostIdGetResponseError)
+
+export const getDetailLookingPostsPostIdGetUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}`
+}
+
+/**
+ * @summary Detail
+ */
+export const detailLookingPostsPostIdGet = async (postId: string, options?: RequestInit): Promise<detailLookingPostsPostIdGetResponse> => {
+
+  const res = await fetch(getDetailLookingPostsPostIdGetUrl(postId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: detailLookingPostsPostIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as detailLookingPostsPostIdGetResponse
+}
+
+
+
+export type withdrawLookingPostsPostIdDeleteResponse204 = {
+  data: void
+  status: 204
+}
+
+export type withdrawLookingPostsPostIdDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type withdrawLookingPostsPostIdDeleteResponseSuccess = (withdrawLookingPostsPostIdDeleteResponse204) & {
+  headers: Headers;
+};
+export type withdrawLookingPostsPostIdDeleteResponseError = (withdrawLookingPostsPostIdDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type withdrawLookingPostsPostIdDeleteResponse = (withdrawLookingPostsPostIdDeleteResponseSuccess | withdrawLookingPostsPostIdDeleteResponseError)
+
+export const getWithdrawLookingPostsPostIdDeleteUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}`
+}
+
+/**
+ * @summary Withdraw
+ */
+export const withdrawLookingPostsPostIdDelete = async (postId: string, options?: RequestInit): Promise<withdrawLookingPostsPostIdDeleteResponse> => {
+
+  const res = await fetch(getWithdrawLookingPostsPostIdDeleteUrl(postId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: withdrawLookingPostsPostIdDeleteResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as withdrawLookingPostsPostIdDeleteResponse
+}
+
+
+
+export type likeLookingPostsPostIdLikePutResponse200 = {
+  data: LikeLookingPostsPostIdLikePut200
+  status: 200
+}
+
+export type likeLookingPostsPostIdLikePutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type likeLookingPostsPostIdLikePutResponseSuccess = (likeLookingPostsPostIdLikePutResponse200) & {
+  headers: Headers;
+};
+export type likeLookingPostsPostIdLikePutResponseError = (likeLookingPostsPostIdLikePutResponse422) & {
+  headers: Headers;
+};
+
+export type likeLookingPostsPostIdLikePutResponse = (likeLookingPostsPostIdLikePutResponseSuccess | likeLookingPostsPostIdLikePutResponseError)
+
+export const getLikeLookingPostsPostIdLikePutUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/like`
+}
+
+/**
+ * @summary Like
+ */
+export const likeLookingPostsPostIdLikePut = async (postId: string, options?: RequestInit): Promise<likeLookingPostsPostIdLikePutResponse> => {
+
+  const res = await fetch(getLikeLookingPostsPostIdLikePutUrl(postId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: likeLookingPostsPostIdLikePutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as likeLookingPostsPostIdLikePutResponse
+}
+
+
+
+export type unlikeLookingPostsPostIdLikeDeleteResponse204 = {
+  data: void
+  status: 204
+}
+
+export type unlikeLookingPostsPostIdLikeDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type unlikeLookingPostsPostIdLikeDeleteResponseSuccess = (unlikeLookingPostsPostIdLikeDeleteResponse204) & {
+  headers: Headers;
+};
+export type unlikeLookingPostsPostIdLikeDeleteResponseError = (unlikeLookingPostsPostIdLikeDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type unlikeLookingPostsPostIdLikeDeleteResponse = (unlikeLookingPostsPostIdLikeDeleteResponseSuccess | unlikeLookingPostsPostIdLikeDeleteResponseError)
+
+export const getUnlikeLookingPostsPostIdLikeDeleteUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/like`
+}
+
+/**
+ * @summary Unlike
+ */
+export const unlikeLookingPostsPostIdLikeDelete = async (postId: string, options?: RequestInit): Promise<unlikeLookingPostsPostIdLikeDeleteResponse> => {
+
+  const res = await fetch(getUnlikeLookingPostsPostIdLikeDeleteUrl(postId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: unlikeLookingPostsPostIdLikeDeleteResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as unlikeLookingPostsPostIdLikeDeleteResponse
+}
+
+
+
+export type questionsLookingPostsPostIdQuestionsGetResponse200 = {
+  data: QuestionsLookingPostsPostIdQuestionsGet200
+  status: 200
+}
+
+export type questionsLookingPostsPostIdQuestionsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type questionsLookingPostsPostIdQuestionsGetResponseSuccess = (questionsLookingPostsPostIdQuestionsGetResponse200) & {
+  headers: Headers;
+};
+export type questionsLookingPostsPostIdQuestionsGetResponseError = (questionsLookingPostsPostIdQuestionsGetResponse422) & {
+  headers: Headers;
+};
+
+export type questionsLookingPostsPostIdQuestionsGetResponse = (questionsLookingPostsPostIdQuestionsGetResponseSuccess | questionsLookingPostsPostIdQuestionsGetResponseError)
+
+export const getQuestionsLookingPostsPostIdQuestionsGetUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/questions`
+}
+
+/**
+ * @summary Questions
+ */
+export const questionsLookingPostsPostIdQuestionsGet = async (postId: string, options?: RequestInit): Promise<questionsLookingPostsPostIdQuestionsGetResponse> => {
+
+  const res = await fetch(getQuestionsLookingPostsPostIdQuestionsGetUrl(postId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: questionsLookingPostsPostIdQuestionsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as questionsLookingPostsPostIdQuestionsGetResponse
+}
+
+
+
+export type questionLookingPostsPostIdQuestionsPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type questionLookingPostsPostIdQuestionsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type questionLookingPostsPostIdQuestionsPostResponseSuccess = (questionLookingPostsPostIdQuestionsPostResponse204) & {
+  headers: Headers;
+};
+export type questionLookingPostsPostIdQuestionsPostResponseError = (questionLookingPostsPostIdQuestionsPostResponse422) & {
+  headers: Headers;
+};
+
+export type questionLookingPostsPostIdQuestionsPostResponse = (questionLookingPostsPostIdQuestionsPostResponseSuccess | questionLookingPostsPostIdQuestionsPostResponseError)
+
+export const getQuestionLookingPostsPostIdQuestionsPostUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/questions`
+}
+
+/**
+ * @summary Question
+ */
+export const questionLookingPostsPostIdQuestionsPost = async (postId: string,
+    questionRequest: QuestionRequest, options?: RequestInit): Promise<questionLookingPostsPostIdQuestionsPostResponse> => {
+
+  const res = await fetch(getQuestionLookingPostsPostIdQuestionsPostUrl(postId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(questionRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: questionLookingPostsPostIdQuestionsPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as questionLookingPostsPostIdQuestionsPostResponse
+}
+
+
+
+export type reportLookingPostsPostIdReportsPostResponse201 = {
+  data: ReportLookingPostsPostIdReportsPost201
+  status: 201
+}
+
+export type reportLookingPostsPostIdReportsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type reportLookingPostsPostIdReportsPostResponseSuccess = (reportLookingPostsPostIdReportsPostResponse201) & {
+  headers: Headers;
+};
+export type reportLookingPostsPostIdReportsPostResponseError = (reportLookingPostsPostIdReportsPostResponse422) & {
+  headers: Headers;
+};
+
+export type reportLookingPostsPostIdReportsPostResponse = (reportLookingPostsPostIdReportsPostResponseSuccess | reportLookingPostsPostIdReportsPostResponseError)
+
+export const getReportLookingPostsPostIdReportsPostUrl = (postId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/reports`
+}
+
+/**
+ * @summary Report
+ */
+export const reportLookingPostsPostIdReportsPost = async (postId: string,
+    afishabotAdaptersHttpLookingPostsReportRequest: AfishabotAdaptersHttpLookingPostsReportRequest, options?: RequestInit): Promise<reportLookingPostsPostIdReportsPostResponse> => {
+
+  const res = await fetch(getReportLookingPostsPostIdReportsPostUrl(postId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(afishabotAdaptersHttpLookingPostsReportRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: reportLookingPostsPostIdReportsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as reportLookingPostsPostIdReportsPostResponse
+}
+
+
+
+export type answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponseSuccess = (answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse204) & {
+  headers: Headers;
+};
+export type answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponseError = (answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse422) & {
+  headers: Headers;
+};
+
+export type answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse = (answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponseSuccess | answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponseError)
+
+export const getAnswerLookingPostsPostIdQuestionsQuestionIdAnswerPostUrl = (postId: string,
+    questionId: string,) => {
+
+
+
+
+  return `/looking-posts/${postId}/questions/${questionId}/answer`
+}
+
+/**
+ * @summary Answer
+ */
+export const answerLookingPostsPostIdQuestionsQuestionIdAnswerPost = async (postId: string,
+    questionId: string,
+    answerRequest: AnswerRequest, options?: RequestInit): Promise<answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse> => {
+
+  const res = await fetch(getAnswerLookingPostsPostIdQuestionsQuestionIdAnswerPostUrl(postId,questionId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(answerRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as answerLookingPostsPostIdQuestionsQuestionIdAnswerPostResponse
+}
+
+
+
+export type anonymousPublicProfilePublicProfilesPublicIdGetResponse200 = {
+  data: AnonymousPublicProfileResponse
+  status: 200
+}
+
+export type anonymousPublicProfilePublicProfilesPublicIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type anonymousPublicProfilePublicProfilesPublicIdGetResponseSuccess = (anonymousPublicProfilePublicProfilesPublicIdGetResponse200) & {
+  headers: Headers;
+};
+export type anonymousPublicProfilePublicProfilesPublicIdGetResponseError = (anonymousPublicProfilePublicProfilesPublicIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type anonymousPublicProfilePublicProfilesPublicIdGetResponse = (anonymousPublicProfilePublicProfilesPublicIdGetResponseSuccess | anonymousPublicProfilePublicProfilesPublicIdGetResponseError)
+
+export const getAnonymousPublicProfilePublicProfilesPublicIdGetUrl = (publicId: string,) => {
+
+
+
+
+  return `/public/profiles/${publicId}`
+}
+
+/**
+ * @summary Anonymous Public Profile
+ */
+export const anonymousPublicProfilePublicProfilesPublicIdGet = async (publicId: string, options?: RequestInit): Promise<anonymousPublicProfilePublicProfilesPublicIdGetResponse> => {
+
+  const res = await fetch(getAnonymousPublicProfilePublicProfilesPublicIdGetUrl(publicId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: anonymousPublicProfilePublicProfilesPublicIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as anonymousPublicProfilePublicProfilesPublicIdGetResponse
+}
+
+
+
+export type anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponseSuccess = (anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse200) & {
+  headers: Headers;
+};
+export type anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponseError = (anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse422) & {
+  headers: Headers;
+};
+
+export type anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse = (anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponseSuccess | anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponseError)
+
+export const getAnonymousProfileAvatarPublicProfilesPublicIdAvatarGetUrl = (publicId: string,
+    params?: AnonymousProfileAvatarPublicProfilesPublicIdAvatarGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/public/profiles/${publicId}/avatar?${stringifiedParams}` : `/public/profiles/${publicId}/avatar`
+}
+
+/**
+ * @summary Anonymous Profile Avatar
+ */
+export const anonymousProfileAvatarPublicProfilesPublicIdAvatarGet = async (publicId: string,
+    params?: AnonymousProfileAvatarPublicProfilesPublicIdAvatarGetParams, options?: RequestInit): Promise<anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse> => {
+
+  const res = await fetch(getAnonymousProfileAvatarPublicProfilesPublicIdAvatarGetUrl(publicId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as anonymousProfileAvatarPublicProfilesPublicIdAvatarGetResponse
+}
+
+
+
+export type anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponseSuccess = (anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse200) & {
+  headers: Headers;
+};
+export type anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponseError = (anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse422) & {
+  headers: Headers;
+};
+
+export type anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse = (anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponseSuccess | anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponseError)
+
+export const getAnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetUrl = (publicId: string,
+    params?: AnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/public/profiles/${publicId}/background?${stringifiedParams}` : `/public/profiles/${publicId}/background`
+}
+
+/**
+ * @summary Anonymous Profile Background
+ */
+export const anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGet = async (publicId: string,
+    params?: AnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetParams, options?: RequestInit): Promise<anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse> => {
+
+  const res = await fetch(getAnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetUrl(publicId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as anonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetResponse
+}
+
+
+
+export type getOwnProfileAccountProfileGetResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type getOwnProfileAccountProfileGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getOwnProfileAccountProfileGetResponseSuccess = (getOwnProfileAccountProfileGetResponse200) & {
+  headers: Headers;
+};
+export type getOwnProfileAccountProfileGetResponseError = (getOwnProfileAccountProfileGetResponse422) & {
+  headers: Headers;
+};
+
+export type getOwnProfileAccountProfileGetResponse = (getOwnProfileAccountProfileGetResponseSuccess | getOwnProfileAccountProfileGetResponseError)
+
+export const getGetOwnProfileAccountProfileGetUrl = () => {
+
+
+
+
+  return `/account/profile`
+}
+
+/**
+ * @summary Get Own Profile
+ */
+export const getOwnProfileAccountProfileGet = async ( options?: RequestInit): Promise<getOwnProfileAccountProfileGetResponse> => {
+
+  const res = await fetch(getGetOwnProfileAccountProfileGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getOwnProfileAccountProfileGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getOwnProfileAccountProfileGetResponse
+}
+
+
+
+export type patchProfileAccountProfilePatchResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type patchProfileAccountProfilePatchResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type patchProfileAccountProfilePatchResponseSuccess = (patchProfileAccountProfilePatchResponse200) & {
+  headers: Headers;
+};
+export type patchProfileAccountProfilePatchResponseError = (patchProfileAccountProfilePatchResponse422) & {
+  headers: Headers;
+};
+
+export type patchProfileAccountProfilePatchResponse = (patchProfileAccountProfilePatchResponseSuccess | patchProfileAccountProfilePatchResponseError)
+
+export const getPatchProfileAccountProfilePatchUrl = () => {
+
+
+
+
+  return `/account/profile`
+}
+
+/**
+ * @summary Patch Profile
+ */
+export const patchProfileAccountProfilePatch = async (updateProfileRequest: UpdateProfileRequest, options?: RequestInit): Promise<patchProfileAccountProfilePatchResponse> => {
+
+  const res = await fetch(getPatchProfileAccountProfilePatchUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateProfileRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: patchProfileAccountProfilePatchResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as patchProfileAccountProfilePatchResponse
+}
+
+
+
+export type patchProfileCityAccountProfileCityPatchResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type patchProfileCityAccountProfileCityPatchResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type patchProfileCityAccountProfileCityPatchResponseSuccess = (patchProfileCityAccountProfileCityPatchResponse200) & {
+  headers: Headers;
+};
+export type patchProfileCityAccountProfileCityPatchResponseError = (patchProfileCityAccountProfileCityPatchResponse422) & {
+  headers: Headers;
+};
+
+export type patchProfileCityAccountProfileCityPatchResponse = (patchProfileCityAccountProfileCityPatchResponseSuccess | patchProfileCityAccountProfileCityPatchResponseError)
+
+export const getPatchProfileCityAccountProfileCityPatchUrl = () => {
+
+
+
+
+  return `/account/profile/city`
+}
+
+/**
+ * @summary Patch Profile City
+ */
+export const patchProfileCityAccountProfileCityPatch = async (updateProfileCityRequest: UpdateProfileCityRequest, options?: RequestInit): Promise<patchProfileCityAccountProfileCityPatchResponse> => {
+
+  const res = await fetch(getPatchProfileCityAccountProfileCityPatchUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateProfileCityRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: patchProfileCityAccountProfileCityPatchResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as patchProfileCityAccountProfileCityPatchResponse
+}
+
+
+
+export type publicProfileProfilesPublicIdGetResponse200 = {
+  data: PublicProfileResponse
+  status: 200
+}
+
+export type publicProfileProfilesPublicIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type publicProfileProfilesPublicIdGetResponseSuccess = (publicProfileProfilesPublicIdGetResponse200) & {
+  headers: Headers;
+};
+export type publicProfileProfilesPublicIdGetResponseError = (publicProfileProfilesPublicIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type publicProfileProfilesPublicIdGetResponse = (publicProfileProfilesPublicIdGetResponseSuccess | publicProfileProfilesPublicIdGetResponseError)
+
+export const getPublicProfileProfilesPublicIdGetUrl = (publicId: string,) => {
+
+
+
+
+  return `/profiles/${publicId}`
+}
+
+/**
+ * @summary Public Profile
+ */
+export const publicProfileProfilesPublicIdGet = async (publicId: string, options?: RequestInit): Promise<publicProfileProfilesPublicIdGetResponse> => {
+
+  const res = await fetch(getPublicProfileProfilesPublicIdGetUrl(publicId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: publicProfileProfilesPublicIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as publicProfileProfilesPublicIdGetResponse
+}
+
+
+
+export type getProfileEventsProfilesPublicIdEventsGetResponse200 = {
+  data: EventsResponse
+  status: 200
+}
+
+export type getProfileEventsProfilesPublicIdEventsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getProfileEventsProfilesPublicIdEventsGetResponseSuccess = (getProfileEventsProfilesPublicIdEventsGetResponse200) & {
+  headers: Headers;
+};
+export type getProfileEventsProfilesPublicIdEventsGetResponseError = (getProfileEventsProfilesPublicIdEventsGetResponse422) & {
+  headers: Headers;
+};
+
+export type getProfileEventsProfilesPublicIdEventsGetResponse = (getProfileEventsProfilesPublicIdEventsGetResponseSuccess | getProfileEventsProfilesPublicIdEventsGetResponseError)
+
+export const getGetProfileEventsProfilesPublicIdEventsGetUrl = (publicId: string,
+    params: GetProfileEventsProfilesPublicIdEventsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/profiles/${publicId}/events?${stringifiedParams}` : `/profiles/${publicId}/events`
+}
+
+/**
+ * @summary Get Profile Events
+ */
+export const getProfileEventsProfilesPublicIdEventsGet = async (publicId: string,
+    params: GetProfileEventsProfilesPublicIdEventsGetParams, options?: RequestInit): Promise<getProfileEventsProfilesPublicIdEventsGetResponse> => {
+
+  const res = await fetch(getGetProfileEventsProfilesPublicIdEventsGetUrl(publicId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getProfileEventsProfilesPublicIdEventsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getProfileEventsProfilesPublicIdEventsGetResponse
+}
+
+
+
+export type getAccountEventsAccountEventsGetResponse200 = {
+  data: EventsResponse
+  status: 200
+}
+
+export type getAccountEventsAccountEventsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getAccountEventsAccountEventsGetResponseSuccess = (getAccountEventsAccountEventsGetResponse200) & {
+  headers: Headers;
+};
+export type getAccountEventsAccountEventsGetResponseError = (getAccountEventsAccountEventsGetResponse422) & {
+  headers: Headers;
+};
+
+export type getAccountEventsAccountEventsGetResponse = (getAccountEventsAccountEventsGetResponseSuccess | getAccountEventsAccountEventsGetResponseError)
+
+export const getGetAccountEventsAccountEventsGetUrl = (params: GetAccountEventsAccountEventsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/account/events?${stringifiedParams}` : `/account/events`
+}
+
+/**
+ * @summary Get Account Events
+ */
+export const getAccountEventsAccountEventsGet = async (params: GetAccountEventsAccountEventsGetParams, options?: RequestInit): Promise<getAccountEventsAccountEventsGetResponse> => {
+
+  const res = await fetch(getGetAccountEventsAccountEventsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getAccountEventsAccountEventsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getAccountEventsAccountEventsGetResponse
+}
+
+
+
+export type getAccountNotificationsAccountNotificationsGetResponse200 = {
+  data: NotificationResponse[]
+  status: 200
+}
+
+export type getAccountNotificationsAccountNotificationsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getAccountNotificationsAccountNotificationsGetResponseSuccess = (getAccountNotificationsAccountNotificationsGetResponse200) & {
+  headers: Headers;
+};
+export type getAccountNotificationsAccountNotificationsGetResponseError = (getAccountNotificationsAccountNotificationsGetResponse422) & {
+  headers: Headers;
+};
+
+export type getAccountNotificationsAccountNotificationsGetResponse = (getAccountNotificationsAccountNotificationsGetResponseSuccess | getAccountNotificationsAccountNotificationsGetResponseError)
+
+export const getGetAccountNotificationsAccountNotificationsGetUrl = (params?: GetAccountNotificationsAccountNotificationsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/account/notifications?${stringifiedParams}` : `/account/notifications`
+}
+
+/**
+ * @summary Get Account Notifications
+ */
+export const getAccountNotificationsAccountNotificationsGet = async (params?: GetAccountNotificationsAccountNotificationsGetParams, options?: RequestInit): Promise<getAccountNotificationsAccountNotificationsGetResponse> => {
+
+  const res = await fetch(getGetAccountNotificationsAccountNotificationsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getAccountNotificationsAccountNotificationsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getAccountNotificationsAccountNotificationsGetResponse
+}
+
+
+
+export type getNotificationFeedAccountNotificationsFeedGetResponse200 = {
+  data: NotificationFeedResponse
+  status: 200
+}
+
+export type getNotificationFeedAccountNotificationsFeedGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getNotificationFeedAccountNotificationsFeedGetResponseSuccess = (getNotificationFeedAccountNotificationsFeedGetResponse200) & {
+  headers: Headers;
+};
+export type getNotificationFeedAccountNotificationsFeedGetResponseError = (getNotificationFeedAccountNotificationsFeedGetResponse422) & {
+  headers: Headers;
+};
+
+export type getNotificationFeedAccountNotificationsFeedGetResponse = (getNotificationFeedAccountNotificationsFeedGetResponseSuccess | getNotificationFeedAccountNotificationsFeedGetResponseError)
+
+export const getGetNotificationFeedAccountNotificationsFeedGetUrl = (params?: GetNotificationFeedAccountNotificationsFeedGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/account/notifications/feed?${stringifiedParams}` : `/account/notifications/feed`
+}
+
+/**
+ * @summary Get Notification Feed
+ */
+export const getNotificationFeedAccountNotificationsFeedGet = async (params?: GetNotificationFeedAccountNotificationsFeedGetParams, options?: RequestInit): Promise<getNotificationFeedAccountNotificationsFeedGetResponse> => {
+
+  const res = await fetch(getGetNotificationFeedAccountNotificationsFeedGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getNotificationFeedAccountNotificationsFeedGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getNotificationFeedAccountNotificationsFeedGetResponse
+}
+
+
+
+export type readNotificationAccountNotificationsNotificationIdReadPatchResponse200 = {
+  data: NotificationResponse
+  status: 200
+}
+
+export type readNotificationAccountNotificationsNotificationIdReadPatchResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type readNotificationAccountNotificationsNotificationIdReadPatchResponseSuccess = (readNotificationAccountNotificationsNotificationIdReadPatchResponse200) & {
+  headers: Headers;
+};
+export type readNotificationAccountNotificationsNotificationIdReadPatchResponseError = (readNotificationAccountNotificationsNotificationIdReadPatchResponse422) & {
+  headers: Headers;
+};
+
+export type readNotificationAccountNotificationsNotificationIdReadPatchResponse = (readNotificationAccountNotificationsNotificationIdReadPatchResponseSuccess | readNotificationAccountNotificationsNotificationIdReadPatchResponseError)
+
+export const getReadNotificationAccountNotificationsNotificationIdReadPatchUrl = (notificationId: string,) => {
+
+
+
+
+  return `/account/notifications/${notificationId}/read`
+}
+
+/**
+ * @summary Read Notification
+ */
+export const readNotificationAccountNotificationsNotificationIdReadPatch = async (notificationId: string, options?: RequestInit): Promise<readNotificationAccountNotificationsNotificationIdReadPatchResponse> => {
+
+  const res = await fetch(getReadNotificationAccountNotificationsNotificationIdReadPatchUrl(notificationId),
+  {
+    ...options,
+    method: 'PATCH'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: readNotificationAccountNotificationsNotificationIdReadPatchResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as readNotificationAccountNotificationsNotificationIdReadPatchResponse
+}
+
+
+
+export type readAllNotificationsAccountNotificationsReadAllPostResponse200 = {
+  data: ReadAllNotificationsAccountNotificationsReadAllPost200
+  status: 200
+}
+
+export type readAllNotificationsAccountNotificationsReadAllPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type readAllNotificationsAccountNotificationsReadAllPostResponseSuccess = (readAllNotificationsAccountNotificationsReadAllPostResponse200) & {
+  headers: Headers;
+};
+export type readAllNotificationsAccountNotificationsReadAllPostResponseError = (readAllNotificationsAccountNotificationsReadAllPostResponse422) & {
+  headers: Headers;
+};
+
+export type readAllNotificationsAccountNotificationsReadAllPostResponse = (readAllNotificationsAccountNotificationsReadAllPostResponseSuccess | readAllNotificationsAccountNotificationsReadAllPostResponseError)
+
+export const getReadAllNotificationsAccountNotificationsReadAllPostUrl = () => {
+
+
+
+
+  return `/account/notifications/read-all`
+}
+
+/**
+ * @summary Read All Notifications
+ */
+export const readAllNotificationsAccountNotificationsReadAllPost = async ( options?: RequestInit): Promise<readAllNotificationsAccountNotificationsReadAllPostResponse> => {
+
+  const res = await fetch(getReadAllNotificationsAccountNotificationsReadAllPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: readAllNotificationsAccountNotificationsReadAllPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as readAllNotificationsAccountNotificationsReadAllPostResponse
+}
+
+
+
+export type getNotificationSettingsAccountNotificationSettingsGetResponse200 = {
+  data: NotificationSettingsResponse
+  status: 200
+}
+
+export type getNotificationSettingsAccountNotificationSettingsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getNotificationSettingsAccountNotificationSettingsGetResponseSuccess = (getNotificationSettingsAccountNotificationSettingsGetResponse200) & {
+  headers: Headers;
+};
+export type getNotificationSettingsAccountNotificationSettingsGetResponseError = (getNotificationSettingsAccountNotificationSettingsGetResponse422) & {
+  headers: Headers;
+};
+
+export type getNotificationSettingsAccountNotificationSettingsGetResponse = (getNotificationSettingsAccountNotificationSettingsGetResponseSuccess | getNotificationSettingsAccountNotificationSettingsGetResponseError)
+
+export const getGetNotificationSettingsAccountNotificationSettingsGetUrl = () => {
+
+
+
+
+  return `/account/notification-settings`
+}
+
+/**
+ * @summary Get Notification Settings
+ */
+export const getNotificationSettingsAccountNotificationSettingsGet = async ( options?: RequestInit): Promise<getNotificationSettingsAccountNotificationSettingsGetResponse> => {
+
+  const res = await fetch(getGetNotificationSettingsAccountNotificationSettingsGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getNotificationSettingsAccountNotificationSettingsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getNotificationSettingsAccountNotificationSettingsGetResponse
+}
+
+
+
+export type reportProfileProfilesPublicIdReportsPostResponse201 = {
+  data: ReportProfileProfilesPublicIdReportsPost201
+  status: 201
+}
+
+export type reportProfileProfilesPublicIdReportsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type reportProfileProfilesPublicIdReportsPostResponseSuccess = (reportProfileProfilesPublicIdReportsPostResponse201) & {
+  headers: Headers;
+};
+export type reportProfileProfilesPublicIdReportsPostResponseError = (reportProfileProfilesPublicIdReportsPostResponse422) & {
+  headers: Headers;
+};
+
+export type reportProfileProfilesPublicIdReportsPostResponse = (reportProfileProfilesPublicIdReportsPostResponseSuccess | reportProfileProfilesPublicIdReportsPostResponseError)
+
+export const getReportProfileProfilesPublicIdReportsPostUrl = (publicId: string,) => {
+
+
+
+
+  return `/profiles/${publicId}/reports`
+}
+
+/**
+ * @summary Report Profile
+ */
+export const reportProfileProfilesPublicIdReportsPost = async (publicId: string,
+    afishabotAdaptersHttpProfilesReportRequest: AfishabotAdaptersHttpProfilesReportRequest, options?: RequestInit): Promise<reportProfileProfilesPublicIdReportsPostResponse> => {
+
+  const res = await fetch(getReportProfileProfilesPublicIdReportsPostUrl(publicId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(afishabotAdaptersHttpProfilesReportRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: reportProfileProfilesPublicIdReportsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as reportProfileProfilesPublicIdReportsPostResponse
+}
+
+
+
+export type putAvatarAccountAvatarPutResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type putAvatarAccountAvatarPutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type putAvatarAccountAvatarPutResponseSuccess = (putAvatarAccountAvatarPutResponse200) & {
+  headers: Headers;
+};
+export type putAvatarAccountAvatarPutResponseError = (putAvatarAccountAvatarPutResponse422) & {
+  headers: Headers;
+};
+
+export type putAvatarAccountAvatarPutResponse = (putAvatarAccountAvatarPutResponseSuccess | putAvatarAccountAvatarPutResponseError)
+
+export const getPutAvatarAccountAvatarPutUrl = () => {
+
+
+
+
+  return `/account/avatar`
+}
+
+/**
+ * @summary Put Avatar
+ */
+export const putAvatarAccountAvatarPut = async ( options?: RequestInit): Promise<putAvatarAccountAvatarPutResponse> => {
+
+  const res = await fetch(getPutAvatarAccountAvatarPutUrl(),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: putAvatarAccountAvatarPutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as putAvatarAccountAvatarPutResponse
+}
+
+
+
+export type deleteAvatarAccountAvatarDeleteResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type deleteAvatarAccountAvatarDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteAvatarAccountAvatarDeleteResponseSuccess = (deleteAvatarAccountAvatarDeleteResponse200) & {
+  headers: Headers;
+};
+export type deleteAvatarAccountAvatarDeleteResponseError = (deleteAvatarAccountAvatarDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type deleteAvatarAccountAvatarDeleteResponse = (deleteAvatarAccountAvatarDeleteResponseSuccess | deleteAvatarAccountAvatarDeleteResponseError)
+
+export const getDeleteAvatarAccountAvatarDeleteUrl = () => {
+
+
+
+
+  return `/account/avatar`
+}
+
+/**
+ * @summary Delete Avatar
+ */
+export const deleteAvatarAccountAvatarDelete = async ( options?: RequestInit): Promise<deleteAvatarAccountAvatarDeleteResponse> => {
+
+  const res = await fetch(getDeleteAvatarAccountAvatarDeleteUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteAvatarAccountAvatarDeleteResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as deleteAvatarAccountAvatarDeleteResponse
+}
+
+
+
+export type putProfileBackgroundAccountProfileBackgroundPutResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type putProfileBackgroundAccountProfileBackgroundPutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type putProfileBackgroundAccountProfileBackgroundPutResponseSuccess = (putProfileBackgroundAccountProfileBackgroundPutResponse200) & {
+  headers: Headers;
+};
+export type putProfileBackgroundAccountProfileBackgroundPutResponseError = (putProfileBackgroundAccountProfileBackgroundPutResponse422) & {
+  headers: Headers;
+};
+
+export type putProfileBackgroundAccountProfileBackgroundPutResponse = (putProfileBackgroundAccountProfileBackgroundPutResponseSuccess | putProfileBackgroundAccountProfileBackgroundPutResponseError)
+
+export const getPutProfileBackgroundAccountProfileBackgroundPutUrl = () => {
+
+
+
+
+  return `/account/profile-background`
+}
+
+/**
+ * @summary Put Profile Background
+ */
+export const putProfileBackgroundAccountProfileBackgroundPut = async ( options?: RequestInit): Promise<putProfileBackgroundAccountProfileBackgroundPutResponse> => {
+
+  const res = await fetch(getPutProfileBackgroundAccountProfileBackgroundPutUrl(),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: putProfileBackgroundAccountProfileBackgroundPutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as putProfileBackgroundAccountProfileBackgroundPutResponse
+}
+
+
+
+export type deleteProfileBackgroundAccountProfileBackgroundDeleteResponse200 = {
+  data: OwnProfileResponse
+  status: 200
+}
+
+export type deleteProfileBackgroundAccountProfileBackgroundDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteProfileBackgroundAccountProfileBackgroundDeleteResponseSuccess = (deleteProfileBackgroundAccountProfileBackgroundDeleteResponse200) & {
+  headers: Headers;
+};
+export type deleteProfileBackgroundAccountProfileBackgroundDeleteResponseError = (deleteProfileBackgroundAccountProfileBackgroundDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type deleteProfileBackgroundAccountProfileBackgroundDeleteResponse = (deleteProfileBackgroundAccountProfileBackgroundDeleteResponseSuccess | deleteProfileBackgroundAccountProfileBackgroundDeleteResponseError)
+
+export const getDeleteProfileBackgroundAccountProfileBackgroundDeleteUrl = () => {
+
+
+
+
+  return `/account/profile-background`
+}
+
+/**
+ * @summary Delete Profile Background
+ */
+export const deleteProfileBackgroundAccountProfileBackgroundDelete = async ( options?: RequestInit): Promise<deleteProfileBackgroundAccountProfileBackgroundDeleteResponse> => {
+
+  const res = await fetch(getDeleteProfileBackgroundAccountProfileBackgroundDeleteUrl(),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteProfileBackgroundAccountProfileBackgroundDeleteResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as deleteProfileBackgroundAccountProfileBackgroundDeleteResponse
+}
+
+
+
+export type avatarProfilesPublicIdAvatarGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type avatarProfilesPublicIdAvatarGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type avatarProfilesPublicIdAvatarGetResponseSuccess = (avatarProfilesPublicIdAvatarGetResponse200) & {
+  headers: Headers;
+};
+export type avatarProfilesPublicIdAvatarGetResponseError = (avatarProfilesPublicIdAvatarGetResponse422) & {
+  headers: Headers;
+};
+
+export type avatarProfilesPublicIdAvatarGetResponse = (avatarProfilesPublicIdAvatarGetResponseSuccess | avatarProfilesPublicIdAvatarGetResponseError)
+
+export const getAvatarProfilesPublicIdAvatarGetUrl = (publicId: string,
+    params?: AvatarProfilesPublicIdAvatarGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/profiles/${publicId}/avatar?${stringifiedParams}` : `/profiles/${publicId}/avatar`
+}
+
+/**
+ * @summary Avatar
+ */
+export const avatarProfilesPublicIdAvatarGet = async (publicId: string,
+    params?: AvatarProfilesPublicIdAvatarGetParams, options?: RequestInit): Promise<avatarProfilesPublicIdAvatarGetResponse> => {
+
+  const res = await fetch(getAvatarProfilesPublicIdAvatarGetUrl(publicId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: avatarProfilesPublicIdAvatarGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as avatarProfilesPublicIdAvatarGetResponse
+}
+
+
+
+export type profileBackgroundProfilesPublicIdBackgroundGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type profileBackgroundProfilesPublicIdBackgroundGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type profileBackgroundProfilesPublicIdBackgroundGetResponseSuccess = (profileBackgroundProfilesPublicIdBackgroundGetResponse200) & {
+  headers: Headers;
+};
+export type profileBackgroundProfilesPublicIdBackgroundGetResponseError = (profileBackgroundProfilesPublicIdBackgroundGetResponse422) & {
+  headers: Headers;
+};
+
+export type profileBackgroundProfilesPublicIdBackgroundGetResponse = (profileBackgroundProfilesPublicIdBackgroundGetResponseSuccess | profileBackgroundProfilesPublicIdBackgroundGetResponseError)
+
+export const getProfileBackgroundProfilesPublicIdBackgroundGetUrl = (publicId: string,
+    params?: ProfileBackgroundProfilesPublicIdBackgroundGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/profiles/${publicId}/background?${stringifiedParams}` : `/profiles/${publicId}/background`
+}
+
+/**
+ * @summary Profile Background
+ */
+export const profileBackgroundProfilesPublicIdBackgroundGet = async (publicId: string,
+    params?: ProfileBackgroundProfilesPublicIdBackgroundGetParams, options?: RequestInit): Promise<profileBackgroundProfilesPublicIdBackgroundGetResponse> => {
+
+  const res = await fetch(getProfileBackgroundProfilesPublicIdBackgroundGetUrl(publicId,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: profileBackgroundProfilesPublicIdBackgroundGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as profileBackgroundProfilesPublicIdBackgroundGetResponse
+}
+
+
+
+export type createReportSafetyReportsPostResponse201 = {
+  data: CreateReportSafetyReportsPost201
+  status: 201
+}
+
+export type createReportSafetyReportsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createReportSafetyReportsPostResponseSuccess = (createReportSafetyReportsPostResponse201) & {
+  headers: Headers;
+};
+export type createReportSafetyReportsPostResponseError = (createReportSafetyReportsPostResponse422) & {
+  headers: Headers;
+};
+
+export type createReportSafetyReportsPostResponse = (createReportSafetyReportsPostResponseSuccess | createReportSafetyReportsPostResponseError)
+
+export const getCreateReportSafetyReportsPostUrl = () => {
+
+
+
+
+  return `/safety/reports`
+}
+
+/**
+ * @summary Create Report
+ */
+export const createReportSafetyReportsPost = async (reportBody: ReportBody, options?: RequestInit): Promise<createReportSafetyReportsPostResponse> => {
+
+  const res = await fetch(getCreateReportSafetyReportsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reportBody)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createReportSafetyReportsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createReportSafetyReportsPostResponse
+}
+
+
+
+export type casesFeedAccountCasesGetResponse200 = {
+  data: CasesFeedAccountCasesGet200
+  status: 200
+}
+
+export type casesFeedAccountCasesGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type casesFeedAccountCasesGetResponseSuccess = (casesFeedAccountCasesGetResponse200) & {
+  headers: Headers;
+};
+export type casesFeedAccountCasesGetResponseError = (casesFeedAccountCasesGetResponse422) & {
+  headers: Headers;
+};
+
+export type casesFeedAccountCasesGetResponse = (casesFeedAccountCasesGetResponseSuccess | casesFeedAccountCasesGetResponseError)
+
+export const getCasesFeedAccountCasesGetUrl = (params?: CasesFeedAccountCasesGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/account/cases?${stringifiedParams}` : `/account/cases`
+}
+
+/**
+ * @summary Cases Feed
+ */
+export const casesFeedAccountCasesGet = async (params?: CasesFeedAccountCasesGetParams, options?: RequestInit): Promise<casesFeedAccountCasesGetResponse> => {
+
+  const res = await fetch(getCasesFeedAccountCasesGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: casesFeedAccountCasesGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as casesFeedAccountCasesGetResponse
+}
+
+
+
+export type caseDetailAccountCasesCasePublicIdGetResponse200 = {
+  data: CaseDetailAccountCasesCasePublicIdGet200
+  status: 200
+}
+
+export type caseDetailAccountCasesCasePublicIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type caseDetailAccountCasesCasePublicIdGetResponseSuccess = (caseDetailAccountCasesCasePublicIdGetResponse200) & {
+  headers: Headers;
+};
+export type caseDetailAccountCasesCasePublicIdGetResponseError = (caseDetailAccountCasesCasePublicIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type caseDetailAccountCasesCasePublicIdGetResponse = (caseDetailAccountCasesCasePublicIdGetResponseSuccess | caseDetailAccountCasesCasePublicIdGetResponseError)
+
+export const getCaseDetailAccountCasesCasePublicIdGetUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/account/cases/${casePublicId}`
+}
+
+/**
+ * @summary Case Detail
+ */
+export const caseDetailAccountCasesCasePublicIdGet = async (casePublicId: string, options?: RequestInit): Promise<caseDetailAccountCasesCasePublicIdGetResponse> => {
+
+  const res = await fetch(getCaseDetailAccountCasesCasePublicIdGetUrl(casePublicId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: caseDetailAccountCasesCasePublicIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as caseDetailAccountCasesCasePublicIdGetResponse
+}
+
+
+
+export type appealCaseAccountCasesCasePublicIdAppealPostResponse201 = {
+  data: AppealCaseAccountCasesCasePublicIdAppealPost201
+  status: 201
+}
+
+export type appealCaseAccountCasesCasePublicIdAppealPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type appealCaseAccountCasesCasePublicIdAppealPostResponseSuccess = (appealCaseAccountCasesCasePublicIdAppealPostResponse201) & {
+  headers: Headers;
+};
+export type appealCaseAccountCasesCasePublicIdAppealPostResponseError = (appealCaseAccountCasesCasePublicIdAppealPostResponse422) & {
+  headers: Headers;
+};
+
+export type appealCaseAccountCasesCasePublicIdAppealPostResponse = (appealCaseAccountCasesCasePublicIdAppealPostResponseSuccess | appealCaseAccountCasesCasePublicIdAppealPostResponseError)
+
+export const getAppealCaseAccountCasesCasePublicIdAppealPostUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/account/cases/${casePublicId}/appeal`
+}
+
+/**
+ * @summary Appeal Case
+ */
+export const appealCaseAccountCasesCasePublicIdAppealPost = async (casePublicId: string,
+    appealBody: AppealBody, options?: RequestInit): Promise<appealCaseAccountCasesCasePublicIdAppealPostResponse> => {
+
+  const res = await fetch(getAppealCaseAccountCasesCasePublicIdAppealPostUrl(casePublicId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(appealBody)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: appealCaseAccountCasesCasePublicIdAppealPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as appealCaseAccountCasesCasePublicIdAppealPostResponse
+}
+
+
+
+export type uploadEventPhotoMediaEventPhotoPutResponse201 = {
+  data: EventPhotoResponse
+  status: 201
+}
+
+export type uploadEventPhotoMediaEventPhotoPutResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type uploadEventPhotoMediaEventPhotoPutResponseSuccess = (uploadEventPhotoMediaEventPhotoPutResponse201) & {
+  headers: Headers;
+};
+export type uploadEventPhotoMediaEventPhotoPutResponseError = (uploadEventPhotoMediaEventPhotoPutResponse422) & {
+  headers: Headers;
+};
+
+export type uploadEventPhotoMediaEventPhotoPutResponse = (uploadEventPhotoMediaEventPhotoPutResponseSuccess | uploadEventPhotoMediaEventPhotoPutResponseError)
+
+export const getUploadEventPhotoMediaEventPhotoPutUrl = () => {
+
+
+
+
+  return `/media/event-photo`
+}
+
+/**
+ * @summary Upload Event Photo
+ */
+export const uploadEventPhotoMediaEventPhotoPut = async ( options?: RequestInit): Promise<uploadEventPhotoMediaEventPhotoPutResponse> => {
+
+  const res = await fetch(getUploadEventPhotoMediaEventPhotoPutUrl(),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: uploadEventPhotoMediaEventPhotoPutResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as uploadEventPhotoMediaEventPhotoPutResponse
+}
+
+
+
+export type eventPhotoPreviewMediaEventPhotosUploadIdGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type eventPhotoPreviewMediaEventPhotosUploadIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type eventPhotoPreviewMediaEventPhotosUploadIdGetResponseSuccess = (eventPhotoPreviewMediaEventPhotosUploadIdGetResponse200) & {
+  headers: Headers;
+};
+export type eventPhotoPreviewMediaEventPhotosUploadIdGetResponseError = (eventPhotoPreviewMediaEventPhotosUploadIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type eventPhotoPreviewMediaEventPhotosUploadIdGetResponse = (eventPhotoPreviewMediaEventPhotosUploadIdGetResponseSuccess | eventPhotoPreviewMediaEventPhotosUploadIdGetResponseError)
+
+export const getEventPhotoPreviewMediaEventPhotosUploadIdGetUrl = (uploadId: string,) => {
+
+
+
+
+  return `/media/event-photos/${uploadId}`
+}
+
+/**
+ * @summary Event Photo Preview
+ */
+export const eventPhotoPreviewMediaEventPhotosUploadIdGet = async (uploadId: string, options?: RequestInit): Promise<eventPhotoPreviewMediaEventPhotosUploadIdGetResponse> => {
+
+  const res = await fetch(getEventPhotoPreviewMediaEventPhotosUploadIdGetUrl(uploadId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: eventPhotoPreviewMediaEventPhotosUploadIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as eventPhotoPreviewMediaEventPhotosUploadIdGetResponse
+}
+
+
+
+export type deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type deleteEventPhotoMediaEventPhotosUploadIdDeleteResponseSuccess = (deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse204) & {
+  headers: Headers;
+};
+export type deleteEventPhotoMediaEventPhotosUploadIdDeleteResponseError = (deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse422) & {
+  headers: Headers;
+};
+
+export type deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse = (deleteEventPhotoMediaEventPhotosUploadIdDeleteResponseSuccess | deleteEventPhotoMediaEventPhotosUploadIdDeleteResponseError)
+
+export const getDeleteEventPhotoMediaEventPhotosUploadIdDeleteUrl = (uploadId: string,) => {
+
+
+
+
+  return `/media/event-photos/${uploadId}`
+}
+
+/**
+ * @summary Delete Event Photo
+ */
+export const deleteEventPhotoMediaEventPhotosUploadIdDelete = async (uploadId: string, options?: RequestInit): Promise<deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse> => {
+
+  const res = await fetch(getDeleteEventPhotoMediaEventPhotosUploadIdDeleteUrl(uploadId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as deleteEventPhotoMediaEventPhotosUploadIdDeleteResponse
+}
+
+
+
+export type bootstrapAdminAuthBootstrapPostResponse200 = {
+  data: AfishabotAdaptersAdminHttpBootstrapResponse
+  status: 200
+}
+
+export type bootstrapAdminAuthBootstrapPostResponseSuccess = (bootstrapAdminAuthBootstrapPostResponse200) & {
+  headers: Headers;
+};
+;
+
+export type bootstrapAdminAuthBootstrapPostResponse = (bootstrapAdminAuthBootstrapPostResponseSuccess)
+
+export const getBootstrapAdminAuthBootstrapPostUrl = () => {
+
+
+
+
+  return `/admin/auth/bootstrap`
+}
+
+/**
+ * @summary Bootstrap
+ */
+export const bootstrapAdminAuthBootstrapPost = async ( options?: RequestInit): Promise<bootstrapAdminAuthBootstrapPostResponse> => {
+
+  const res = await fetch(getBootstrapAdminAuthBootstrapPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: bootstrapAdminAuthBootstrapPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as bootstrapAdminAuthBootstrapPostResponse
+}
+
+
+
+export type loginAdminAuthLoginPostResponse200 = {
+  data: LoginResponse
+  status: 200
+}
+
+export type loginAdminAuthLoginPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type loginAdminAuthLoginPostResponseSuccess = (loginAdminAuthLoginPostResponse200) & {
+  headers: Headers;
+};
+export type loginAdminAuthLoginPostResponseError = (loginAdminAuthLoginPostResponse422) & {
+  headers: Headers;
+};
+
+export type loginAdminAuthLoginPostResponse = (loginAdminAuthLoginPostResponseSuccess | loginAdminAuthLoginPostResponseError)
+
+export const getLoginAdminAuthLoginPostUrl = () => {
+
+
+
+
+  return `/admin/auth/login`
+}
+
+/**
+ * @summary Login
+ */
+export const loginAdminAuthLoginPost = async (loginRequest: LoginRequest, options?: RequestInit): Promise<loginAdminAuthLoginPostResponse> => {
+
+  const res = await fetch(getLoginAdminAuthLoginPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(loginRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: loginAdminAuthLoginPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as loginAdminAuthLoginPostResponse
+}
+
+
+
+export type meAdminAccountMeGetResponse200 = {
+  data: StaffResponse
+  status: 200
+}
+
+export type meAdminAccountMeGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type meAdminAccountMeGetResponseSuccess = (meAdminAccountMeGetResponse200) & {
+  headers: Headers;
+};
+export type meAdminAccountMeGetResponseError = (meAdminAccountMeGetResponse422) & {
+  headers: Headers;
+};
+
+export type meAdminAccountMeGetResponse = (meAdminAccountMeGetResponseSuccess | meAdminAccountMeGetResponseError)
+
+export const getMeAdminAccountMeGetUrl = () => {
+
+
+
+
+  return `/admin/account/me`
+}
+
+/**
+ * @summary Me
+ */
+export const meAdminAccountMeGet = async ( options?: RequestInit): Promise<meAdminAccountMeGetResponse> => {
+
+  const res = await fetch(getMeAdminAccountMeGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: meAdminAccountMeGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as meAdminAccountMeGetResponse
+}
+
+
+
+export type logoutAdminAuthLogoutPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type logoutAdminAuthLogoutPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type logoutAdminAuthLogoutPostResponseSuccess = (logoutAdminAuthLogoutPostResponse204) & {
+  headers: Headers;
+};
+export type logoutAdminAuthLogoutPostResponseError = (logoutAdminAuthLogoutPostResponse422) & {
+  headers: Headers;
+};
+
+export type logoutAdminAuthLogoutPostResponse = (logoutAdminAuthLogoutPostResponseSuccess | logoutAdminAuthLogoutPostResponseError)
+
+export const getLogoutAdminAuthLogoutPostUrl = () => {
+
+
+
+
+  return `/admin/auth/logout`
+}
+
+/**
+ * @summary Logout
+ */
+export const logoutAdminAuthLogoutPost = async ( options?: RequestInit): Promise<logoutAdminAuthLogoutPostResponse> => {
+
+  const res = await fetch(getLogoutAdminAuthLogoutPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: logoutAdminAuthLogoutPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as logoutAdminAuthLogoutPostResponse
+}
+
+
+
+export type dashboardAdminDashboardGetResponse200 = {
+  data: DashboardResponse
+  status: 200
+}
+
+export type dashboardAdminDashboardGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type dashboardAdminDashboardGetResponseSuccess = (dashboardAdminDashboardGetResponse200) & {
+  headers: Headers;
+};
+export type dashboardAdminDashboardGetResponseError = (dashboardAdminDashboardGetResponse422) & {
+  headers: Headers;
+};
+
+export type dashboardAdminDashboardGetResponse = (dashboardAdminDashboardGetResponseSuccess | dashboardAdminDashboardGetResponseError)
+
+export const getDashboardAdminDashboardGetUrl = () => {
+
+
+
+
+  return `/admin/dashboard`
+}
+
+/**
+ * @summary Dashboard
+ */
+export const dashboardAdminDashboardGet = async ( options?: RequestInit): Promise<dashboardAdminDashboardGetResponse> => {
+
+  const res = await fetch(getDashboardAdminDashboardGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: dashboardAdminDashboardGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as dashboardAdminDashboardGetResponse
+}
+
+
+
+export type systemMetricsAdminSystemMetricsGetResponse200 = {
+  data: SystemMetricsResponse
+  status: 200
+}
+
+export type systemMetricsAdminSystemMetricsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type systemMetricsAdminSystemMetricsGetResponseSuccess = (systemMetricsAdminSystemMetricsGetResponse200) & {
+  headers: Headers;
+};
+export type systemMetricsAdminSystemMetricsGetResponseError = (systemMetricsAdminSystemMetricsGetResponse422) & {
+  headers: Headers;
+};
+
+export type systemMetricsAdminSystemMetricsGetResponse = (systemMetricsAdminSystemMetricsGetResponseSuccess | systemMetricsAdminSystemMetricsGetResponseError)
+
+export const getSystemMetricsAdminSystemMetricsGetUrl = () => {
+
+
+
+
+  return `/admin/system/metrics`
+}
+
+/**
+ * @summary System Metrics
+ */
+export const systemMetricsAdminSystemMetricsGet = async ( options?: RequestInit): Promise<systemMetricsAdminSystemMetricsGetResponse> => {
+
+  const res = await fetch(getSystemMetricsAdminSystemMetricsGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: systemMetricsAdminSystemMetricsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as systemMetricsAdminSystemMetricsGetResponse
+}
+
+
+
+export type refreshSystemMetricsAdminSystemMetricsRefreshPostResponse200 = {
+  data: SystemMetricsResponse
+  status: 200
+}
+
+export type refreshSystemMetricsAdminSystemMetricsRefreshPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type refreshSystemMetricsAdminSystemMetricsRefreshPostResponseSuccess = (refreshSystemMetricsAdminSystemMetricsRefreshPostResponse200) & {
+  headers: Headers;
+};
+export type refreshSystemMetricsAdminSystemMetricsRefreshPostResponseError = (refreshSystemMetricsAdminSystemMetricsRefreshPostResponse422) & {
+  headers: Headers;
+};
+
+export type refreshSystemMetricsAdminSystemMetricsRefreshPostResponse = (refreshSystemMetricsAdminSystemMetricsRefreshPostResponseSuccess | refreshSystemMetricsAdminSystemMetricsRefreshPostResponseError)
+
+export const getRefreshSystemMetricsAdminSystemMetricsRefreshPostUrl = () => {
+
+
+
+
+  return `/admin/system/metrics/refresh`
+}
+
+/**
+ * @summary Refresh System Metrics
+ */
+export const refreshSystemMetricsAdminSystemMetricsRefreshPost = async ( options?: RequestInit): Promise<refreshSystemMetricsAdminSystemMetricsRefreshPostResponse> => {
+
+  const res = await fetch(getRefreshSystemMetricsAdminSystemMetricsRefreshPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: refreshSystemMetricsAdminSystemMetricsRefreshPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as refreshSystemMetricsAdminSystemMetricsRefreshPostResponse
+}
+
+
+
+export type imageAnalysisAdminMediaAnalysisGetResponse200 = {
+  data: ImageAnalysisResponse
+  status: 200
+}
+
+export type imageAnalysisAdminMediaAnalysisGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type imageAnalysisAdminMediaAnalysisGetResponseSuccess = (imageAnalysisAdminMediaAnalysisGetResponse200) & {
+  headers: Headers;
+};
+export type imageAnalysisAdminMediaAnalysisGetResponseError = (imageAnalysisAdminMediaAnalysisGetResponse422) & {
+  headers: Headers;
+};
+
+export type imageAnalysisAdminMediaAnalysisGetResponse = (imageAnalysisAdminMediaAnalysisGetResponseSuccess | imageAnalysisAdminMediaAnalysisGetResponseError)
+
+export const getImageAnalysisAdminMediaAnalysisGetUrl = () => {
+
+
+
+
+  return `/admin/media/analysis`
+}
+
+/**
+ * @summary Image Analysis
+ */
+export const imageAnalysisAdminMediaAnalysisGet = async ( options?: RequestInit): Promise<imageAnalysisAdminMediaAnalysisGetResponse> => {
+
+  const res = await fetch(getImageAnalysisAdminMediaAnalysisGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: imageAnalysisAdminMediaAnalysisGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as imageAnalysisAdminMediaAnalysisGetResponse
+}
+
+
+
+export type refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse200 = {
+  data: ImageAnalysisResponse
+  status: 200
+}
+
+export type refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type refreshImageAnalysisAdminMediaAnalysisRefreshPostResponseSuccess = (refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse200) & {
+  headers: Headers;
+};
+export type refreshImageAnalysisAdminMediaAnalysisRefreshPostResponseError = (refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse422) & {
+  headers: Headers;
+};
+
+export type refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse = (refreshImageAnalysisAdminMediaAnalysisRefreshPostResponseSuccess | refreshImageAnalysisAdminMediaAnalysisRefreshPostResponseError)
+
+export const getRefreshImageAnalysisAdminMediaAnalysisRefreshPostUrl = () => {
+
+
+
+
+  return `/admin/media/analysis/refresh`
+}
+
+/**
+ * @summary Refresh Image Analysis
+ */
+export const refreshImageAnalysisAdminMediaAnalysisRefreshPost = async ( options?: RequestInit): Promise<refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse> => {
+
+  const res = await fetch(getRefreshImageAnalysisAdminMediaAnalysisRefreshPostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as refreshImageAnalysisAdminMediaAnalysisRefreshPostResponse
+}
+
+
+
+export type estimateImageSavingsAdminMediaAnalysisEstimatePostResponse202 = {
+  data: ImageEstimateQueuedResponse
+  status: 202
+}
+
+export type estimateImageSavingsAdminMediaAnalysisEstimatePostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type estimateImageSavingsAdminMediaAnalysisEstimatePostResponseSuccess = (estimateImageSavingsAdminMediaAnalysisEstimatePostResponse202) & {
+  headers: Headers;
+};
+export type estimateImageSavingsAdminMediaAnalysisEstimatePostResponseError = (estimateImageSavingsAdminMediaAnalysisEstimatePostResponse422) & {
+  headers: Headers;
+};
+
+export type estimateImageSavingsAdminMediaAnalysisEstimatePostResponse = (estimateImageSavingsAdminMediaAnalysisEstimatePostResponseSuccess | estimateImageSavingsAdminMediaAnalysisEstimatePostResponseError)
+
+export const getEstimateImageSavingsAdminMediaAnalysisEstimatePostUrl = () => {
+
+
+
+
+  return `/admin/media/analysis/estimate`
+}
+
+/**
+ * @summary Estimate Image Savings
+ */
+export const estimateImageSavingsAdminMediaAnalysisEstimatePost = async ( options?: RequestInit): Promise<estimateImageSavingsAdminMediaAnalysisEstimatePostResponse> => {
+
+  const res = await fetch(getEstimateImageSavingsAdminMediaAnalysisEstimatePostUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: estimateImageSavingsAdminMediaAnalysisEstimatePostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as estimateImageSavingsAdminMediaAnalysisEstimatePostResponse
+}
+
+
+
+export type auditAdminAuditGetResponse200 = {
+  data: AuditPageResponse
+  status: 200
+}
+
+export type auditAdminAuditGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type auditAdminAuditGetResponseSuccess = (auditAdminAuditGetResponse200) & {
+  headers: Headers;
+};
+export type auditAdminAuditGetResponseError = (auditAdminAuditGetResponse422) & {
+  headers: Headers;
+};
+
+export type auditAdminAuditGetResponse = (auditAdminAuditGetResponseSuccess | auditAdminAuditGetResponseError)
+
+export const getAuditAdminAuditGetUrl = (params?: AuditAdminAuditGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/audit?${stringifiedParams}` : `/admin/audit`
+}
+
+/**
+ * @summary Audit
+ */
+export const auditAdminAuditGet = async (params?: AuditAdminAuditGetParams, options?: RequestInit): Promise<auditAdminAuditGetResponse> => {
+
+  const res = await fetch(getAuditAdminAuditGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: auditAdminAuditGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as auditAdminAuditGetResponse
+}
+
+
+
+export type getModerationCountsAdminModerationCountsGetResponse200 = {
+  data: GetModerationCountsAdminModerationCountsGet200
+  status: 200
+}
+
+export type getModerationCountsAdminModerationCountsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getModerationCountsAdminModerationCountsGetResponseSuccess = (getModerationCountsAdminModerationCountsGetResponse200) & {
+  headers: Headers;
+};
+export type getModerationCountsAdminModerationCountsGetResponseError = (getModerationCountsAdminModerationCountsGetResponse422) & {
+  headers: Headers;
+};
+
+export type getModerationCountsAdminModerationCountsGetResponse = (getModerationCountsAdminModerationCountsGetResponseSuccess | getModerationCountsAdminModerationCountsGetResponseError)
+
+export const getGetModerationCountsAdminModerationCountsGetUrl = () => {
+
+
+
+
+  return `/admin/moderation/counts`
+}
+
+/**
+ * @summary Get Moderation Counts
+ */
+export const getModerationCountsAdminModerationCountsGet = async ( options?: RequestInit): Promise<getModerationCountsAdminModerationCountsGetResponse> => {
+
+  const res = await fetch(getGetModerationCountsAdminModerationCountsGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getModerationCountsAdminModerationCountsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getModerationCountsAdminModerationCountsGetResponse
+}
+
+
+
+export type getModerationCasesAdminModerationCasesGetResponse200 = {
+  data: GetModerationCasesAdminModerationCasesGet200
+  status: 200
+}
+
+export type getModerationCasesAdminModerationCasesGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getModerationCasesAdminModerationCasesGetResponseSuccess = (getModerationCasesAdminModerationCasesGetResponse200) & {
+  headers: Headers;
+};
+export type getModerationCasesAdminModerationCasesGetResponseError = (getModerationCasesAdminModerationCasesGetResponse422) & {
+  headers: Headers;
+};
+
+export type getModerationCasesAdminModerationCasesGetResponse = (getModerationCasesAdminModerationCasesGetResponseSuccess | getModerationCasesAdminModerationCasesGetResponseError)
+
+export const getGetModerationCasesAdminModerationCasesGetUrl = (params: GetModerationCasesAdminModerationCasesGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/moderation/cases?${stringifiedParams}` : `/admin/moderation/cases`
+}
+
+/**
+ * @summary Get Moderation Cases
+ */
+export const getModerationCasesAdminModerationCasesGet = async (params: GetModerationCasesAdminModerationCasesGetParams, options?: RequestInit): Promise<getModerationCasesAdminModerationCasesGetResponse> => {
+
+  const res = await fetch(getGetModerationCasesAdminModerationCasesGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getModerationCasesAdminModerationCasesGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getModerationCasesAdminModerationCasesGetResponse
+}
+
+
+
+export type getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse200 = {
+  data: GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200
+  status: 200
+}
+
+export type getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseSuccess = (getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse200) & {
+  headers: Headers;
+};
+export type getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseError = (getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse = (getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseSuccess | getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseError)
+
+export const getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/admin/moderation/cases/${casePublicId}`
+}
+
+/**
+ * @summary Get Moderation Case Detail
+ */
+export const getModerationCaseDetailAdminModerationCasesCasePublicIdGet = async (casePublicId: string, options?: RequestInit): Promise<getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse> => {
+
+  const res = await fetch(getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetUrl(casePublicId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getModerationCaseDetailAdminModerationCasesCasePublicIdGetResponse
+}
+
+
+
+export type getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponseSuccess = (getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse200) & {
+  headers: Headers;
+};
+export type getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponseError = (getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse = (getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponseSuccess | getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponseError)
+
+export const getGetModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/admin/moderation/evidence/${casePublicId}`
+}
+
+/**
+ * Serve the immutable media referenced by a report to authenticated staff.
+ * @summary Get Moderation Case Evidence
+ */
+export const getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGet = async (casePublicId: string, options?: RequestInit): Promise<getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse> => {
+
+  const res = await fetch(getGetModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetUrl(casePublicId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetResponse
+}
+
+
+
+export type postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponseSuccess = (postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse204) & {
+  headers: Headers;
+};
+export type postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponseError = (postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse422) & {
+  headers: Headers;
+};
+
+export type postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse = (postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponseSuccess | postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponseError)
+
+export const getPostModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/admin/moderation/cases/${casePublicId}/decision`
+}
+
+/**
+ * @summary Post Moderation Case Decision
+ */
+export const postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPost = async (casePublicId: string,
+    caseDecisionRequest: CaseDecisionRequest, options?: RequestInit): Promise<postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse> => {
+
+  const res = await fetch(getPostModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostUrl(casePublicId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(caseDecisionRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as postModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostResponse
+}
+
+
+
+export type postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponseSuccess = (postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse204) & {
+  headers: Headers;
+};
+export type postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponseError = (postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse422) & {
+  headers: Headers;
+};
+
+export type postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse = (postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponseSuccess | postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponseError)
+
+export const getPostModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostUrl = (casePublicId: string,) => {
+
+
+
+
+  return `/admin/moderation/cases/${casePublicId}/appeal-decision`
+}
+
+/**
+ * @summary Post Moderation Appeal Decision
+ */
+export const postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPost = async (casePublicId: string,
+    appealDecisionRequest: AppealDecisionRequest, options?: RequestInit): Promise<postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse> => {
+
+  const res = await fetch(getPostModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostUrl(casePublicId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(appealDecisionRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as postModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostResponse
+}
+
+
+
+export type eventReviewsAdminEventsReviewsGetResponse200 = {
+  data: EventReviewsAdminEventsReviewsGet200
+  status: 200
+}
+
+export type eventReviewsAdminEventsReviewsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type eventReviewsAdminEventsReviewsGetResponseSuccess = (eventReviewsAdminEventsReviewsGetResponse200) & {
+  headers: Headers;
+};
+export type eventReviewsAdminEventsReviewsGetResponseError = (eventReviewsAdminEventsReviewsGetResponse422) & {
+  headers: Headers;
+};
+
+export type eventReviewsAdminEventsReviewsGetResponse = (eventReviewsAdminEventsReviewsGetResponseSuccess | eventReviewsAdminEventsReviewsGetResponseError)
+
+export const getEventReviewsAdminEventsReviewsGetUrl = (params?: EventReviewsAdminEventsReviewsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/events/reviews?${stringifiedParams}` : `/admin/events/reviews`
+}
+
+/**
+ * @summary Event Reviews
+ */
+export const eventReviewsAdminEventsReviewsGet = async (params?: EventReviewsAdminEventsReviewsGetParams, options?: RequestInit): Promise<eventReviewsAdminEventsReviewsGetResponse> => {
+
+  const res = await fetch(getEventReviewsAdminEventsReviewsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: eventReviewsAdminEventsReviewsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as eventReviewsAdminEventsReviewsGetResponse
+}
+
+
+
+export type streetAnchorsAdminStreetAnchorsGetResponse200 = {
+  data: StreetAnchorsAdminStreetAnchorsGet200
+  status: 200
+}
+
+export type streetAnchorsAdminStreetAnchorsGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type streetAnchorsAdminStreetAnchorsGetResponseSuccess = (streetAnchorsAdminStreetAnchorsGetResponse200) & {
+  headers: Headers;
+};
+export type streetAnchorsAdminStreetAnchorsGetResponseError = (streetAnchorsAdminStreetAnchorsGetResponse422) & {
+  headers: Headers;
+};
+
+export type streetAnchorsAdminStreetAnchorsGetResponse = (streetAnchorsAdminStreetAnchorsGetResponseSuccess | streetAnchorsAdminStreetAnchorsGetResponseError)
+
+export const getStreetAnchorsAdminStreetAnchorsGetUrl = (params: StreetAnchorsAdminStreetAnchorsGetParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/admin/street-anchors?${stringifiedParams}` : `/admin/street-anchors`
+}
+
+/**
+ * @summary Street Anchors
+ */
+export const streetAnchorsAdminStreetAnchorsGet = async (params: StreetAnchorsAdminStreetAnchorsGetParams, options?: RequestInit): Promise<streetAnchorsAdminStreetAnchorsGetResponse> => {
+
+  const res = await fetch(getStreetAnchorsAdminStreetAnchorsGetUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: streetAnchorsAdminStreetAnchorsGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as streetAnchorsAdminStreetAnchorsGetResponse
+}
+
+
+
+export type createStreetAnchorAdminStreetAnchorsPostResponse201 = {
+  data: CreateStreetAnchorAdminStreetAnchorsPost201
+  status: 201
+}
+
+export type createStreetAnchorAdminStreetAnchorsPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createStreetAnchorAdminStreetAnchorsPostResponseSuccess = (createStreetAnchorAdminStreetAnchorsPostResponse201) & {
+  headers: Headers;
+};
+export type createStreetAnchorAdminStreetAnchorsPostResponseError = (createStreetAnchorAdminStreetAnchorsPostResponse422) & {
+  headers: Headers;
+};
+
+export type createStreetAnchorAdminStreetAnchorsPostResponse = (createStreetAnchorAdminStreetAnchorsPostResponseSuccess | createStreetAnchorAdminStreetAnchorsPostResponseError)
+
+export const getCreateStreetAnchorAdminStreetAnchorsPostUrl = () => {
+
+
+
+
+  return `/admin/street-anchors`
+}
+
+/**
+ * @summary Create Street Anchor
+ */
+export const createStreetAnchorAdminStreetAnchorsPost = async (streetAnchorCreateRequest: StreetAnchorCreateRequest, options?: RequestInit): Promise<createStreetAnchorAdminStreetAnchorsPostResponse> => {
+
+  const res = await fetch(getCreateStreetAnchorAdminStreetAnchorsPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(streetAnchorCreateRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createStreetAnchorAdminStreetAnchorsPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createStreetAnchorAdminStreetAnchorsPostResponse
+}
+
+
+
+export type streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse200 = {
+  data: StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200
+  status: 200
+}
+
+export type streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseSuccess = (streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse200) & {
+  headers: Headers;
+};
+export type streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseError = (streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse = (streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseSuccess | streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseError)
+
+export const getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetUrl = (anchorId: string,) => {
+
+
+
+
+  return `/admin/street-anchors/${anchorId}`
+}
+
+/**
+ * @summary Street Anchor Detail
+ */
+export const streetAnchorDetailAdminStreetAnchorsAnchorIdGet = async (anchorId: string, options?: RequestInit): Promise<streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse> => {
+
+  const res = await fetch(getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetUrl(anchorId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as streetAnchorDetailAdminStreetAnchorsAnchorIdGetResponse
+}
+
+
+
+export type updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse204 = {
+  data: void
+  status: 204
+}
+
+export type updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponseSuccess = (updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse204) & {
+  headers: Headers;
+};
+export type updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponseError = (updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse422) & {
+  headers: Headers;
+};
+
+export type updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse = (updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponseSuccess | updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponseError)
+
+export const getUpdateStreetAnchorAdminStreetAnchorsAnchorIdPatchUrl = (anchorId: string,) => {
+
+
+
+
+  return `/admin/street-anchors/${anchorId}`
+}
+
+/**
+ * @summary Update Street Anchor
+ */
+export const updateStreetAnchorAdminStreetAnchorsAnchorIdPatch = async (anchorId: string,
+    streetAnchorUpdateRequest: StreetAnchorUpdateRequest, options?: RequestInit): Promise<updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse> => {
+
+  const res = await fetch(getUpdateStreetAnchorAdminStreetAnchorsAnchorIdPatchUrl(anchorId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(streetAnchorUpdateRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as updateStreetAnchorAdminStreetAnchorsAnchorIdPatchResponse
+}
+
+
+
+export type eventReviewDetailAdminEventsReviewsReviewIdGetResponse200 = {
+  data: EventReviewDetailAdminEventsReviewsReviewIdGet200
+  status: 200
+}
+
+export type eventReviewDetailAdminEventsReviewsReviewIdGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type eventReviewDetailAdminEventsReviewsReviewIdGetResponseSuccess = (eventReviewDetailAdminEventsReviewsReviewIdGetResponse200) & {
+  headers: Headers;
+};
+export type eventReviewDetailAdminEventsReviewsReviewIdGetResponseError = (eventReviewDetailAdminEventsReviewsReviewIdGetResponse422) & {
+  headers: Headers;
+};
+
+export type eventReviewDetailAdminEventsReviewsReviewIdGetResponse = (eventReviewDetailAdminEventsReviewsReviewIdGetResponseSuccess | eventReviewDetailAdminEventsReviewsReviewIdGetResponseError)
+
+export const getEventReviewDetailAdminEventsReviewsReviewIdGetUrl = (reviewId: string,) => {
+
+
+
+
+  return `/admin/events/reviews/${reviewId}`
+}
+
+/**
+ * @summary Event Review Detail
+ */
+export const eventReviewDetailAdminEventsReviewsReviewIdGet = async (reviewId: string, options?: RequestInit): Promise<eventReviewDetailAdminEventsReviewsReviewIdGetResponse> => {
+
+  const res = await fetch(getEventReviewDetailAdminEventsReviewsReviewIdGetUrl(reviewId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: eventReviewDetailAdminEventsReviewsReviewIdGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as eventReviewDetailAdminEventsReviewsReviewIdGetResponse
+}
+
+
+
+export type eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse200 = {
+  data: unknown
+  status: 200
+}
+
+export type eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponseSuccess = (eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse200) & {
+  headers: Headers;
+};
+export type eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponseError = (eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse422) & {
+  headers: Headers;
+};
+
+export type eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse = (eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponseSuccess | eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponseError)
+
+export const getEventReviewPhotoAdminEventsReviewsReviewIdPhotoGetUrl = (reviewId: string,) => {
+
+
+
+
+  return `/admin/events/reviews/${reviewId}/photo`
+}
+
+/**
+ * @summary Event Review Photo
+ */
+export const eventReviewPhotoAdminEventsReviewsReviewIdPhotoGet = async (reviewId: string, options?: RequestInit): Promise<eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse> => {
+
+  const res = await fetch(getEventReviewPhotoAdminEventsReviewsReviewIdPhotoGetUrl(reviewId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as eventReviewPhotoAdminEventsReviewsReviewIdPhotoGetResponse
+}
+
+
+
+export type decideEventReviewAdminEventsReviewsReviewIdActionPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type decideEventReviewAdminEventsReviewsReviewIdActionPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type decideEventReviewAdminEventsReviewsReviewIdActionPostResponseSuccess = (decideEventReviewAdminEventsReviewsReviewIdActionPostResponse204) & {
+  headers: Headers;
+};
+export type decideEventReviewAdminEventsReviewsReviewIdActionPostResponseError = (decideEventReviewAdminEventsReviewsReviewIdActionPostResponse422) & {
+  headers: Headers;
+};
+
+export type decideEventReviewAdminEventsReviewsReviewIdActionPostResponse = (decideEventReviewAdminEventsReviewsReviewIdActionPostResponseSuccess | decideEventReviewAdminEventsReviewsReviewIdActionPostResponseError)
+
+export const getDecideEventReviewAdminEventsReviewsReviewIdActionPostUrl = (reviewId: string,
+    action: 'approve' | 'reject',) => {
+
+
+
+
+  return `/admin/events/reviews/${reviewId}/${action}`
+}
+
+/**
+ * @summary Decide Event Review
+ */
+export const decideEventReviewAdminEventsReviewsReviewIdActionPost = async (reviewId: string,
+    action: 'approve' | 'reject',
+    reviewDecisionRequest: ReviewDecisionRequest, options?: RequestInit): Promise<decideEventReviewAdminEventsReviewsReviewIdActionPostResponse> => {
+
+  const res = await fetch(getDecideEventReviewAdminEventsReviewsReviewIdActionPostUrl(reviewId,action),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reviewDecisionRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: decideEventReviewAdminEventsReviewsReviewIdActionPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as decideEventReviewAdminEventsReviewsReviewIdActionPostResponse
+}
+
+
+
+export type createSpecialAdminEventsSpecialPostResponse201 = {
+  data: CreatedSpecialResponse
+  status: 201
+}
+
+export type createSpecialAdminEventsSpecialPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createSpecialAdminEventsSpecialPostResponseSuccess = (createSpecialAdminEventsSpecialPostResponse201) & {
+  headers: Headers;
+};
+export type createSpecialAdminEventsSpecialPostResponseError = (createSpecialAdminEventsSpecialPostResponse422) & {
+  headers: Headers;
+};
+
+export type createSpecialAdminEventsSpecialPostResponse = (createSpecialAdminEventsSpecialPostResponseSuccess | createSpecialAdminEventsSpecialPostResponseError)
+
+export const getCreateSpecialAdminEventsSpecialPostUrl = () => {
+
+
+
+
+  return `/admin/events/special`
+}
+
+/**
+ * @deprecated
+ * @summary Create Special
+ */
+export const createSpecialAdminEventsSpecialPost = async (createSpecialRequest: CreateSpecialRequest, options?: RequestInit): Promise<createSpecialAdminEventsSpecialPostResponse> => {
+
+  const res = await fetch(getCreateSpecialAdminEventsSpecialPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSpecialRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createSpecialAdminEventsSpecialPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createSpecialAdminEventsSpecialPostResponse
+}
+
+
+
+export type specialEventsAdminEventsSpecialGetResponse200 = {
+  data: SpecialEventsAdminEventsSpecialGet200
+  status: 200
+}
+
+export type specialEventsAdminEventsSpecialGetResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type specialEventsAdminEventsSpecialGetResponseSuccess = (specialEventsAdminEventsSpecialGetResponse200) & {
+  headers: Headers;
+};
+export type specialEventsAdminEventsSpecialGetResponseError = (specialEventsAdminEventsSpecialGetResponse422) & {
+  headers: Headers;
+};
+
+export type specialEventsAdminEventsSpecialGetResponse = (specialEventsAdminEventsSpecialGetResponseSuccess | specialEventsAdminEventsSpecialGetResponseError)
+
+export const getSpecialEventsAdminEventsSpecialGetUrl = () => {
+
+
+
+
+  return `/admin/events/special`
+}
+
+/**
+ * @summary Special Events
+ */
+export const specialEventsAdminEventsSpecialGet = async ( options?: RequestInit): Promise<specialEventsAdminEventsSpecialGetResponse> => {
+
+  const res = await fetch(getSpecialEventsAdminEventsSpecialGetUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: specialEventsAdminEventsSpecialGetResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as specialEventsAdminEventsSpecialGetResponse
+}
+
+
+
+export type createSpecialAdminEventsCommunityPostResponse201 = {
+  data: CreatedSpecialResponse
+  status: 201
+}
+
+export type createSpecialAdminEventsCommunityPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type createSpecialAdminEventsCommunityPostResponseSuccess = (createSpecialAdminEventsCommunityPostResponse201) & {
+  headers: Headers;
+};
+export type createSpecialAdminEventsCommunityPostResponseError = (createSpecialAdminEventsCommunityPostResponse422) & {
+  headers: Headers;
+};
+
+export type createSpecialAdminEventsCommunityPostResponse = (createSpecialAdminEventsCommunityPostResponseSuccess | createSpecialAdminEventsCommunityPostResponseError)
+
+export const getCreateSpecialAdminEventsCommunityPostUrl = () => {
+
+
+
+
+  return `/admin/events/community`
+}
+
+/**
+ * @summary Create Special
+ */
+export const createSpecialAdminEventsCommunityPost = async (createSpecialRequest: CreateSpecialRequest, options?: RequestInit): Promise<createSpecialAdminEventsCommunityPostResponse> => {
+
+  const res = await fetch(getCreateSpecialAdminEventsCommunityPostUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createSpecialRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: createSpecialAdminEventsCommunityPostResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as createSpecialAdminEventsCommunityPostResponse
+}
+
+
+
+export type cancelSpecialAdminEventsSpecialEventIdCancelPostResponse204 = {
+  data: void
+  status: 204
+}
+
+export type cancelSpecialAdminEventsSpecialEventIdCancelPostResponse422 = {
+  data: HTTPValidationError
+  status: 422
+}
+
+export type cancelSpecialAdminEventsSpecialEventIdCancelPostResponseSuccess = (cancelSpecialAdminEventsSpecialEventIdCancelPostResponse204) & {
+  headers: Headers;
+};
+export type cancelSpecialAdminEventsSpecialEventIdCancelPostResponseError = (cancelSpecialAdminEventsSpecialEventIdCancelPostResponse422) & {
+  headers: Headers;
+};
+
+export type cancelSpecialAdminEventsSpecialEventIdCancelPostResponse = (cancelSpecialAdminEventsSpecialEventIdCancelPostResponseSuccess | cancelSpecialAdminEventsSpecialEventIdCancelPostResponseError)
+
+export const getCancelSpecialAdminEventsSpecialEventIdCancelPostUrl = (eventId: string,) => {
+
+
+
+
+  return `/admin/events/special/${eventId}/cancel`
+}
+
+/**
+ * @summary Cancel Special
+ */
+export const cancelSpecialAdminEventsSpecialEventIdCancelPost = async (eventId: string,
+    cancelSpecialRequest: CancelSpecialRequest, options?: RequestInit): Promise<cancelSpecialAdminEventsSpecialEventIdCancelPostResponse> => {
+
+  const res = await fetch(getCancelSpecialAdminEventsSpecialEventIdCancelPostUrl(eventId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(cancelSpecialRequest)
+  }
+)
+
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: cancelSpecialAdminEventsSpecialEventIdCancelPostResponse['data'] = body ? JSON.parse(body) : undefined
+  return { data, status: res.status, headers: res.headers } as cancelSpecialAdminEventsSpecialEventIdCancelPostResponse
+}
+
+
 export const getLivenessHealthLiveGetResponseMock = (overrideResponse: Partial<Extract<HealthResponse, object>> = {}): HealthResponse => ({status: faker.helpers.arrayElement(['ok','unavailable'] as const), ...overrideResponse})
 
-export const getReverseGeocodeGeoReverseGetResponseMock = (overrideResponse: Partial<Extract<ReverseGeocodingResponse, object>> = {}): ReverseGeocodingResponse => ({display_name: faker.string.alpha({length: {min: 10, max: 20}}), street: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}), null]), city: faker.string.alpha({length: {min: 10, max: 20}}), region: faker.string.alpha({length: {min: 10, max: 20}}), provider_place_id: faker.string.alpha({length: {min: 10, max: 20}}), locale: faker.string.alpha({length: {min: 10, max: 20}}), precision: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+export const getReadinessHealthReadyGetResponseMock = (overrideResponse: Partial<Extract<HealthResponse, object>> = {}): HealthResponse => ({status: faker.helpers.arrayElement(['ok','unavailable'] as const), ...overrideResponse})
+
+export const getFeaturesFeaturesGetResponseMock = (overrideResponse: Partial<Extract<FeatureManifest, object>> = {}): FeatureManifest => ({navigation_v2: faker.datatype.boolean(), notifications_v2: faker.datatype.boolean(), safety_cases: faker.datatype.boolean(), attendance: faker.datatype.boolean(), private_event_feedback: faker.datatype.boolean(), reputation_profiles: faker.datatype.boolean(), ...overrideResponse})
+
+export const getCatalogGeoCatalogGetResponseMock = (overrideResponse: Partial<Extract<CatalogResponse, object>> = {}): CatalogResponse => ({cities: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), slug: faker.string.alpha({length: {min: 10, max: 20}}), name: faker.string.alpha({length: {min: 10, max: 20}}), center_latitude: faker.number.float({fractionDigits: 2}), center_longitude: faker.number.float({fractionDigits: 2}), service_radius_m: faker.number.int(), map_bounds: {west: faker.number.float({fractionDigits: 2}), south: faker.number.float({fractionDigits: 2}), east: faker.number.float({fractionDigits: 2}), north: faker.number.float({fractionDigits: 2})}, allowed_area: {}})), categories: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), slug: faker.string.alpha({length: {min: 10, max: 20}}), name: faker.string.alpha({length: {min: 10, max: 20}}), is_special: faker.datatype.boolean(), organizer_selectable: faker.datatype.boolean(), icon_key: faker.string.alpha({length: {min: 10, max: 20}}), color_key: faker.string.alpha({length: {min: 10, max: 20}})})), ...overrideResponse})
+
+export const getReverseGeocodeGeoReverseGetResponseMock = (overrideResponse: Partial<Extract<ReverseGeocodingResponse, object>> = {}): ReverseGeocodingResponse => ({display_name: faker.string.alpha({length: {min: 10, max: 20}}), street: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), house_number: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city: faker.string.alpha({length: {min: 10, max: 20}}), region: faker.string.alpha({length: {min: 10, max: 20}}), provider_place_id: faker.string.alpha({length: {min: 10, max: 20}}), locale: faker.string.alpha({length: {min: 10, max: 20}}), precision: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getResolveEventLocationGeoResolveGetResponseMock = (overrideResponse: Partial<Extract<ReverseGeocodingResponse, object>> = {}): ReverseGeocodingResponse => ({display_name: faker.string.alpha({length: {min: 10, max: 20}}), street: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), house_number: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city: faker.string.alpha({length: {min: 10, max: 20}}), region: faker.string.alpha({length: {min: 10, max: 20}}), provider_place_id: faker.string.alpha({length: {min: 10, max: 20}}), locale: faker.string.alpha({length: {min: 10, max: 20}}), precision: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getBootstrapAuthMiniBootstrapPostResponseMock = (overrideResponse: Partial<Extract<AfishabotAdaptersHttpAuthBootstrapResponse, object>> = {}): AfishabotAdaptersHttpAuthBootstrapResponse => ({nonce: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getExchangeAuthMiniExchangePostResponseMock = (overrideResponse: Partial<Extract<SessionResponse, object>> = {}): SessionResponse => ({profile: {public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), age_confirmed: faker.datatype.boolean(), city_name: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), background_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int()}, csrf_token: faker.string.alpha({length: {min: 10, max: 20}}), created: faker.datatype.boolean(), ...overrideResponse})
+
+export const getMeAccountMeGetResponseMock = (overrideResponse: Partial<Extract<ProfileResponse, object>> = {}): ProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), age_confirmed: faker.datatype.boolean(), city_name: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), background_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), ...overrideResponse})
+
+export const getAgeConsentAccountAgeConsentPostResponseMock = (overrideResponse: Partial<Extract<ProfileResponse, object>> = {}): ProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), age_confirmed: faker.datatype.boolean(), city_name: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), background_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), ...overrideResponse})
+
+export const getOnboardingAccountOnboardingPostResponseMock = (overrideResponse: Partial<Extract<ProfileResponse, object>> = {}): ProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), age_confirmed: faker.datatype.boolean(), city_name: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), background_url: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), ...overrideResponse})
+
+export const getPublishedEventsEventsGetResponseMock = (): PublishedEventsEventsGet200 => ({})
+
+export const getSubmitEventEventsPostResponseMock = (overrideResponse: Partial<Extract<CreateEventResponse, object>> = {}): CreateEventResponse => ({event_id: faker.string.uuid(), status: faker.helpers.arrayElement(['published','pending_review'] as const), ...overrideResponse})
+
+export const getPublishedEventDetailEventsEventIdGetResponseMock = (): PublishedEventDetailEventsEventIdGet200 => ({})
+
+export const getMarkEventInterestingEventsEventIdInterestPutResponseMock = (): MarkEventInterestingEventsEventIdInterestPut200 => ({})
+
+export const getUnmarkEventInterestingEventsEventIdInterestDeleteResponseMock = (): UnmarkEventInterestingEventsEventIdInterestDelete200 => ({})
+
+export const getJoinPublishedEventEventsEventIdJoinPostResponseMock = (): JoinPublishedEventEventsEventIdJoinPost200 => ({})
+
+export const getLeavePublishedEventEventsEventIdLeavePostResponseMock = (): LeavePublishedEventEventsEventIdLeavePost200 => ({})
+
+export const getGetEventManagementEventsEventIdManageGetResponseMock = (): GetEventManagementEventsEventIdManageGet200 => ({})
+
+export const getGetEventRosterEventsEventIdManageRosterGetResponseMock = (): GetEventRosterEventsEventIdManageRosterGet200 => ({})
+
+export const getRevisePublishedEventEventsEventIdRevisionsPostResponseMock = (): RevisePublishedEventEventsEventIdRevisionsPost202 => ({})
+
+export const getMessagesEventsEventIdChatGetResponseMock = (): MessagesEventsEventIdChatGet200 => ({})
+
+export const getSendEventsEventIdChatPostResponseMock = (): SendEventsEventIdChatPost201 => ({})
+
+export const getSetStateEventsEventIdChatPutResponseMock = (): SetStateEventsEventIdChatPut200 => ({})
+
+export const getFeedLookingPostsGetResponseMock = (): FeedLookingPostsGet200 => ({})
+
+export const getCreateLookingPostsPostResponseMock = (): CreateLookingPostsPost201 => ({})
+
+export const getDetailLookingPostsPostIdGetResponseMock = (): DetailLookingPostsPostIdGet200 => ({})
+
+export const getLikeLookingPostsPostIdLikePutResponseMock = (): LikeLookingPostsPostIdLikePut200 => ({})
+
+export const getQuestionsLookingPostsPostIdQuestionsGetResponseMock = (): QuestionsLookingPostsPostIdQuestionsGet200 => ({})
+
+export const getReportLookingPostsPostIdReportsPostResponseMock = (): ReportLookingPostsPostIdReportsPost201 => ({
+        [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
+      })
+
+export const getAnonymousPublicProfilePublicProfilesPublicIdGetResponseMock = (overrideResponse: Partial<Extract<AnonymousPublicProfileResponse, object>> = {}): AnonymousPublicProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_events: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), title: faker.string.alpha({length: {min: 10, max: 20}}), starts_at: faker.date.past().toISOString().slice(0, 19) + 'Z', ends_at: faker.date.past().toISOString().slice(0, 19) + 'Z', category: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined])})), ...overrideResponse})
+
+export const getGetOwnProfileAccountProfileGetResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getPatchProfileAccountProfilePatchResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getPatchProfileCityAccountProfileCityPatchResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getPublicProfileProfilesPublicIdGetResponseMock = (overrideResponse: Partial<Extract<PublicProfileResponse, object>> = {}): PublicProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), ...overrideResponse})
+
+export const getGetProfileEventsProfilesPublicIdEventsGetResponseMock = (overrideResponse: Partial<Extract<EventsResponse, object>> = {}): EventsResponse => ({items: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), title: faker.string.alpha({length: {min: 10, max: 20}}), starts_at: faker.date.past().toISOString().slice(0, 19) + 'Z', ends_at: faker.date.past().toISOString().slice(0, 19) + 'Z', category: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined])})), next_offset: faker.helpers.arrayElement([faker.number.int(),null,]), ...overrideResponse})
+
+export const getGetAccountEventsAccountEventsGetResponseMock = (overrideResponse: Partial<Extract<EventsResponse, object>> = {}): EventsResponse => ({items: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), title: faker.string.alpha({length: {min: 10, max: 20}}), starts_at: faker.date.past().toISOString().slice(0, 19) + 'Z', ends_at: faker.date.past().toISOString().slice(0, 19) + 'Z', category: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined])})), next_offset: faker.helpers.arrayElement([faker.number.int(),null,]), ...overrideResponse})
+
+export const getGetAccountNotificationsAccountNotificationsGetResponseMock = (): NotificationResponse[] => (Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), kind: faker.string.alpha({length: {min: 10, max: 20}}), importance: faker.string.alpha({length: {min: 10, max: 20}}), title: faker.string.alpha({length: {min: 10, max: 20}}), body: faker.string.alpha({length: {min: 10, max: 20}}), deep_link: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), created_at: faker.date.past().toISOString().slice(0, 19) + 'Z', read_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,])})))
+
+export const getGetNotificationFeedAccountNotificationsFeedGetResponseMock = (overrideResponse: Partial<Extract<NotificationFeedResponse, object>> = {}): NotificationFeedResponse => ({items: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.uuid(), kind: faker.string.alpha({length: {min: 10, max: 20}}), importance: faker.string.alpha({length: {min: 10, max: 20}}), title: faker.string.alpha({length: {min: 10, max: 20}}), body: faker.string.alpha({length: {min: 10, max: 20}}), deep_link: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), created_at: faker.date.past().toISOString().slice(0, 19) + 'Z', read_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,])})), next_cursor: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), unread_count: faker.number.int(), ...overrideResponse})
+
+export const getReadNotificationAccountNotificationsNotificationIdReadPatchResponseMock = (overrideResponse: Partial<Extract<NotificationResponse, object>> = {}): NotificationResponse => ({id: faker.string.uuid(), kind: faker.string.alpha({length: {min: 10, max: 20}}), importance: faker.string.alpha({length: {min: 10, max: 20}}), title: faker.string.alpha({length: {min: 10, max: 20}}), body: faker.string.alpha({length: {min: 10, max: 20}}), deep_link: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), created_at: faker.date.past().toISOString().slice(0, 19) + 'Z', read_at: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), ...overrideResponse})
+
+export const getReadAllNotificationsAccountNotificationsReadAllPostResponseMock = (): ReadAllNotificationsAccountNotificationsReadAllPost200 => ({
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      })
+
+export const getGetNotificationSettingsAccountNotificationSettingsGetResponseMock = (overrideResponse: Partial<Extract<NotificationSettingsResponse, object>> = {}): NotificationSettingsResponse => ({telegram_status: faker.helpers.arrayElement(['pending','sent','unreachable','none'] as const), ...overrideResponse})
+
+export const getReportProfileProfilesPublicIdReportsPostResponseMock = (): ReportProfileProfilesPublicIdReportsPost201 => ({
+        [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
+      })
+
+export const getPutAvatarAccountAvatarPutResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getDeleteAvatarAccountAvatarDeleteResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getPutProfileBackgroundAccountProfileBackgroundPutResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getDeleteProfileBackgroundAccountProfileBackgroundDeleteResponseMock = (overrideResponse: Partial<Extract<OwnProfileResponse, object>> = {}): OwnProfileResponse => ({public_id: faker.string.alpha({length: {min: 10, max: 20}}), display_name: faker.string.alpha({length: {min: 10, max: 20}}), bio: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), selected_city_id: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), city_name: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), avatar_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_thumbnail_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), background_medium_url: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), version: faker.number.int(), next_name_change_at: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), organizer_status: faker.string.alpha({length: {min: 10, max: 20}}), successful_events: faker.number.int(), upcoming_count: faker.number.int(), completed_count: faker.number.int(), age_confirmed: faker.datatype.boolean(), media_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), text_restricted_until: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), ...overrideResponse})
+
+export const getCreateReportSafetyReportsPostResponseMock = (): CreateReportSafetyReportsPost201 => ({
+        [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
+      })
+
+export const getCasesFeedAccountCasesGetResponseMock = (): CasesFeedAccountCasesGet200 => ({})
+
+export const getCaseDetailAccountCasesCasePublicIdGetResponseMock = (): CaseDetailAccountCasesCasePublicIdGet200 => ({})
+
+export const getAppealCaseAccountCasesCasePublicIdAppealPostResponseMock = (): AppealCaseAccountCasesCasePublicIdAppealPost201 => ({
+        [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
+      })
+
+export const getUploadEventPhotoMediaEventPhotoPutResponseMock = (overrideResponse: Partial<Extract<EventPhotoResponse, object>> = {}): EventPhotoResponse => ({upload_id: faker.string.uuid(), preview_url: faker.string.alpha({length: {min: 10, max: 20}}), expires_at: faker.date.past().toISOString().slice(0, 19) + 'Z', width: faker.number.int(), height: faker.number.int(), ...overrideResponse})
+
+export const getBootstrapAdminAuthBootstrapPostResponseMock = (overrideResponse: Partial<Extract<AfishabotAdaptersAdminHttpBootstrapResponse, object>> = {}): AfishabotAdaptersAdminHttpBootstrapResponse => ({csrf_token: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getLoginAdminAuthLoginPostResponseMock = (overrideResponse: Partial<Extract<LoginResponse, object>> = {}): LoginResponse => ({account: {login: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.string.alpha({length: {min: 10, max: 20}})}, csrf_token: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getMeAdminAccountMeGetResponseMock = (overrideResponse: Partial<Extract<StaffResponse, object>> = {}): StaffResponse => ({login: faker.string.alpha({length: {min: 10, max: 20}}), role: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getDashboardAdminDashboardGetResponseMock = (overrideResponse: Partial<Extract<DashboardResponse, object>> = {}): DashboardResponse => ({active_users: faker.number.int(), upcoming_events: faker.number.int(), pending_events: faker.number.int(), open_profile_reports: faker.number.int(), active_moderators: faker.number.int(), ...overrideResponse})
+
+export const getSystemMetricsAdminSystemMetricsGetResponseMock = (overrideResponse: Partial<Extract<SystemMetricsResponse, object>> = {}): SystemMetricsResponse => ({collected_at: faker.date.past().toISOString().slice(0, 19) + 'Z', disk: {
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      }, memory: {
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      }, cpu: {
+        [faker.string.alphanumeric(5)]: faker.number.float({fractionDigits: 2})
+      }, uptime_seconds: faker.number.int(), containers: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.float({fractionDigits: 2}),])
+      })), ...overrideResponse})
+
+export const getRefreshSystemMetricsAdminSystemMetricsRefreshPostResponseMock = (overrideResponse: Partial<Extract<SystemMetricsResponse, object>> = {}): SystemMetricsResponse => ({collected_at: faker.date.past().toISOString().slice(0, 19) + 'Z', disk: {
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      }, memory: {
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      }, cpu: {
+        [faker.string.alphanumeric(5)]: faker.number.float({fractionDigits: 2})
+      }, uptime_seconds: faker.number.int(), containers: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.float({fractionDigits: 2}),])
+      })), ...overrideResponse})
+
+export const getImageAnalysisAdminMediaAnalysisGetResponseMock = (overrideResponse: Partial<Extract<ImageAnalysisResponse, object>> = {}): ImageAnalysisResponse => ({collected_at: faker.date.past().toISOString().slice(0, 19) + 'Z', source: "database", file_count: faker.number.int(), total_bytes: faker.number.int(), permanent_file_count: faker.number.int(), permanent_bytes: faker.number.int(), temporary_file_count: faker.number.int(), temporary_bytes: faker.number.int(), formats: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),])
+      })), purposes: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),])
+      })), directories: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),faker.number.float({fractionDigits: 2}),])
+      })), estimate_status: faker.helpers.arrayElement(['idle','queued','running','completed','failed'] as const), estimate_job_id: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), estimate_collected_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), undefined]), estimate: faker.helpers.arrayElement([faker.helpers.arrayElement([{
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.number.int(),faker.number.float({fractionDigits: 2}),])
+      },null,]), undefined]), ...overrideResponse})
+
+export const getRefreshImageAnalysisAdminMediaAnalysisRefreshPostResponseMock = (overrideResponse: Partial<Extract<ImageAnalysisResponse, object>> = {}): ImageAnalysisResponse => ({collected_at: faker.date.past().toISOString().slice(0, 19) + 'Z', source: "database", file_count: faker.number.int(), total_bytes: faker.number.int(), permanent_file_count: faker.number.int(), permanent_bytes: faker.number.int(), temporary_file_count: faker.number.int(), temporary_bytes: faker.number.int(), formats: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),])
+      })), purposes: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),])
+      })), directories: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),faker.number.int(),faker.number.float({fractionDigits: 2}),])
+      })), estimate_status: faker.helpers.arrayElement(['idle','queued','running','completed','failed'] as const), estimate_job_id: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), undefined]), estimate_collected_at: faker.helpers.arrayElement([faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), undefined]), estimate: faker.helpers.arrayElement([faker.helpers.arrayElement([{
+        [faker.string.alphanumeric(5)]: faker.helpers.arrayElement([faker.number.int(),faker.number.float({fractionDigits: 2}),])
+      },null,]), undefined]), ...overrideResponse})
+
+export const getEstimateImageSavingsAdminMediaAnalysisEstimatePostResponseMock = (overrideResponse: Partial<Extract<ImageEstimateQueuedResponse, object>> = {}): ImageEstimateQueuedResponse => ({job_id: faker.string.uuid(), ...overrideResponse})
+
+export const getAuditAdminAuditGetResponseMock = (overrideResponse: Partial<Extract<AuditPageResponse, object>> = {}): AuditPageResponse => ({items: Array.from({ length: faker.number.int({min: 1, max: 10}) }, (_, i) => i + 1).map(() => ({id: faker.string.alpha({length: {min: 10, max: 20}}), created_at: faker.date.past().toISOString().slice(0, 19) + 'Z', actor: faker.helpers.arrayElement([faker.string.alpha({length: {min: 10, max: 20}}),null,]), action: faker.string.alpha({length: {min: 10, max: 20}}), result: faker.string.alpha({length: {min: 10, max: 20}})})), next_before: faker.helpers.arrayElement([faker.date.past().toISOString().slice(0, 19) + 'Z',null,]), ...overrideResponse})
+
+export const getGetModerationCountsAdminModerationCountsGetResponseMock = (): GetModerationCountsAdminModerationCountsGet200 => ({
+        [faker.string.alphanumeric(5)]: faker.number.int()
+      })
+
+export const getGetModerationCasesAdminModerationCasesGetResponseMock = (): GetModerationCasesAdminModerationCasesGet200 => ({})
+
+export const getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseMock = (): GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200 => ({})
+
+export const getEventReviewsAdminEventsReviewsGetResponseMock = (): EventReviewsAdminEventsReviewsGet200 => ({})
+
+export const getStreetAnchorsAdminStreetAnchorsGetResponseMock = (): StreetAnchorsAdminStreetAnchorsGet200 => ({})
+
+export const getCreateStreetAnchorAdminStreetAnchorsPostResponseMock = (): CreateStreetAnchorAdminStreetAnchorsPost201 => ({
+        [faker.string.alphanumeric(5)]: faker.string.alpha({length: {min: 10, max: 20}})
+      })
+
+export const getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseMock = (): StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200 => ({})
+
+export const getEventReviewDetailAdminEventsReviewsReviewIdGetResponseMock = (): EventReviewDetailAdminEventsReviewsReviewIdGet200 => ({})
+
+export const getCreateSpecialAdminEventsSpecialPostResponseMock = (overrideResponse: Partial<Extract<CreatedSpecialResponse, object>> = {}): CreatedSpecialResponse => ({id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
+
+export const getSpecialEventsAdminEventsSpecialGetResponseMock = (): SpecialEventsAdminEventsSpecialGet200 => ({})
+
+export const getCreateSpecialAdminEventsCommunityPostResponseMock = (overrideResponse: Partial<Extract<CreatedSpecialResponse, object>> = {}): CreatedSpecialResponse => ({id: faker.string.alpha({length: {min: 10, max: 20}}), ...overrideResponse})
 
 
 export const getLivenessHealthLiveGetMockHandler = (overrideResponse?: HealthResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<HealthResponse> | HealthResponse), options?: RequestHandlerOptions) => {
@@ -127,6 +5257,42 @@ export const getLivenessHealthLiveGetMockHandler = (overrideResponse?: HealthRes
     return HttpResponse.json(overrideResponse !== undefined
     ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
     : getLivenessHealthLiveGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getReadinessHealthReadyGetMockHandler = (overrideResponse?: HealthResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<HealthResponse> | HealthResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/health/ready', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getReadinessHealthReadyGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getFeaturesFeaturesGetMockHandler = (overrideResponse?: FeatureManifest | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<FeatureManifest> | FeatureManifest), options?: RequestHandlerOptions) => {
+  return http.get('*/features', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getFeaturesFeaturesGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCatalogGeoCatalogGetMockHandler = (overrideResponse?: CatalogResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<CatalogResponse> | CatalogResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/geo/catalog', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCatalogGeoCatalogGetResponseMock(),
       { status: 200
       })
   }, options)
@@ -143,7 +5309,1147 @@ export const getReverseGeocodeGeoReverseGetMockHandler = (overrideResponse?: Rev
       })
   }, options)
 }
+
+export const getResolveEventLocationGeoResolveGetMockHandler = (overrideResponse?: ReverseGeocodingResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ReverseGeocodingResponse> | ReverseGeocodingResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/geo/resolve', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getResolveEventLocationGeoResolveGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getBootstrapAuthMiniBootstrapPostMockHandler = (overrideResponse?: AfishabotAdaptersHttpAuthBootstrapResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<AfishabotAdaptersHttpAuthBootstrapResponse> | AfishabotAdaptersHttpAuthBootstrapResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/auth/mini/bootstrap', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getBootstrapAuthMiniBootstrapPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getExchangeAuthMiniExchangePostMockHandler = (overrideResponse?: SessionResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<SessionResponse> | SessionResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/auth/mini/exchange', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getExchangeAuthMiniExchangePostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getMeAccountMeGetMockHandler = (overrideResponse?: ProfileResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ProfileResponse> | ProfileResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/account/me', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getMeAccountMeGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getAgeConsentAccountAgeConsentPostMockHandler = (overrideResponse?: ProfileResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ProfileResponse> | ProfileResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/account/age-consent', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAgeConsentAccountAgeConsentPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getOnboardingAccountOnboardingPostMockHandler = (overrideResponse?: ProfileResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ProfileResponse> | ProfileResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/account/onboarding', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getOnboardingAccountOnboardingPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getLogoutAuthLogoutPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/auth/logout', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getPublishedEventsEventsGetMockHandler = (overrideResponse?: PublishedEventsEventsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PublishedEventsEventsGet200> | PublishedEventsEventsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/events', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPublishedEventsEventsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getSubmitEventEventsPostMockHandler = (overrideResponse?: CreateEventResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreateEventResponse> | CreateEventResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/events', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getSubmitEventEventsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getPublishedEventDetailEventsEventIdGetMockHandler = (overrideResponse?: PublishedEventDetailEventsEventIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PublishedEventDetailEventsEventIdGet200> | PublishedEventDetailEventsEventIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPublishedEventDetailEventsEventIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPublishedEventPhotoEventsEventIdPhotoGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId/photo', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getMarkEventInterestingEventsEventIdInterestPutMockHandler = (overrideResponse?: MarkEventInterestingEventsEventIdInterestPut200 | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<MarkEventInterestingEventsEventIdInterestPut200> | MarkEventInterestingEventsEventIdInterestPut200), options?: RequestHandlerOptions) => {
+  return http.put('*/events/:eventId/interest', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getMarkEventInterestingEventsEventIdInterestPutResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getUnmarkEventInterestingEventsEventIdInterestDeleteMockHandler = (overrideResponse?: UnmarkEventInterestingEventsEventIdInterestDelete200 | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<UnmarkEventInterestingEventsEventIdInterestDelete200> | UnmarkEventInterestingEventsEventIdInterestDelete200), options?: RequestHandlerOptions) => {
+  return http.delete('*/events/:eventId/interest', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getUnmarkEventInterestingEventsEventIdInterestDeleteResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getJoinPublishedEventEventsEventIdJoinPostMockHandler = (overrideResponse?: JoinPublishedEventEventsEventIdJoinPost200 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<JoinPublishedEventEventsEventIdJoinPost200> | JoinPublishedEventEventsEventIdJoinPost200), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/join', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getJoinPublishedEventEventsEventIdJoinPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getLeavePublishedEventEventsEventIdLeavePostMockHandler = (overrideResponse?: LeavePublishedEventEventsEventIdLeavePost200 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LeavePublishedEventEventsEventIdLeavePost200> | LeavePublishedEventEventsEventIdLeavePost200), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/leave', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getLeavePublishedEventEventsEventIdLeavePostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetEventManagementEventsEventIdManageGetMockHandler = (overrideResponse?: GetEventManagementEventsEventIdManageGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<GetEventManagementEventsEventIdManageGet200> | GetEventManagementEventsEventIdManageGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId/manage', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetEventManagementEventsEventIdManageGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetEventRosterEventsEventIdManageRosterGetMockHandler = (overrideResponse?: GetEventRosterEventsEventIdManageRosterGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<GetEventRosterEventsEventIdManageRosterGet200> | GetEventRosterEventsEventIdManageRosterGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId/manage/roster', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetEventRosterEventsEventIdManageRosterGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getExcludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/participants/:participationId/exclude', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getGetManagedEventPhotoEventsEventIdManagePhotoGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId/manage/photo', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getRevisePublishedEventEventsEventIdRevisionsPostMockHandler = (overrideResponse?: RevisePublishedEventEventsEventIdRevisionsPost202 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<RevisePublishedEventEventsEventIdRevisionsPost202> | RevisePublishedEventEventsEventIdRevisionsPost202), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/revisions', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRevisePublishedEventEventsEventIdRevisionsPostResponseMock(),
+      { status: 202
+      })
+  }, options)
+}
+
+export const getCancelPublishedEventEventsEventIdCancelPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/cancel', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getMessagesEventsEventIdChatGetMockHandler = (overrideResponse?: MessagesEventsEventIdChatGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<MessagesEventsEventIdChatGet200> | MessagesEventsEventIdChatGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/events/:eventId/chat', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getMessagesEventsEventIdChatGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getSendEventsEventIdChatPostMockHandler = (overrideResponse?: SendEventsEventIdChatPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<SendEventsEventIdChatPost201> | SendEventsEventIdChatPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/events/:eventId/chat', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getSendEventsEventIdChatPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getSetStateEventsEventIdChatPutMockHandler = (overrideResponse?: SetStateEventsEventIdChatPut200 | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<SetStateEventsEventIdChatPut200> | SetStateEventsEventIdChatPut200), options?: RequestHandlerOptions) => {
+  return http.put('*/events/:eventId/chat', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getSetStateEventsEventIdChatPutResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getFeedLookingPostsGetMockHandler = (overrideResponse?: FeedLookingPostsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<FeedLookingPostsGet200> | FeedLookingPostsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/looking-posts', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getFeedLookingPostsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCreateLookingPostsPostMockHandler = (overrideResponse?: CreateLookingPostsPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreateLookingPostsPost201> | CreateLookingPostsPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/looking-posts', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateLookingPostsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getDetailLookingPostsPostIdGetMockHandler = (overrideResponse?: DetailLookingPostsPostIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<DetailLookingPostsPostIdGet200> | DetailLookingPostsPostIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/looking-posts/:postId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDetailLookingPostsPostIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getWithdrawLookingPostsPostIdDeleteMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.delete('*/looking-posts/:postId', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getLikeLookingPostsPostIdLikePutMockHandler = (overrideResponse?: LikeLookingPostsPostIdLikePut200 | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<LikeLookingPostsPostIdLikePut200> | LikeLookingPostsPostIdLikePut200), options?: RequestHandlerOptions) => {
+  return http.put('*/looking-posts/:postId/like', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getLikeLookingPostsPostIdLikePutResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getUnlikeLookingPostsPostIdLikeDeleteMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.delete('*/looking-posts/:postId/like', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getQuestionsLookingPostsPostIdQuestionsGetMockHandler = (overrideResponse?: QuestionsLookingPostsPostIdQuestionsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<QuestionsLookingPostsPostIdQuestionsGet200> | QuestionsLookingPostsPostIdQuestionsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/looking-posts/:postId/questions', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getQuestionsLookingPostsPostIdQuestionsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getQuestionLookingPostsPostIdQuestionsPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/looking-posts/:postId/questions', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getReportLookingPostsPostIdReportsPostMockHandler = (overrideResponse?: ReportLookingPostsPostIdReportsPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ReportLookingPostsPostIdReportsPost201> | ReportLookingPostsPostIdReportsPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/looking-posts/:postId/reports', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getReportLookingPostsPostIdReportsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getAnswerLookingPostsPostIdQuestionsQuestionIdAnswerPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/looking-posts/:postId/questions/:questionId/answer', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getAnonymousPublicProfilePublicProfilesPublicIdGetMockHandler = (overrideResponse?: AnonymousPublicProfileResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<AnonymousPublicProfileResponse> | AnonymousPublicProfileResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/public/profiles/:publicId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAnonymousPublicProfilePublicProfilesPublicIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getAnonymousProfileAvatarPublicProfilesPublicIdAvatarGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/public/profiles/:publicId/avatar', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getAnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/public/profiles/:publicId/background', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetOwnProfileAccountProfileGetMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/account/profile', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetOwnProfileAccountProfileGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPatchProfileAccountProfilePatchMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.patch('*/account/profile', async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPatchProfileAccountProfilePatchResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPatchProfileCityAccountProfileCityPatchMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.patch('*/account/profile/city', async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPatchProfileCityAccountProfileCityPatchResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPublicProfileProfilesPublicIdGetMockHandler = (overrideResponse?: PublicProfileResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<PublicProfileResponse> | PublicProfileResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/profiles/:publicId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPublicProfileProfilesPublicIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetProfileEventsProfilesPublicIdEventsGetMockHandler = (overrideResponse?: EventsResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<EventsResponse> | EventsResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/profiles/:publicId/events', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetProfileEventsProfilesPublicIdEventsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetAccountEventsAccountEventsGetMockHandler = (overrideResponse?: EventsResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<EventsResponse> | EventsResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/account/events', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetAccountEventsAccountEventsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetAccountNotificationsAccountNotificationsGetMockHandler = (overrideResponse?: NotificationResponse[] | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<NotificationResponse[]> | NotificationResponse[]), options?: RequestHandlerOptions) => {
+  return http.get('*/account/notifications', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetAccountNotificationsAccountNotificationsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetNotificationFeedAccountNotificationsFeedGetMockHandler = (overrideResponse?: NotificationFeedResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<NotificationFeedResponse> | NotificationFeedResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/account/notifications/feed', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetNotificationFeedAccountNotificationsFeedGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getReadNotificationAccountNotificationsNotificationIdReadPatchMockHandler = (overrideResponse?: NotificationResponse | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<NotificationResponse> | NotificationResponse), options?: RequestHandlerOptions) => {
+  return http.patch('*/account/notifications/:notificationId/read', async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getReadNotificationAccountNotificationsNotificationIdReadPatchResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getReadAllNotificationsAccountNotificationsReadAllPostMockHandler = (overrideResponse?: ReadAllNotificationsAccountNotificationsReadAllPost200 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ReadAllNotificationsAccountNotificationsReadAllPost200> | ReadAllNotificationsAccountNotificationsReadAllPost200), options?: RequestHandlerOptions) => {
+  return http.post('*/account/notifications/read-all', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getReadAllNotificationsAccountNotificationsReadAllPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetNotificationSettingsAccountNotificationSettingsGetMockHandler = (overrideResponse?: NotificationSettingsResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<NotificationSettingsResponse> | NotificationSettingsResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/account/notification-settings', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetNotificationSettingsAccountNotificationSettingsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getReportProfileProfilesPublicIdReportsPostMockHandler = (overrideResponse?: ReportProfileProfilesPublicIdReportsPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ReportProfileProfilesPublicIdReportsPost201> | ReportProfileProfilesPublicIdReportsPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/profiles/:publicId/reports', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getReportProfileProfilesPublicIdReportsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getPutAvatarAccountAvatarPutMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.put('*/account/avatar', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPutAvatarAccountAvatarPutResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getDeleteAvatarAccountAvatarDeleteMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.delete('*/account/avatar', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDeleteAvatarAccountAvatarDeleteResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPutProfileBackgroundAccountProfileBackgroundPutMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.put('*/account/profile-background', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getPutProfileBackgroundAccountProfileBackgroundPutResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getDeleteProfileBackgroundAccountProfileBackgroundDeleteMockHandler = (overrideResponse?: OwnProfileResponse | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<OwnProfileResponse> | OwnProfileResponse), options?: RequestHandlerOptions) => {
+  return http.delete('*/account/profile-background', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDeleteProfileBackgroundAccountProfileBackgroundDeleteResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getAvatarProfilesPublicIdAvatarGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/profiles/:publicId/avatar', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getProfileBackgroundProfilesPublicIdBackgroundGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/profiles/:publicId/background', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCreateReportSafetyReportsPostMockHandler = (overrideResponse?: CreateReportSafetyReportsPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreateReportSafetyReportsPost201> | CreateReportSafetyReportsPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/safety/reports', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateReportSafetyReportsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getCasesFeedAccountCasesGetMockHandler = (overrideResponse?: CasesFeedAccountCasesGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<CasesFeedAccountCasesGet200> | CasesFeedAccountCasesGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/account/cases', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCasesFeedAccountCasesGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCaseDetailAccountCasesCasePublicIdGetMockHandler = (overrideResponse?: CaseDetailAccountCasesCasePublicIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<CaseDetailAccountCasesCasePublicIdGet200> | CaseDetailAccountCasesCasePublicIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/account/cases/:casePublicId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCaseDetailAccountCasesCasePublicIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getAppealCaseAccountCasesCasePublicIdAppealPostMockHandler = (overrideResponse?: AppealCaseAccountCasesCasePublicIdAppealPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<AppealCaseAccountCasesCasePublicIdAppealPost201> | AppealCaseAccountCasesCasePublicIdAppealPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/account/cases/:casePublicId/appeal', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAppealCaseAccountCasesCasePublicIdAppealPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getUploadEventPhotoMediaEventPhotoPutMockHandler = (overrideResponse?: EventPhotoResponse | ((info: Parameters<Parameters<typeof http.put>[1]>[0]) => Promise<EventPhotoResponse> | EventPhotoResponse), options?: RequestHandlerOptions) => {
+  return http.put('*/media/event-photo', async (info: Parameters<Parameters<typeof http.put>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getUploadEventPhotoMediaEventPhotoPutResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getEventPhotoPreviewMediaEventPhotosUploadIdGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/media/event-photos/:uploadId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getDeleteEventPhotoMediaEventPhotosUploadIdDeleteMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.delete>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.delete('*/media/event-photos/:uploadId', async (info: Parameters<Parameters<typeof http.delete>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getBootstrapAdminAuthBootstrapPostMockHandler = (overrideResponse?: AfishabotAdaptersAdminHttpBootstrapResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<AfishabotAdaptersAdminHttpBootstrapResponse> | AfishabotAdaptersAdminHttpBootstrapResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/auth/bootstrap', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getBootstrapAdminAuthBootstrapPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getLoginAdminAuthLoginPostMockHandler = (overrideResponse?: LoginResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<LoginResponse> | LoginResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/auth/login', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getLoginAdminAuthLoginPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getMeAdminAccountMeGetMockHandler = (overrideResponse?: StaffResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StaffResponse> | StaffResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/account/me', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getMeAdminAccountMeGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getLogoutAdminAuthLogoutPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/auth/logout', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getDashboardAdminDashboardGetMockHandler = (overrideResponse?: DashboardResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<DashboardResponse> | DashboardResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/dashboard', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getDashboardAdminDashboardGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getSystemMetricsAdminSystemMetricsGetMockHandler = (overrideResponse?: SystemMetricsResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<SystemMetricsResponse> | SystemMetricsResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/system/metrics', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getSystemMetricsAdminSystemMetricsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getRefreshSystemMetricsAdminSystemMetricsRefreshPostMockHandler = (overrideResponse?: SystemMetricsResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<SystemMetricsResponse> | SystemMetricsResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/system/metrics/refresh', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRefreshSystemMetricsAdminSystemMetricsRefreshPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getImageAnalysisAdminMediaAnalysisGetMockHandler = (overrideResponse?: ImageAnalysisResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<ImageAnalysisResponse> | ImageAnalysisResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/media/analysis', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getImageAnalysisAdminMediaAnalysisGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getRefreshImageAnalysisAdminMediaAnalysisRefreshPostMockHandler = (overrideResponse?: ImageAnalysisResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ImageAnalysisResponse> | ImageAnalysisResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/media/analysis/refresh', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getRefreshImageAnalysisAdminMediaAnalysisRefreshPostResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getEstimateImageSavingsAdminMediaAnalysisEstimatePostMockHandler = (overrideResponse?: ImageEstimateQueuedResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<ImageEstimateQueuedResponse> | ImageEstimateQueuedResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/media/analysis/estimate', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getEstimateImageSavingsAdminMediaAnalysisEstimatePostResponseMock(),
+      { status: 202
+      })
+  }, options)
+}
+
+export const getAuditAdminAuditGetMockHandler = (overrideResponse?: AuditPageResponse | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<AuditPageResponse> | AuditPageResponse), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/audit', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getAuditAdminAuditGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetModerationCountsAdminModerationCountsGetMockHandler = (overrideResponse?: GetModerationCountsAdminModerationCountsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<GetModerationCountsAdminModerationCountsGet200> | GetModerationCountsAdminModerationCountsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/moderation/counts', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetModerationCountsAdminModerationCountsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetModerationCasesAdminModerationCasesGetMockHandler = (overrideResponse?: GetModerationCasesAdminModerationCasesGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<GetModerationCasesAdminModerationCasesGet200> | GetModerationCasesAdminModerationCasesGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/moderation/cases', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetModerationCasesAdminModerationCasesGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetMockHandler = (overrideResponse?: GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200> | GetModerationCaseDetailAdminModerationCasesCasePublicIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/moderation/cases/:casePublicId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getGetModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/moderation/evidence/:casePublicId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getPostModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/moderation/cases/:casePublicId/decision', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getPostModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/moderation/cases/:casePublicId/appeal-decision', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getEventReviewsAdminEventsReviewsGetMockHandler = (overrideResponse?: EventReviewsAdminEventsReviewsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<EventReviewsAdminEventsReviewsGet200> | EventReviewsAdminEventsReviewsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/events/reviews', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getEventReviewsAdminEventsReviewsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getStreetAnchorsAdminStreetAnchorsGetMockHandler = (overrideResponse?: StreetAnchorsAdminStreetAnchorsGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StreetAnchorsAdminStreetAnchorsGet200> | StreetAnchorsAdminStreetAnchorsGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/street-anchors', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStreetAnchorsAdminStreetAnchorsGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCreateStreetAnchorAdminStreetAnchorsPostMockHandler = (overrideResponse?: CreateStreetAnchorAdminStreetAnchorsPost201 | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreateStreetAnchorAdminStreetAnchorsPost201> | CreateStreetAnchorAdminStreetAnchorsPost201), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/street-anchors', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateStreetAnchorAdminStreetAnchorsPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetMockHandler = (overrideResponse?: StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200> | StreetAnchorDetailAdminStreetAnchorsAnchorIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/street-anchors/:anchorId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getUpdateStreetAnchorAdminStreetAnchorsAnchorIdPatchMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.patch>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.patch('*/admin/street-anchors/:anchorId', async (info: Parameters<Parameters<typeof http.patch>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getEventReviewDetailAdminEventsReviewsReviewIdGetMockHandler = (overrideResponse?: EventReviewDetailAdminEventsReviewsReviewIdGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<EventReviewDetailAdminEventsReviewsReviewIdGet200> | EventReviewDetailAdminEventsReviewsReviewIdGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/events/reviews/:reviewId', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getEventReviewDetailAdminEventsReviewsReviewIdGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getEventReviewPhotoAdminEventsReviewsReviewIdPhotoGetMockHandler = (overrideResponse?: unknown | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<unknown> | unknown), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/events/reviews/:reviewId/photo', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 200
+      })
+  }, options)
+}
+
+export const getDecideEventReviewAdminEventsReviewsReviewIdActionPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/events/reviews/:reviewId/:action', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
+
+export const getCreateSpecialAdminEventsSpecialPostMockHandler = (overrideResponse?: CreatedSpecialResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreatedSpecialResponse> | CreatedSpecialResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/events/special', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateSpecialAdminEventsSpecialPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getSpecialEventsAdminEventsSpecialGetMockHandler = (overrideResponse?: SpecialEventsAdminEventsSpecialGet200 | ((info: Parameters<Parameters<typeof http.get>[1]>[0]) => Promise<SpecialEventsAdminEventsSpecialGet200> | SpecialEventsAdminEventsSpecialGet200), options?: RequestHandlerOptions) => {
+  return http.get('*/admin/events/special', async (info: Parameters<Parameters<typeof http.get>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getSpecialEventsAdminEventsSpecialGetResponseMock(),
+      { status: 200
+      })
+  }, options)
+}
+
+export const getCreateSpecialAdminEventsCommunityPostMockHandler = (overrideResponse?: CreatedSpecialResponse | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<CreatedSpecialResponse> | CreatedSpecialResponse), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/events/community', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+
+
+    return HttpResponse.json(overrideResponse !== undefined
+    ? (typeof overrideResponse === "function" ? await overrideResponse(info) : overrideResponse)
+    : getCreateSpecialAdminEventsCommunityPostResponseMock(),
+      { status: 201
+      })
+  }, options)
+}
+
+export const getCancelSpecialAdminEventsSpecialEventIdCancelPostMockHandler = (overrideResponse?: void | ((info: Parameters<Parameters<typeof http.post>[1]>[0]) => Promise<void> | void), options?: RequestHandlerOptions) => {
+  return http.post('*/admin/events/special/:eventId/cancel', async (info: Parameters<Parameters<typeof http.post>[1]>[0]) => {
+  if (typeof overrideResponse === 'function') {await overrideResponse(info); }
+
+    return new HttpResponse(null,
+      { status: 204
+      })
+  }, options)
+}
 export const getAfishaAPIMock = () => [
   getLivenessHealthLiveGetMockHandler(),
-  getReverseGeocodeGeoReverseGetMockHandler()
+  getReadinessHealthReadyGetMockHandler(),
+  getFeaturesFeaturesGetMockHandler(),
+  getCatalogGeoCatalogGetMockHandler(),
+  getReverseGeocodeGeoReverseGetMockHandler(),
+  getResolveEventLocationGeoResolveGetMockHandler(),
+  getBootstrapAuthMiniBootstrapPostMockHandler(),
+  getExchangeAuthMiniExchangePostMockHandler(),
+  getMeAccountMeGetMockHandler(),
+  getAgeConsentAccountAgeConsentPostMockHandler(),
+  getOnboardingAccountOnboardingPostMockHandler(),
+  getLogoutAuthLogoutPostMockHandler(),
+  getPublishedEventsEventsGetMockHandler(),
+  getSubmitEventEventsPostMockHandler(),
+  getPublishedEventDetailEventsEventIdGetMockHandler(),
+  getPublishedEventPhotoEventsEventIdPhotoGetMockHandler(),
+  getMarkEventInterestingEventsEventIdInterestPutMockHandler(),
+  getUnmarkEventInterestingEventsEventIdInterestDeleteMockHandler(),
+  getJoinPublishedEventEventsEventIdJoinPostMockHandler(),
+  getLeavePublishedEventEventsEventIdLeavePostMockHandler(),
+  getGetEventManagementEventsEventIdManageGetMockHandler(),
+  getGetEventRosterEventsEventIdManageRosterGetMockHandler(),
+  getExcludeEventParticipantEventsEventIdParticipantsParticipationIdExcludePostMockHandler(),
+  getGetManagedEventPhotoEventsEventIdManagePhotoGetMockHandler(),
+  getRevisePublishedEventEventsEventIdRevisionsPostMockHandler(),
+  getCancelPublishedEventEventsEventIdCancelPostMockHandler(),
+  getMessagesEventsEventIdChatGetMockHandler(),
+  getSendEventsEventIdChatPostMockHandler(),
+  getSetStateEventsEventIdChatPutMockHandler(),
+  getFeedLookingPostsGetMockHandler(),
+  getCreateLookingPostsPostMockHandler(),
+  getDetailLookingPostsPostIdGetMockHandler(),
+  getWithdrawLookingPostsPostIdDeleteMockHandler(),
+  getLikeLookingPostsPostIdLikePutMockHandler(),
+  getUnlikeLookingPostsPostIdLikeDeleteMockHandler(),
+  getQuestionsLookingPostsPostIdQuestionsGetMockHandler(),
+  getQuestionLookingPostsPostIdQuestionsPostMockHandler(),
+  getReportLookingPostsPostIdReportsPostMockHandler(),
+  getAnswerLookingPostsPostIdQuestionsQuestionIdAnswerPostMockHandler(),
+  getAnonymousPublicProfilePublicProfilesPublicIdGetMockHandler(),
+  getAnonymousProfileAvatarPublicProfilesPublicIdAvatarGetMockHandler(),
+  getAnonymousProfileBackgroundPublicProfilesPublicIdBackgroundGetMockHandler(),
+  getGetOwnProfileAccountProfileGetMockHandler(),
+  getPatchProfileAccountProfilePatchMockHandler(),
+  getPatchProfileCityAccountProfileCityPatchMockHandler(),
+  getPublicProfileProfilesPublicIdGetMockHandler(),
+  getGetProfileEventsProfilesPublicIdEventsGetMockHandler(),
+  getGetAccountEventsAccountEventsGetMockHandler(),
+  getGetAccountNotificationsAccountNotificationsGetMockHandler(),
+  getGetNotificationFeedAccountNotificationsFeedGetMockHandler(),
+  getReadNotificationAccountNotificationsNotificationIdReadPatchMockHandler(),
+  getReadAllNotificationsAccountNotificationsReadAllPostMockHandler(),
+  getGetNotificationSettingsAccountNotificationSettingsGetMockHandler(),
+  getReportProfileProfilesPublicIdReportsPostMockHandler(),
+  getPutAvatarAccountAvatarPutMockHandler(),
+  getDeleteAvatarAccountAvatarDeleteMockHandler(),
+  getPutProfileBackgroundAccountProfileBackgroundPutMockHandler(),
+  getDeleteProfileBackgroundAccountProfileBackgroundDeleteMockHandler(),
+  getAvatarProfilesPublicIdAvatarGetMockHandler(),
+  getProfileBackgroundProfilesPublicIdBackgroundGetMockHandler(),
+  getCreateReportSafetyReportsPostMockHandler(),
+  getCasesFeedAccountCasesGetMockHandler(),
+  getCaseDetailAccountCasesCasePublicIdGetMockHandler(),
+  getAppealCaseAccountCasesCasePublicIdAppealPostMockHandler(),
+  getUploadEventPhotoMediaEventPhotoPutMockHandler(),
+  getEventPhotoPreviewMediaEventPhotosUploadIdGetMockHandler(),
+  getDeleteEventPhotoMediaEventPhotosUploadIdDeleteMockHandler(),
+  getBootstrapAdminAuthBootstrapPostMockHandler(),
+  getLoginAdminAuthLoginPostMockHandler(),
+  getMeAdminAccountMeGetMockHandler(),
+  getLogoutAdminAuthLogoutPostMockHandler(),
+  getDashboardAdminDashboardGetMockHandler(),
+  getSystemMetricsAdminSystemMetricsGetMockHandler(),
+  getRefreshSystemMetricsAdminSystemMetricsRefreshPostMockHandler(),
+  getImageAnalysisAdminMediaAnalysisGetMockHandler(),
+  getRefreshImageAnalysisAdminMediaAnalysisRefreshPostMockHandler(),
+  getEstimateImageSavingsAdminMediaAnalysisEstimatePostMockHandler(),
+  getAuditAdminAuditGetMockHandler(),
+  getGetModerationCountsAdminModerationCountsGetMockHandler(),
+  getGetModerationCasesAdminModerationCasesGetMockHandler(),
+  getGetModerationCaseDetailAdminModerationCasesCasePublicIdGetMockHandler(),
+  getGetModerationCaseEvidenceAdminModerationEvidenceCasePublicIdGetMockHandler(),
+  getPostModerationCaseDecisionAdminModerationCasesCasePublicIdDecisionPostMockHandler(),
+  getPostModerationAppealDecisionAdminModerationCasesCasePublicIdAppealDecisionPostMockHandler(),
+  getEventReviewsAdminEventsReviewsGetMockHandler(),
+  getStreetAnchorsAdminStreetAnchorsGetMockHandler(),
+  getCreateStreetAnchorAdminStreetAnchorsPostMockHandler(),
+  getStreetAnchorDetailAdminStreetAnchorsAnchorIdGetMockHandler(),
+  getUpdateStreetAnchorAdminStreetAnchorsAnchorIdPatchMockHandler(),
+  getEventReviewDetailAdminEventsReviewsReviewIdGetMockHandler(),
+  getEventReviewPhotoAdminEventsReviewsReviewIdPhotoGetMockHandler(),
+  getDecideEventReviewAdminEventsReviewsReviewIdActionPostMockHandler(),
+  getCreateSpecialAdminEventsSpecialPostMockHandler(),
+  getSpecialEventsAdminEventsSpecialGetMockHandler(),
+  getCreateSpecialAdminEventsCommunityPostMockHandler(),
+  getCancelSpecialAdminEventsSpecialEventIdCancelPostMockHandler()
 ]

@@ -90,21 +90,15 @@ def test_report_components_are_explicit_for_every_supported_subject() -> None:
         "photo",
         "title",
         "description",
-        "schedule",
-        "location",
-        "whole",
     }
     assert ALLOWED_COMPONENTS["chat_message"] == {"message"}
-    assert ALLOWED_COMPONENTS["q_and_a_answer"] == {"answer"}
+    assert "q_and_a_answer" not in ALLOWED_COMPONENTS
 
 
-def test_required_event_text_is_held_for_correction() -> None:
-    assert _available_actions("event", "description") == [
-        "dismiss",
-        "hold_for_correction",
-        "hide_subject",
-    ]
-    assert _available_actions("event", "photo") == ["dismiss", "hide_component"]
+def test_every_event_component_only_allows_whole_event_moderation() -> None:
+    expected = ["dismiss", "hide_subject"]
+    assert _available_actions("event", "description") == expected
+    assert _available_actions("event", "photo") == expected
 
 
 def test_staff_moderation_migration_contains_required_safety_guards() -> None:
@@ -183,6 +177,22 @@ def test_reversible_sanctions_keep_media_until_appeal_is_decided() -> None:
     assert "answer_hidden_by_case_id" in migration
     assert "state='moderation_hidden'" in source
     assert "_reverse_sanction" in source
+
+
+def test_event_tombstone_finalization_is_idempotent_and_preserves_audit() -> None:
+    migration = Path(
+        "migrations/versions/0040_event_moderation_tombstones.py"
+    ).read_text(encoding="utf-8")
+    source = Path(
+        "src/afishabot/modules/trust_safety/application/case_moderation.py"
+    ).read_text(encoding="utf-8")
+    assert "moderation_deleted_at" in migration
+    assert "finalized" in migration
+    assert "FOR UPDATE OF c,s SKIP LOCKED" in source
+    assert "moderation_deleted_at IS NULL" in source
+    assert "event_moderation_removed" in source
+    assert "DELETE FROM communication.messages" in source
+    assert "DELETE FROM trust_safety.moderation_cases" not in source
 
 
 def test_staff_evidence_uses_authenticated_immutable_media_route() -> None:

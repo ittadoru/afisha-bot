@@ -136,6 +136,8 @@ describe("landing", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Открыть профиль" }));
     expect(await screen.findByRole("heading", { name: "Гость 2048" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Стандартный фон профиля" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Пожаловаться на профиль" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Выйти из аккаунта")).not.toBeInTheDocument();
     expect(screen.queryByText("Добавить")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Редактировать профиль" }));
     expect(screen.getAllByText("Добавить")).toHaveLength(2);
@@ -224,6 +226,7 @@ describe("landing", () => {
     expect(screen.getByText("Можно без опыта?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Открыть профиль Мурад" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Пожаловаться" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Пожаловаться на ответ" })).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText("Задайте вопрос автору")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Отправить вопрос" })).toBeDisabled();
     expect(screen.getByText("Сначала дождитесь ответа на предыдущий вопрос.")).toBeInTheDocument();
@@ -255,6 +258,44 @@ describe("landing", () => {
     fireEvent.click(screen.getByRole("button", { name: /Организатор.*Амина/ }));
     expect(await screen.findByText("Публичный профиль")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Амина" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Пожаловаться на профиль" })).toBeInTheDocument();
+    expect(screen.queryByText("Пожаловаться на профиль")).not.toBeInTheDocument();
+  });
+
+  it("uses a compact two-step event report wizard", async () => {
+    const eventId = "22222222-2222-4222-8222-222222222222";
+    window.history.replaceState({}, "", `/app/report/event/${eventId}`);
+
+    render(<App />);
+
+    expect(await screen.findByRole("heading", { name: "На что жалоба?" })).toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(screen.queryByText("Дата и время")).not.toBeInTheDocument();
+    expect(screen.queryByText("Место")).not.toBeInTheDocument();
+    expect(screen.queryByText("Событие целиком")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Фотография/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Продолжить" }));
+
+    expect(screen.getByLabelText("Причина")).toHaveValue("inappropriate_content");
+    expect(screen.getByText("Что произошло?")).toBeInTheDocument();
+  });
+
+  it("stretches the organizer management action across the sticky footer", async () => {
+    const eventId = "33333333-3333-4333-8333-333333333333";
+    window.history.replaceState({}, "", `/app/event/${eventId}`);
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith(`/events/${eventId}`)) return okJson({ id: eventId, kind: "regular", lifecycle_status: "published", category: "Творчество", category_slug: "creativity", title: "Мастерская", description: "Встреча", starts_at: "2026-08-18T18:00:00+03:00", ends_at: "2026-08-18T21:00:00+03:00", visible_address: "Дахадаева", participant_count: 2, capacity: 10, available_places: 8, interest_count: 1, viewer_interested: false, viewer_is_organizer: true, viewer_membership: "participating", photo_url: "/brand/dagestan-profile-hero.jpg", organizer_public_id: profile.public_id, organizer_name: profile.display_name, organizer_status: "trusted", chat_enabled: true });
+      if (url.endsWith("/geo/catalog")) return okJson({ cities: [], categories: [] });
+      if (url.endsWith("/account/notifications")) return okJson([]);
+      return okJson(profile);
+    }));
+
+    render(<App />);
+
+    const manage = await screen.findByRole("button", { name: "Управлять событием" });
+    expect(manage.closest("footer")).toHaveClass("event-sticky-cta", "solo");
+    expect(screen.queryByRole("button", { name: "Пожаловаться на событие" })).not.toBeInTheDocument();
   });
 
   it("opens a chat author profile and returns to the chat", async () => {

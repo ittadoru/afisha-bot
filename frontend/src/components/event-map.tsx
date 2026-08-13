@@ -50,6 +50,15 @@ export interface ResolvedLocation {
   precision: "house" | "street" | "locality";
 }
 
+export function centralHalfBounds(bounds: NonNullable<MapCity["map_bounds"]>): [[number, number], [number, number]] {
+  const longitudeInset = (bounds.east - bounds.west) * 0.25;
+  const latitudeInset = (bounds.north - bounds.south) * 0.25;
+  return [
+    [bounds.west + longitudeInset, bounds.south + latitudeInset],
+    [bounds.east - longitudeInset, bounds.north - latitudeInset],
+  ];
+}
+
 const DEFAULT_CITY: MapCity = { id: "", name: "Махачкала", center_latitude: 42.9831, center_longitude: 47.5047 };
 
 type PublicMarker = {
@@ -171,6 +180,9 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
     });
     map.on("load", () => {
       resize();
+      if (embedded && !selecting && city.map_bounds) {
+        map.fitBounds(centralHalfBounds(city.map_bounds), { padding: 20, duration: 0 });
+      }
       if (city.allowed_area) {
         map.addSource("service-area", { type: "geojson", data: city.allowed_area as never });
         map.addLayer({ id: "service-area-fill", type: "fill", source: "service-area", paint: { "fill-color": "#08786c", "fill-opacity": 0.04 } });

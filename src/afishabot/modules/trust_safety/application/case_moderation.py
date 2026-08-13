@@ -228,9 +228,7 @@ async def case_detail(engine: AsyncEngine, public_id: str) -> dict[str, Any]:
 
 def _available_actions(subject_type: str, component: str) -> list[str]:
     if subject_type == "event":
-        if component in {"title", "description", "schedule", "location"}:
-            return ["dismiss", "hold_for_correction", "hide_subject"]
-        return ["dismiss", "hide_component" if component == "photo" else "hide_subject"]
+        return ["dismiss", "hide_subject"]
     if subject_type == "looking_post":
         return [
             "dismiss",
@@ -429,6 +427,16 @@ async def decide_case(
             await _notify_owner(
                 connection, dict(case), chosen, decision, public_id, appeal_deadline
             )
+            if case["subject_type"] == "event":
+                await _notify_event_audience(
+                    connection,
+                    event_id=case["subject_id"],
+                    case_id=case["id"],
+                    kind="event_moderation_hidden",
+                    title="Событие временно недоступно",
+                    body="Событие скрыто на время апелляции организатора.",
+                    business_suffix="hidden",
+                )
         await _audit(connection, actor_staff_id, "case.decision", public_id, decision)
 
 
@@ -464,20 +472,14 @@ async def _apply_subject_action(
     subject_type = case["subject_type"]
     result = None
     if subject_type == "event":
-        if decision == "hide_component" and component == "photo":
-            result = await connection.execute(
-                text(
-                    "UPDATE media.assets SET state='moderation_hidden',updated_at=now() WHERE id=(SELECT ep.media_asset_id FROM events.events e JOIN events.event_photos ep ON ep.revision_id=e.approved_revision_id AND ep.position=1 WHERE e.id=:id)"
-                ),
-                {"id": case["subject_id"]},
-            )
-        else:
-            result = await connection.execute(
-                text(
-                    "UPDATE events.events SET lifecycle_status='hidden',moderation_status=CASE WHEN :hold THEN 'held' ELSE moderation_status END,version=version+1,updated_at=now() WHERE id=:id"
-                ),
-                {"id": case["subject_id"], "hold": decision == "hold_for_correction"},
-            )
+        if decision != "hide_subject":
+            raise CaseModerationError("event_action_invalid")
+        result = await connection.execute(
+            text(
+                "UPDATE events.events SET lifecycle_status='hidden',moderation_status='held',version=version+1,updated_at=now() WHERE id=:id"
+            ),
+            {"id": case["subject_id"]},
+        )
     elif subject_type == "looking_post":
         result = await connection.execute(
             text(
@@ -617,11 +619,15 @@ async def _reverse_sanction(
         result = await connection.execute(text("UPDATE communication.messages SET hidden_at=NULL,hidden_by_case_id=NULL WHERE id=:id AND hidden_by_case_id=:case"), {"id": row["subject_id"], "case": row["id"]})
     elif subject_type == "q_and_a_answer":
         result = await connection.execute(text("UPDATE discovery.looking_post_questions SET answer_hidden_at=NULL,answer_hidden_by_case_id=NULL WHERE id=:id AND answer_hidden_by_case_id=:case"), {"id": row["subject_id"], "case": row["id"]})
-    elif subject_type == "event" and component == "photo":
-        asset = cast(dict[str, Any], state.get("evidence") or {}).get("value")
-        result = await connection.execute(text("UPDATE media.assets SET state='ready',updated_at=now() WHERE id=:asset AND state='moderation_hidden'"), {"asset": asset})
     elif subject_type == "event":
-        result = await connection.execute(text("UPDATE events.events SET lifecycle_status=:status,moderation_status=:moderation,version=version+1,updated_at=now() WHERE id=:id AND lifecycle_status='hidden'"), {"status": state.get("lifecycle_status"), "moderation": state.get("moderation_status"), "id": row["subject_id"]})
+        result = await connection.execute(text("""
+          UPDATE events.events e SET lifecycle_status=CASE
+            WHEN r.ends_at<=now() THEN 'finished' ELSE :status END,
+            moderation_status=:moderation,version=version+1,updated_at=now()
+          FROM events.event_revisions r
+          WHERE e.id=:id AND r.id=COALESCE(e.approved_revision_id,e.current_revision_id)
+            AND e.lifecycle_status='hidden' AND e.moderation_deleted_at IS NULL
+        """), {"status": state.get("lifecycle_status"), "moderation": state.get("moderation_status"), "id": row["subject_id"]})
     elif subject_type == "looking_post":
         result = await connection.execute(text("UPDATE discovery.looking_posts SET status=:status,closed_at=:closed,delete_after=:delete_after,version=version+1 WHERE id=:id AND status='hidden' AND expires_at>now()"), {"status": state.get("status"), "closed": state.get("closed_at"), "delete_after": state.get("delete_after"), "id": row["subject_id"]})
     else:
@@ -702,7 +708,7 @@ async def decide_appeal(
             {"id": row["id"]},
         )
         if decision == "reversed":
-            await _reverse_sanction(connection, dict(row))
+            restoration = await _reverse_sanction(connection, dict(row))
             await connection.execute(
                 text(
                     "UPDATE trust_safety.profile_violations SET status='reversed',reversed_at=now() WHERE case_id=:case AND status IN ('pending','confirmed')"
@@ -711,6 +717,16 @@ async def decide_appeal(
             )
             await connection.execute(text("DELETE FROM trust_safety.profile_restrictions WHERE source_violation_id IN (SELECT id FROM trust_safety.profile_violations WHERE case_id=:case)"), {"case": row["id"]})
             label = "Решение отменено по апелляции"
+            if row["subject_type"] == "event" and restoration == "restored":
+                await _notify_event_audience(
+                    connection,
+                    event_id=row["subject_id"],
+                    case_id=row["id"],
+                    kind="event_moderation_restored",
+                    title="Событие снова доступно",
+                    body="Решение модерации отменено по апелляции.",
+                    business_suffix="restored",
+                )
         else:
             await _confirm_violation(connection, row["id"])
             label = "Первоначальное решение подтверждено"
@@ -830,6 +846,74 @@ async def confirm_due_violations(engine: AsyncEngine) -> int:
         for case_id in ids:
             confirmed += int(await _confirm_violation(connection, case_id))
         return confirmed
+
+
+async def finalize_due_event_moderation(engine: AsyncEngine) -> int:
+    """Irreversibly redact hidden events once appeal recovery is no longer possible."""
+    async with engine.begin() as connection:
+        rows = (
+            await connection.execute(text("""
+              SELECT c.id AS case_id,c.subject_id AS event_id
+              FROM trust_safety.moderation_cases c
+              JOIN trust_safety.moderation_sanctions s ON s.case_id=c.id
+              WHERE c.subject_type='event' AND s.status='active'
+                AND c.appeal_deadline IS NOT NULL
+                AND (c.appeal_deadline<=now() OR EXISTS (
+                  SELECT 1 FROM trust_safety.appeals a
+                  WHERE a.case_id=c.id AND a.status='upheld'))
+                AND NOT EXISTS (
+                  SELECT 1 FROM trust_safety.appeals a
+                  WHERE a.case_id=c.id AND a.status IN ('submitted','reviewing'))
+              FOR UPDATE OF c,s SKIP LOCKED
+            """))
+        ).mappings().all()
+        finalized = 0
+        for row in rows:
+            event_id, case_id = row["event_id"], row["case_id"]
+            updated = await connection.execute(text("""
+              UPDATE events.events SET moderation_deleted_at=now(),
+                lifecycle_status='hidden',moderation_status='held',chat_enabled=false,
+                capacity=NULL,version=version+1,updated_at=now()
+              WHERE id=:event AND moderation_deleted_at IS NULL
+            """), {"event": event_id})
+            if updated.rowcount != 1:
+                continue
+            await _notify_event_audience(
+                connection,event_id=event_id,case_id=case_id,
+                kind="event_moderation_removed",title="Событие удалено",
+                body="Событие окончательно удалено после завершения апелляции.",
+                business_suffix="removed",
+            )
+            await connection.execute(text("""
+              UPDATE media.assets SET state='deleted',updated_at=now()
+              WHERE id IN (SELECT media_asset_id FROM events.event_photos WHERE event_id=:event)
+            """), {"event": event_id})
+            await connection.execute(text("DELETE FROM events.event_photos WHERE event_id=:event"), {"event": event_id})
+            await connection.execute(text("DELETE FROM communication.messages WHERE event_id=:event"), {"event": event_id})
+            await connection.execute(text("""
+              UPDATE events.participation_episodes SET status='cancelled',closed_at=now(),
+                close_reason='moderation_removed'
+              WHERE event_id=:event AND status='active'
+            """), {"event": event_id})
+            await connection.execute(text("""
+              UPDATE events.waitlist_entries SET status='cancelled',closed_at=now()
+              WHERE event_id=:event AND status='waiting'
+            """), {"event": event_id})
+            await connection.execute(text("""
+              UPDATE events.event_revisions SET title='Удалённое событие',
+                description='Удалено модерацией',rules=NULL,landmark=NULL,
+                location=ST_SetSRID(ST_MakePoint(0,0),4326)::geography,
+                normalized_address='Удалено',organizer_address=NULL,
+                organizer_street=NULL,organizer_place=NULL,street_name='Удалено'
+              WHERE event_id=:event
+            """), {"event": event_id})
+            await connection.execute(text("""
+              UPDATE trust_safety.moderation_sanctions SET status='finalized'
+              WHERE case_id=:case AND status='active'
+            """), {"case": case_id})
+            await _timeline(connection, case_id, "event_removed", "Событие окончательно удалено")
+            finalized += 1
+        return finalized
 
 
 async def purge_expired_evidence(engine: AsyncEngine, media_root: Path) -> int:
@@ -966,6 +1050,41 @@ async def _notify_owner(
             "key": f"case:{case['id']}:decision",
         },
     )
+
+
+async def _notify_event_audience(
+    connection: AsyncConnection,
+    *,
+    event_id: UUID,
+    case_id: UUID,
+    kind: str,
+    title: str,
+    body: str,
+    business_suffix: str,
+) -> None:
+    await connection.execute(text("""
+      INSERT INTO communication.notifications
+        (id,recipient_user_id,kind,importance,title,body,subject_type,subject_id,
+         deep_link,created_at,business_key,delivery_policy,telegram_status)
+      SELECT gen_random_uuid(),audience.user_id,:kind,'critical',:title,:body,
+             'moderation_case',:case,
+             CASE WHEN audience.user_id=event.creator_user_id
+                  THEN '/app/cases/' || c.public_id ELSE NULL END,now(),
+             'case:' || CAST(:case AS text) || ':audience:' || :suffix || ':' || CAST(audience.user_id AS text),
+             'telegram_and_in_app','pending'
+      FROM trust_safety.moderation_cases c
+      JOIN events.events event ON event.id=:event
+      CROSS JOIN LATERAL (
+        SELECT e.creator_user_id AS user_id FROM events.events e WHERE e.id=:event
+        UNION SELECT p.user_id FROM events.participation_episodes p
+          WHERE p.event_id=:event AND p.status='active'
+        UNION SELECT w.user_id FROM events.waitlist_entries w
+          WHERE w.event_id=:event AND w.status='waiting'
+      ) audience
+      WHERE c.id=:case AND audience.user_id IS NOT NULL
+      ON CONFLICT (business_key) WHERE business_key IS NOT NULL DO NOTHING
+    """), {"event": event_id,"case": case_id,"kind": kind,"title": title,
+             "body": body,"suffix": business_suffix})
 
 
 async def _audit(

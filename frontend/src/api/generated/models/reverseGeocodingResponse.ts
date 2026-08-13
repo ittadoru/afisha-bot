@@ -7,8 +7,8 @@
 
 export interface ReverseGeocodingResponse {
   display_name: string;
-  /** @nullable */
   street: string | null;
+  house_number: string | null;
   city: string;
   region: string;
   provider_place_id: string;

@@ -21,14 +21,19 @@ appeals, emergency decisions, staff permissions и privileged audit.
   staff без раскрытия лишних данных.
 - Один moderation command имеет expected version и immutable decision audit.
 - Temporary hide/restriction применяется fail-closed до публичной projection.
+- Для любого компонента события staff может только отклонить жалобу либо скрыть
+  событие целиком. Организатор и участники немедленно получают уведомление.
+- Скрытое событие восстанавливается при отмене решения в течение трёх дней; уже
+  завершившееся событие возвращается в статус `finished`. Без апелляции или после
+  её отклонения минутный идемпотентный sweep удаляет revisions content, chat и
+  photos, закрывает активное участие/waitlist и сохраняет tombstone + audit.
 - Жалоба до решения не меняет reputation.
 - Appeal создаёт отдельный lifecycle; upheld/reversed outcome публикует
   compensating fact, а не переписывает ledger.
 - Staff читает sensitive evidence только по permission + case scope.
-- Обычные LookingPost questions не видны staff. Жалоба на asker через profile
-  автоматически связывает case с source question ID; текст вопроса становится
-  evidence только в пределах назначенного case permission. Жалоба на
-  опубликованный answer создаётся через LookingPost.
+- Обычные LookingPost questions не видны staff. Новые отдельные reports на Q&A
+  answer не принимаются; пользователь может пожаловаться на сам LookingPost.
+  Исторические Q&A cases остаются читаемыми в staff history.
 - Emergency action минимально достаточен, ограничен сроком и требует последующей
   review.
 

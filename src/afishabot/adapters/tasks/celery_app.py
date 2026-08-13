@@ -12,6 +12,7 @@ from afishabot.modules.events.application.manage_event import finish_due_events
 from afishabot.modules.media.application.storage_analysis import estimate_savings
 from afishabot.modules.trust_safety.application.case_moderation import (
     confirm_due_violations,
+    finalize_due_event_moderation,
     purge_expired_evidence,
 )
 
@@ -35,6 +36,10 @@ def create_celery_app(settings: Settings | None = None) -> Celery:
             },
             "confirm-profile-violations": {
                 "task": "afishabot.trust_safety.confirm_profile_violations",
+                "schedule": 60.0,
+            },
+            "finalize-event-moderation": {
+                "task": "afishabot.trust_safety.finalize_event_moderation",
                 "schedule": 60.0,
             },
             "purge-expired-moderation-evidence": {
@@ -98,6 +103,18 @@ def confirm_profile_violations_task() -> int:
         engine = create_database_engine(Settings().database_dsn())
         try:
             return await confirm_due_violations(engine)
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+@celery_app.task(name="afishabot.trust_safety.finalize_event_moderation")
+def finalize_event_moderation_task() -> int:
+    async def run() -> int:
+        engine = create_database_engine(Settings().database_dsn())
+        try:
+            return await finalize_due_event_moderation(engine)
         finally:
             await engine.dispose()
 

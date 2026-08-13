@@ -21,15 +21,12 @@ from afishabot.adapters.http.profiles import (
 
 router = APIRouter(tags=["safety"])
 SubjectType = Literal[
-    "event", "profile", "looking_post", "q_and_a_answer", "chat_message"
+    "event", "profile", "looking_post", "chat_message"
 ]
 SubjectComponent = Literal[
     "photo",
     "title",
     "description",
-    "schedule",
-    "location",
-    "whole",
     "avatar",
     "background",
     "bio",
@@ -37,13 +34,13 @@ SubjectComponent = Literal[
     "body",
     "answer",
     "message",
+    "whole",
 ]
 
 ALLOWED_COMPONENTS: dict[str, set[str]] = {
-    "event": {"photo", "title", "description", "schedule", "location", "whole"},
+    "event": {"photo", "title", "description"},
     "profile": {"avatar", "background", "bio", "display_name", "whole"},
     "looking_post": {"title", "body", "whole"},
-    "q_and_a_answer": {"answer"},
     "chat_message": {"message"},
 }
 
@@ -90,7 +87,6 @@ async def _resolve_subject(
     statements = {
         "event": "SELECT id,creator_user_id AS owner,event_scope='community' AS community FROM events.events WHERE id=:id AND lifecycle_status<>'hidden'",
         "looking_post": "SELECT id,author_user_id AS owner,false AS community FROM discovery.looking_posts WHERE id=:id AND status<>'hidden'",
-        "q_and_a_answer": "SELECT q.id,p.author_user_id AS owner,false AS community FROM discovery.looking_post_questions q JOIN discovery.looking_posts p ON p.id=q.looking_post_id WHERE q.id=:id AND q.answer IS NOT NULL AND q.answer_hidden_at IS NULL",
         "chat_message": "SELECT m.id,m.author_user_id AS owner,false AS community FROM communication.messages m JOIN events.events e ON e.id=m.event_id WHERE m.id=:id AND m.hidden_at IS NULL AND m.delete_after>now()",
     }
     row = (
@@ -127,12 +123,6 @@ async def _capture_evidence(
           FROM discovery.looking_posts p LEFT JOIN accounts.profiles pr
             ON pr.user_id=p.author_user_id WHERE p.id=:id
         """,
-        "q_and_a_answer": """
-          SELECT 1 AS version,q.answer,p.title AS context_title,pr.display_name AS owner_name
-          FROM discovery.looking_post_questions q JOIN discovery.looking_posts p
-            ON p.id=q.looking_post_id LEFT JOIN accounts.profiles pr
-            ON pr.user_id=p.author_user_id WHERE q.id=:id
-        """,
         "chat_message": """
           SELECT 1 AS version,m.body AS message,e.id AS event_id,r.title AS context_title,
                  pr.display_name AS owner_name
@@ -158,7 +148,6 @@ async def _capture_evidence(
         "body": data.get("body"),
         "bio": data.get("bio"),
         "display_name": data.get("display_name"),
-        "answer": data.get("answer"),
         "message": data.get("message"),
         "schedule": f"{data.get('starts_at')} — {data.get('ends_at')}",
         "location": data.get("location"),

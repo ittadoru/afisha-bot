@@ -20,7 +20,6 @@ import {
   Plus,
   RefreshCw,
   SearchX,
-  Scale,
   Send,
   Share2,
   ShieldAlert,
@@ -30,8 +29,10 @@ import {
   TrendingUp,
   UserRoundSearch,
   Users,
+  UsersRound,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -323,7 +324,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   }, [choosingCity, citySaving, profile.selected_city_id]);
 
   const reportMatch = location.pathname.match(
-    /^\/app\/report\/(event|profile|looking_post|q_and_a_answer|chat_message)\/([^/]+)$/,
+    /^\/app\/report\/(event|profile|looking_post|chat_message)\/([^/]+)$/,
   );
   const caseMatch = location.pathname.match(/^\/app\/cases\/([^/]+)$/);
   if (reportMatch) {
@@ -353,7 +354,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
             : <LookingPostSheet postId={selectedLookingPostId ?? ""} csrfToken={csrfToken} onClose={closeLookingPost} />}
         </div>
       ) : <>
-      {(section === "events" || section === "people") ? <HomeTopBar profile={profile} eventsMode={eventsMode} showViewSwitch={section === "events"} unread={unreadNotifications} onModeChange={setEventsMode} onProfile={() => void selectSection("profile")} onNotifications={() => { refreshUnreadNotifications(); void selectSection("notifications"); }} /> : <SubpageHeader title={{ create: createKind === "event" ? "Новое событие" : "Новая идея", notifications: "Уведомления", profile: "Профиль", events: "События", people: "Компания" }[section]} onBack={() => { if (section === "profile" && profileBackRef.current) profileBackRef.current(); else void selectSection(section === "create" ? createKind === "idea" ? "people" : "events" : lastHomeSection); }} />}
+      {(section === "events" || section === "people") ? <HomeTopBar profile={profile} eventsMode={eventsMode} showViewSwitch={section === "events"} unread={unreadNotifications} onModeChange={setEventsMode} onProfile={() => void selectSection("profile")} onNotifications={() => { refreshUnreadNotifications(); void selectSection("notifications"); }} /> : <SubpageHeader title={{ create: createKind === "event" ? "Новое событие" : "Новая идея", notifications: "Уведомления", profile: "Профиль", events: "События", people: "Компания" }[section]} onBack={() => { if (section === "profile" && profileBackRef.current) profileBackRef.current(); else void selectSection(section === "create" ? createKind === "idea" ? "people" : "events" : lastHomeSection); }} action={section === "profile" && initialPublicId && initialPublicId !== profile.public_id ? <button type="button" aria-label="Пожаловаться на профиль" onClick={() => navigate(`/app/report/profile/${initialPublicId}`, { state: { returnTo: location.pathname } })}><Flag aria-hidden="true" /></button> : undefined} />}
       <div className={`mini-content${section === "events" && eventsMode === "map" ? " map-mode" : ""}${section === "people" ? " people-mode" : ""}${section === "events" || section === "people" ? " home-mode" : " subpage-mode"}`}>
         {previewState ? (
           <DemoState state={previewState} onClose={() => setPreviewState(null)} />
@@ -408,8 +409,8 @@ function HomeTopBar({ profile, eventsMode, showViewSwitch, unread, onModeChange,
   </header>;
 }
 
-function SubpageHeader({ title, onBack }: { title: string; onBack: () => void }) {
-  return <header className="subpage-header"><button type="button" aria-label="Вернуться на главный экран" onClick={onBack}><ArrowLeft aria-hidden="true" /></button><strong>{title}</strong><span aria-hidden="true" /></header>;
+function SubpageHeader({ title, onBack, action }: { title: string; onBack: () => void; action?: ReactNode }) {
+  return <header className="subpage-header"><button type="button" aria-label="Вернуться на главный экран" onClick={onBack}><ArrowLeft aria-hidden="true" /></button><strong>{title}</strong>{action ?? <span aria-hidden="true" />}</header>;
 }
 
 function HomeModeDock({ active, cityName, onChooseCity, onSelect, onCreate }: { active: "events" | "people"; cityName: string | null; onChooseCity: () => void; onSelect: (section: "events" | "people") => void; onCreate: () => void }) {
@@ -531,7 +532,7 @@ function LookingPostSheet({ postId, csrfToken, onClose }: { postId: string; csrf
       <div className="idea-detail-author"><button type="button" className="idea-author-link" onClick={() => navigate(`/app/profile/${post.author.public_id}`, { state: { returnTo: location.pathname } })} aria-label={`Открыть профиль ${post.author.display_name}`}><UserAvatar name={post.author.display_name} thumbnailUrl={post.author.avatar_thumbnail_url} fallbackUrl={post.author.avatar_url} size={48} lazy={false} /><span><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}</small></span></button><span className="category-chip">{post.category}</span></div>
       <div className="idea-detail-intro"><h1>{post.title}</h1><p>{post.body}</p><div className="idea-status-row"><span className="idea-status"><i aria-hidden="true" />{statusText}</span>{!post.is_author && post.status === "active" && <button type="button" className="idea-report-link" onClick={() => navigate(`/app/report/looking_post/${post.id}`, { state: { returnTo: location.pathname } })}>Пожаловаться</button>}</div></div>
       <section className="qa-section"><header><span><MessageCircleQuestion aria-hidden="true" /></span><div><p className="section-kicker">Обсуждение</p><h2>Вопросы и ответы</h2></div><small>{questions.length + pending.length}</small></header>
-        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}>{item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p>{!post.is_author && <button className="idea-report-link" type="button" onClick={() => navigate(`/app/report/q_and_a_answer/${item.id}`, { state: { returnTo: location.pathname } })}>Пожаловаться на ответ</button>}</div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
+        {questions.length ? <div className="qa-list">{questions.map((item) => <article className="qa-card" key={item.id}>{item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong><div><span className="qa-label">Ответ автора</span><p>{item.answer}</p></div></article>)}</div> : pending.length === 0 && <p className="qa-empty">Пока вопросов нет. Можно начать разговор первым.</p>}
         {pending.length > 0 && <div className="qa-pending"><h3>{post.is_author ? "Ждут вашего ответа" : "Ожидает ответа автора"}</h3>{pending.map((item) => <article className="qa-card pending" key={item.id}>{post.is_author && item.asker && <QuestionAuthor asker={item.asker} onOpen={() => navigate(`/app/profile/${item.asker?.public_id}`, { state: { returnTo: location.pathname } })} />}<span className="qa-label">Вопрос</span><strong>{item.question}</strong>{post.is_author && post.status === "active" && <div className="qa-answer-form"><label htmlFor={`answer-${item.id}`}>Ваш ответ</label><textarea id={`answer-${item.id}`} value={answers[item.id] ?? ""} onChange={(event) => setAnswers({ ...answers, [item.id]: event.target.value })} maxLength={300} placeholder="Ответьте коротко и по делу" /><Button disabled={busy || !answers[item.id]?.trim()} onClick={() => void answer(item.id)}>Опубликовать ответ</Button></div>}</article>)}</div>}
       </section>
       {message && <p className="inline-feedback" role="status">{message}</p>}
@@ -618,10 +619,10 @@ function NotificationGroup({ title, items, onRead }: { title: string; items: Not
 }
 
 function Notification({ item, onRead }: { item: NotificationItem; onRead: (item: NotificationItem) => void }) {
-  const Icon = item.kind === "moderation_action" || item.kind === "profile_moderation"
-    ? ShieldAlert : item.kind === "moderation_appeal" ? Scale
-      : item.kind === "profile_restriction" ? LockKeyhole : Bell;
-  return <button className={`notification${item.importance === "critical" ? " urgent" : ""}${item.read_at ? " read" : " unread"}`} type="button" onClick={() => void onRead(item)}><span><Icon aria-hidden="true" /></span><div><strong>{item.title}</strong><p>{item.body}</p></div>{!item.read_at && <i className="notification-unread-dot" aria-label="Непрочитано" />}{item.deep_link && <ChevronRight aria-hidden="true" />}</button>;
+  const kind = item.kind ?? "";
+  const group = kind.startsWith("looking_post.") ? "qa" : kind === "profile_restriction" ? "restriction" : kind.startsWith("moderation_") || kind.startsWith("event_moderation_") || kind === "profile_moderation" ? "moderation" : kind === "waitlist_promoted" || kind === "event_participation_excluded" ? "participation" : kind.startsWith("event_") ? "event" : "fallback";
+  const Icon = group === "event" ? CalendarDays : group === "participation" ? UsersRound : group === "qa" ? MessageCircleQuestion : group === "moderation" ? ShieldAlert : group === "restriction" ? LockKeyhole : Bell;
+  return <button className={`notification notification-${group}${item.importance === "critical" ? " urgent" : ""}${item.read_at ? " read" : " unread"}`} type="button" onClick={() => void onRead(item)}><span><Icon aria-hidden="true" /></span><div><strong>{item.title}</strong><p>{item.body}</p></div>{!item.read_at && <i className="notification-unread-dot" aria-label="Непрочитано" />}{item.deep_link && <ChevronRight aria-hidden="true" />}</button>;
 }
 
 function Profile({
@@ -631,7 +632,7 @@ function Profile({
   initialPublicId,
   csrfToken,
   onUpdate,
-  onLogout,
+  onLogout: _onLogout,
   onPreview,
   registerBack,
 }: { profile: AccountProfile; city: MapCity | null; onChooseCity: () => void; initialPublicId: string | null; csrfToken: string; onUpdate: (profile: AccountProfile) => void; onLogout: () => Promise<void>; onPreview: (state: PreviewState) => void; registerBack: (back: (() => void) | null) => void }) {
@@ -696,7 +697,6 @@ function Profile({
       <h2 className="group-title">Моя активность</h2>
       <div className="profile-settings-group"><button className="settings-row" type="button" onClick={() => setEventMode("upcoming")}><span><small>События</small><strong>Будущие события</strong></span><ChevronRight aria-hidden="true" /></button><button className="settings-row" type="button" onClick={() => setEventMode("completed")}><span><small>История</small><strong>Завершённые события</strong></span><ChevronRight aria-hidden="true" /></button><button className="settings-row" type="button" onClick={() => navigate("/app/cases")}><span><small>Жалобы, споры и апелляции</small><strong>Мои обращения</strong></span><ChevronRight aria-hidden="true" /></button></div>
 
-      <Button className="logout-button" variant="outline" onClick={() => void onLogout()}>Выйти из аккаунта</Button>
       {import.meta.env.DEV && <><h2 className="group-title">Предпросмотр состояний</h2><div className="state-buttons"><Button variant="outline" onClick={() => onPreview("loading")}>Загрузка</Button><Button variant="outline" onClick={() => onPreview("empty")}>Пусто</Button><Button variant="outline" onClick={() => onPreview("error")}>Ошибка</Button></div></>}
     </div>
   </section>;
@@ -788,13 +788,11 @@ function AccountEvents({ state, csrfToken }: { state: "upcoming" | "completed"; 
   return <section className="feed"><h1>{state === "upcoming" ? "Будущие события" : "Завершённые события"}</h1>{items === null ? <LoadingScreen variant="section" /> : items.length ? items.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.role === "organizer" ? "Вы организатор" : "Вы участник"} · {event.category}</span>{state === "upcoming" && event.role === "organizer" && <Button variant="outline" onClick={() => setManagedEvent(event.id)}>Управление</Button>}</article>) : <p>Здесь пока пусто.</p>}</section>;
 }
 
-function PublicProfile({ profile, csrfToken }: { profile: AccountProfile; csrfToken: string }) {
-  const [reason, setReason] = useState("avatar"); const [comment, setComment] = useState(""); const [sent, setSent] = useState(false);
+function PublicProfile({ profile, csrfToken: _csrfToken }: { profile: AccountProfile; csrfToken: string }) {
   const [upcoming, setUpcoming] = useState<ProfileEvent[]>([]); const [completed, setCompleted] = useState<ProfileEvent[]>([]); const [nextCompleted, setNextCompleted] = useState<number | null>(null);
   useEffect(() => { void Promise.all([fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=upcoming&limit=20`, { credentials: "include" }), fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10`, { credentials: "include" })]).then(async ([future, history]) => { if (future.ok) setUpcoming(((await future.json()) as { items: ProfileEvent[] }).items); if (history.ok) { const data = await history.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted(data.items); setNextCompleted(data.next_offset); } }); }, [profile.public_id]);
   const loadMore = async () => { if (nextCompleted === null) return; const response = await fetch(`${appConfig.apiBaseUrl}/profiles/${profile.public_id}/events?state=completed&limit=10&offset=${nextCompleted}`, { credentials: "include" }); if (response.ok) { const data = await response.json() as { items: ProfileEvent[]; next_offset: number | null }; setCompleted((items) => [...items, ...data.items]); setNextCompleted(data.next_offset); } };
-  const report = async () => { const component = reason === "avatar" || reason === "background" || reason === "display_name" || reason === "bio" ? reason : null; const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify({ subject_type: "profile", subject_id: profile.public_id, subject_component: component, reason_code: reason === "avatar" || reason === "background" ? "photo" : reason, explanation: comment || null }) }); if (response.ok) setSent(true); };
-  return <section className="profile-screen premium-profile public-profile-screen"><ProfileBackground profile={profile} label={`Фон профиля ${profile.display_name}`} /><div className="profile-content"><div className="profile-identity"><UserAvatar name={profile.display_name} thumbnailUrl={profile.avatar_url} size={84} lazy={false} className="profile-avatar profile-photo" /><div><p className="section-kicker">Публичный профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id} · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><p className="profile-bio">{profile.bio || "Описание не заполнено"}</p><h2 className="group-title">Будущие события</h2>{upcoming.length ? upcoming.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.starts_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">Опубликованных событий пока нет.</p>}<h2 className="group-title">Завершённые события</h2>{completed.length ? completed.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.ends_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">История пока пуста.</p>}{nextCompleted !== null && <Button variant="outline" onClick={() => void loadMore()}>Загрузить ещё</Button>}<h2 className="group-title">Пожаловаться на профиль</h2>{sent ? <p className="success-message">Жалоба отправлена</p> : <div className="profile-editor public-report-form"><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="avatar">Аватар</option><option value="background">Фон профиля</option><option value="display_name">Псевдоним</option><option value="bio">Описание</option><option value="other">Другое</option></select></label>{reason === "other" && <label>Комментарий<textarea maxLength={300} value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Опишите причину" /></label>}<Button disabled={reason === "other" && !comment.trim()} onClick={() => void report()}>Отправить жалобу</Button></div>}</div></section>;
+  return <section className="profile-screen premium-profile public-profile-screen"><ProfileBackground profile={profile} label={`Фон профиля ${profile.display_name}`} /><div className="profile-content"><div className="profile-identity"><UserAvatar name={profile.display_name} thumbnailUrl={profile.avatar_url} size={84} lazy={false} className="profile-avatar profile-photo" /><div><p className="section-kicker">Публичный профиль</p><h1>{profile.display_name}</h1><p>ID {profile.public_id} · {profile.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</p></div></div><p className="profile-bio">{profile.bio || "Описание не заполнено"}</p><h2 className="group-title">Будущие события</h2>{upcoming.length ? upcoming.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.starts_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">Опубликованных событий пока нет.</p>}<h2 className="group-title">Завершённые события</h2>{completed.length ? completed.map((event) => <article className="profile-event" key={event.id}><strong>{event.title}</strong><span>{event.category} · {new Date(event.ends_at).toLocaleDateString("ru-RU")}</span></article>) : <p className="state-hint">История пока пуста.</p>}{nextCompleted !== null && <Button variant="outline" onClick={() => void loadMore()}>Загрузить ещё</Button>}</div></section>;
 }
 
 function StreetGroupSheet({ group, onClose, onOpen }: { group: { ids: string[]; street: string }; onClose: () => void; onOpen: (id: string) => void }) {
@@ -893,7 +891,7 @@ function EventPage({ eventId, csrfToken, onClose, onOpenChat }: { eventId: strin
       {event.kind === "regular" ? <button className="organizer-link" type="button" onClick={openOrganizer}><span className="demo-avatar">{event.organizer_name?.[0] ?? "?"}</span><span className="organizer-copy"><small>Организатор</small><strong>{event.organizer_name}</strong><span>{event.organizer_status === "trusted" ? "Доверенный организатор" : "Новый организатор"}</span></span><ChevronRight aria-hidden="true" /></button> : <div className="municipal-organizer"><Sparkles aria-hidden="true" /><span><small>Организатор отсутствует</small><strong>Общественное событие</strong></span></div>}
       {message && <p className="inline-feedback" role="status">{message}</p>}{copied && <p className="inline-feedback" role="status">Ссылка скопирована</p>}
     </main></div>
-    {showPrimaryAction && <footer className="event-sticky-cta">{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}{!event.viewer_is_organizer && event.event_scope !== "community" && event.kind !== "special" && <button className="event-report-button" type="button" aria-label="Пожаловаться на событие" onClick={() => navigate(`/app/report/event/${event.id}`, { state: { returnTo: `/app/event/${event.id}`, organizerProfileId: event.organizer_public_id ?? undefined } })}><Flag aria-hidden="true" /></button>}</footer>}</>}
+    {showPrimaryAction && <footer className={`event-sticky-cta${event.viewer_is_organizer ? " solo" : ""}`}>{event.viewer_is_organizer ? <Button onClick={() => setManaging(true)}>Управлять событием</Button> : event.viewer_membership === "none" ? <Button disabled={busy} onClick={() => void join()}>{event.capacity !== null && event.available_places === 0 ? "Встать в очередь" : "Присоединиться"}</Button> : event.viewer_membership === "participating" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Отказаться от участия</Button> : event.viewer_membership === "waitlisted" ? <Button variant="outline" disabled={busy} onClick={() => void leave()}>Покинуть очередь</Button> : null}{!event.viewer_is_organizer && event.event_scope !== "community" && event.kind !== "special" && <button className="event-report-button" type="button" aria-label="Пожаловаться на событие" onClick={() => navigate(`/app/report/event/${event.id}`, { state: { returnTo: `/app/event/${event.id}` } })}><Flag aria-hidden="true" /></button>}</footer>}</>}
   </section>;
 }
 
@@ -914,17 +912,17 @@ function DecorativeEmpty({ title, text }: { title: string; text: string }) {
 
 function ReportScreen({ subjectType, subjectId, csrfToken, onBack }: { subjectType: string; subjectId: string; csrfToken: string; onBack: () => void }) {
   const navigate = useNavigate();
-  const location = useLocation();
-  const organizerProfileId = (location.state as { organizerProfileId?: string } | null)?.organizerProfileId;
   const choices: Record<string, Array<[string, string]>> = {
-    event: [["photo", "Фотография"], ["title", "Название"], ["description", "Описание"], ["schedule", "Дата и время"], ["location", "Место"], ["whole", "Событие целиком"], ...(organizerProfileId ? [["organizer_avatar", "Аватар организатора"], ["organizer_display_name", "Имя организатора"]] as Array<[string, string]> : [])],
+    event: [["photo", "Фотография"], ["title", "Название"], ["description", "Описание"]],
     profile: [["avatar", "Аватар"], ["background", "Фон"], ["display_name", "Имя"], ["bio", "Описание"]],
     looking_post: [["title", "Название идеи"], ["body", "Описание идеи"], ["whole", "Идея целиком"]],
-    q_and_a_answer: [["answer", "Ответ автора"]],
     chat_message: [["message", "Сообщение в чате"]],
   };
-  const [component, setComponent] = useState(choices[subjectType]?.length === 1 ? choices[subjectType][0][0] : "");
-  const [reason, setReason] = useState("safety_risk");
+  const subjectChoices = choices[subjectType] ?? [];
+  const singleTarget = subjectChoices.length === 1;
+  const [component, setComponent] = useState(singleTarget ? subjectChoices[0][0] : "");
+  const [step, setStep] = useState<1 | 2>(singleTarget ? 2 : 1);
+  const [reason, setReason] = useState("inappropriate_content");
   const [explanation, setExplanation] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -932,8 +930,7 @@ function ReportScreen({ subjectType, subjectId, csrfToken, onBack }: { subjectTy
   const submit = async () => {
     if (busy || !component || (reason === "other" && !explanation.trim())) return;
     setBusy(true); setError("");
-    const organizerTarget = component.startsWith("organizer_");
-    const payload = { subject_type: organizerTarget ? "profile" : subjectType, subject_id: organizerTarget ? organizerProfileId : subjectId, subject_component: organizerTarget ? component.replace("organizer_", "") : component, reason_code: reason, explanation: explanation.trim() || null };
+    const payload = { subject_type: subjectType, subject_id: subjectId, subject_component: component, reason_code: reason, explanation: explanation.trim() || null };
     try {
       const response = await fetch(`${appConfig.apiBaseUrl}/safety/reports`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json", "X-Afisha-CSRF": csrfToken, "Idempotency-Key": crypto.randomUUID() }, body: JSON.stringify(payload) });
       if (!response.ok) throw new Error(response.status === 422 ? "На этот объект нельзя пожаловаться." : "Не удалось отправить обращение.");
@@ -941,9 +938,10 @@ function ReportScreen({ subjectType, subjectId, csrfToken, onBack }: { subjectTy
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Не удалось отправить обращение."); }
     finally { setBusy(false); }
   };
-  if (caseId) return <main className="mini-app"><SubpageHeader title="Обращение принято" onBack={onBack} /><section className="report-success" role="status"><span className="report-success-icon"><Check aria-hidden="true" /></span><div><h1>Обращение принято</h1><p>Мы сохранили обращение. Изменения статуса появятся в разделе «Мои обращения».</p></div><button className="report-case-number" type="button" onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}><small>Номер обращения</small><strong>{caseId}</strong><span>Открыть</span></button><Button onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}>Открыть обращение</Button><Button variant="outline" onClick={onBack}>Вернуться</Button><button className="report-all-link" type="button" onClick={() => navigate("/app/cases")}>Все обращения</button></section></main>;
-  const selectedLabel = choices[subjectType]?.find(([value]) => value === component)?.[1];
-  return <main className="mini-app"><SubpageHeader title="Пожаловаться" onBack={onBack} /><section className="report-screen scroll-focus-container"><div className="report-form"><p className="section-kicker">Шаг 1 из 2</p><h1>На что жалоба?</h1><fieldset className="report-targets"><legend className="sr-only">Выберите предмет жалобы</legend>{(choices[subjectType] ?? []).map(([value, label]) => <label key={value} className={component === value ? "selected" : ""}><input type="radio" name="report-component" value={value} checked={component === value} onChange={() => setComponent(value)} /><span><strong>{label}</strong><small>{subjectLabel(subjectType)}</small></span></label>)}</fieldset>{selectedLabel && <div className="report-target-preview"><Flag aria-hidden="true" /><span><small>Вы выбрали</small><strong>{subjectLabel(subjectType)} · {selectedLabel}</strong></span></div>}<p className="section-kicker">Шаг 2 из 2</p><h2>Что произошло?</h2><label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="safety_risk">Угроза безопасности</option><option value="misleading">Вводящие в заблуждение данные</option><option value="spam_or_commerce">Спам или коммерция</option><option value="inappropriate_content">Недопустимый контент</option><option value="other">Другое</option></select></label><label>Пояснение {reason !== "other" && <small>необязательно</small>}<textarea maxLength={500} value={explanation} onChange={(event) => setExplanation(event.target.value)} placeholder="Без личных и чувствительных данных" /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button disabled={busy || !component || (reason === "other" && !explanation.trim())} onClick={() => void submit()}>{busy ? "Отправляем…" : "Отправить жалобу"}</Button></div></section></main>;
+  if (caseId) return <main className="mini-app"><SubpageHeader title="Обращение принято" onBack={onBack} /><section className="report-success" role="status"><span className="report-success-icon"><Check aria-hidden="true" /></span><div><h1>Обращение принято</h1><p>Статус появится в разделе «Мои обращения».</p></div><button className="report-case-number" type="button" onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}><small>Номер обращения</small><strong>{caseId}</strong><span>Открыть</span></button><Button onClick={() => navigate(`/app/cases/${caseId}`, { state: { returnTo: "/app/cases" } })}>Открыть обращение</Button><Button variant="outline" onClick={onBack}>Вернуться</Button></section></main>;
+  const selectedLabel = subjectChoices.find(([value]) => value === component)?.[1];
+  const goBack = () => step === 2 && !singleTarget ? setStep(1) : onBack();
+  return <main className="mini-app"><SubpageHeader title="Пожаловаться" onBack={goBack} /><section className="report-screen scroll-focus-container"><form className="report-form" onSubmit={(event) => { event.preventDefault(); if (step === 1) setStep(2); else void submit(); }}><div className="report-progress" aria-label={`Шаг ${step} из 2`}><span className="active" /><span className={step === 2 ? "active" : ""} /></div>{step === 1 ? <><p className="section-kicker">Шаг 1 из 2</p><h1>На что жалоба?</h1><fieldset className="report-targets"><legend className="sr-only">Выберите предмет жалобы</legend>{subjectChoices.map(([value, label]) => <label key={value} className={component === value ? "selected" : ""}><input type="radio" name="report-component" value={value} checked={component === value} onChange={() => setComponent(value)} /><span><strong>{label}</strong><small>{subjectLabel(subjectType)}</small></span></label>)}</fieldset><Button type="submit" disabled={!component}>Продолжить</Button></> : <><p className="section-kicker">Шаг 2 из 2</p><h1>Что произошло?</h1>{!singleTarget && <p className="report-selected-target"><Flag aria-hidden="true" /><span><small>Объект жалобы</small><strong>{selectedLabel}</strong></span></p>}<label>Причина<select value={reason} onChange={(event) => setReason(event.target.value)}><option value="inappropriate_content">Недопустимый контент</option><option value="safety_risk">Угроза безопасности</option><option value="misleading">Вводящие в заблуждение данные</option><option value="spam_or_commerce">Спам или коммерция</option><option value="other">Другое</option></select></label><label>Пояснение {reason !== "other" && <small>необязательно</small>}<textarea maxLength={500} value={explanation} onChange={(event) => setExplanation(event.target.value)} placeholder="Без личных и чувствительных данных" /></label>{error && <p className="form-error" role="alert">{error}</p>}<Button type="submit" disabled={busy || !component || (reason === "other" && !explanation.trim())}>{busy ? "Отправляем…" : "Отправить жалобу"}</Button></>}</form></section></main>;
 }
 
 type CaseSummary = { public_id: string; subject_type: string; status: string; created_at: string };

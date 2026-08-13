@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-EXPECTED_MIGRATION_HEAD = "0039_reversible_moderation_sanctions"
+EXPECTED_MIGRATION_HEAD = "0040_event_moderation_tombstones"
 
 
 def create_database_engine(database_url: str) -> AsyncEngine:

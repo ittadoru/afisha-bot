@@ -61,6 +61,14 @@ export const handlers = [
     { id: "notice-1", title: "Встреча уже завтра", body: "Организатор прогулки уточнил время сбора.", importance: "normal", read_at: null },
     { id: "notice-2", title: "Нужно подтвердить участие", body: "Ответьте до 18:00, чтобы место не перешло следующему участнику.", importance: "critical", read_at: null },
   ])),
+  http.get("*/account/notifications/feed", () => HttpResponse.json({ items: [
+    { id: "notice-event", kind: "event_reminder", title: "Событие завтра", body: "Проверьте время встречи.", importance: "normal", created_at: new Date().toISOString(), read_at: null },
+    { id: "notice-members", kind: "waitlist_promoted", title: "Место освободилось", body: "Вы стали участником.", importance: "normal", created_at: new Date().toISOString(), read_at: null },
+    { id: "notice-qa", kind: "looking_post.answer", title: "Получен ответ", body: "Автор ответил на вопрос.", importance: "normal", created_at: new Date().toISOString(), read_at: null },
+    { id: "notice-moderation", kind: "event_moderation_hidden", title: "Событие временно скрыто", body: "Решение можно обжаловать.", importance: "critical", created_at: new Date().toISOString(), read_at: null },
+    { id: "notice-restriction", kind: "profile_restriction", title: "Ограничение профиля", body: "Проверьте решение модерации.", importance: "critical", created_at: new Date().toISOString(), read_at: null },
+    { id: "notice-fallback", kind: "future_kind", title: "Новое уведомление", body: "Неизвестный будущий тип.", importance: "normal", created_at: new Date().toISOString(), read_at: null },
+  ], unread_count: 6 })),
   http.get("*/geo/reverse", () =>
     HttpResponse.json({
       display_name: `${faker.location.street()}, Махачкала, Республика Дагестан`,

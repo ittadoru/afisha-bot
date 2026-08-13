@@ -61,6 +61,7 @@ events = Table(
     Column("resubmissions_used", SmallInteger, nullable=False),
     Column("cancellation_reason_code", String(64)),
     Column("cancelled_at", DateTime(timezone=True)),
+    Column("moderation_deleted_at", DateTime(timezone=True)),
     Column("chat_enabled", Boolean, nullable=False),
     Column("version", Integer, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
