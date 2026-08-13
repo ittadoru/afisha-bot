@@ -80,7 +80,8 @@ body:has(.admin-layout), body:has(.admin-login-page), body:has(.admin-status) { 
 .admin-evidence-card.message { width: min(82%, 480px); margin-left: auto; border-color: #bcd8ce; border-radius: 16px 16px 4px 16px; background: #e7f3ef; }
 .admin-evidence-card.message > span { display: block; font-size: 15px; line-height: 1.5; }
 .admin-evidence-card footer, .admin-evidence-card figcaption { display: flex; justify-content: space-between; gap: 12px; margin-top: 14px; color: #63736d; font-size: 11px; }
-.admin-evidence-card.media img { display: block; width: 100%; max-height: 420px; border-radius: 10px; object-fit: contain; background: #e9eeec; }
+.admin-evidence-card.media img { display: block; width: 100%; height: min(38vh,360px); border-radius: 10px; object-fit: contain; background: #e9eeec; }
+.admin-evidence-empty { display: grid; place-items: center; min-height: 160px; padding: 24px; border-radius: 10px; color: #63736d; background: #e9eeec; text-align: center; }
 .admin-case-secondary { margin-top: 24px; padding: 14px 0; border-block: 1px solid #e3e9e6; }
 .admin-case-secondary summary { min-height: 44px; display: flex; align-items: center; font-weight: 800; cursor: pointer; }
 .admin-case-secondary[open] summary { margin-bottom: 14px; }

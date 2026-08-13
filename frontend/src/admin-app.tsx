@@ -559,7 +559,11 @@ function CaseModerationV2({ queue, csrf, onCsrf, renewCsrf, onExpire, onChanged 
     try {
       let result;
       try { result = await request(csrf); } catch (reason) { if (!(reason instanceof AdminApiError) || reason.status !== 401) throw reason; result = await request(await renewCsrf()); }
-      onCsrf(result.response.headers.get(csrfHeader) ?? ""); close(); await Promise.all([load(), onChanged()]);
+      onCsrf(result.response.headers.get(csrfHeader) ?? "");
+      setSelected(null);
+      setConfirmAction(null);
+      setCaseInUrl(null);
+      await Promise.all([load(), onChanged()]);
     } catch (reason) {
       if (reason instanceof AdminApiError && reason.status === 409) setError(reason.detail === "case_evidence_stale" ? "Контент изменился после жалобы. Откройте актуальную версию и создайте новое обращение." : "Обращение уже изменилось. Обновите очередь.");
       else setError("Не удалось сохранить решение.");
@@ -578,8 +582,8 @@ function CaseModerationV2({ queue, csrf, onCsrf, renewCsrf, onExpire, onChanged 
 function CaseEvidence({ detail }: { detail: ModerationCaseDetail }) {
   const value = detail.evidence.value || "Содержимое отсутствовало";
   if (["photo", "avatar", "background"].includes(detail.target.component)) {
-    const src = detail.target.subject_type === "event" ? `/api/events/${detail.target.subject_id}/photo?size=640` : detail.current_state?.public_id ? `/api/profiles/${detail.current_state.public_id}/${detail.target.component === "background" ? "background" : "avatar"}?size=256` : "";
-    return <figure className="admin-evidence-card media">{src && <img src={src} alt={`Доказательство: ${componentLabel(detail.target.component)}`} />}<figcaption><strong>{componentLabel(detail.target.component)}</strong><small>Снимок зафиксирован {new Date(detail.evidence.captured_at).toLocaleString("ru-RU")}</small></figcaption></figure>;
+    const src = detail.evidence.value ? `/api/admin/moderation/evidence/${detail.public_id}` : "";
+    return <figure className="admin-evidence-card media">{src ? <img src={src} alt={`Доказательство: ${componentLabel(detail.target.component)}`} /> : <div className="admin-evidence-empty">Изображение отсутствовало при отправке жалобы</div>}<figcaption><strong>{componentLabel(detail.target.component)}</strong><small>Снимок зафиксирован {new Date(detail.evidence.captured_at).toLocaleString("ru-RU")}</small></figcaption></figure>;
   }
   return <blockquote className={`admin-evidence-card ${detail.target.subject_type === "chat_message" ? "message" : "text"}`}><span>{value}</span><footer>{detail.evidence.context_title && <strong>{detail.evidence.context_title}</strong>}<small>Зафиксировано {new Date(detail.evidence.captured_at).toLocaleString("ru-RU")}</small></footer></blockquote>;
 }

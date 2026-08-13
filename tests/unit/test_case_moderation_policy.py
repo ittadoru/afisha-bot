@@ -129,6 +129,18 @@ def test_typed_evidence_migration_resets_prototype_cases_and_hides_chat() -> Non
     assert "hidden_by_case_id" in source
 
 
+def test_staff_evidence_uses_authenticated_immutable_media_route() -> None:
+    backend = Path("src/afishabot/adapters/admin/http.py").read_text(encoding="utf-8")
+    frontend = Path("frontend/src/admin-app.tsx").read_text(encoding="utf-8")
+    styles = Path("frontend/src/styles.css").read_text(encoding="utf-8")
+
+    assert '@router.get("/moderation/evidence/{case_public_id}")' in backend
+    assert "r.evidence_snapshot->>'value'" in backend
+    assert "/api/admin/moderation/evidence/${detail.public_id}" in frontend
+    assert "setSelected(null);" in frontend
+    assert ".report-screen { width: 100%; height: 100%; min-height: 0;" in styles
+
+
 @pytest.mark.asyncio
 async def test_report_queue_omits_null_cursor_parameter() -> None:
     engine = _QueueEngine()

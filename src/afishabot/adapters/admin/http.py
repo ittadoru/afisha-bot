@@ -563,6 +563,60 @@ async def get_moderation_case_detail(
         raise _error(404, str(error)) from error
 
 
+@router.get("/moderation/evidence/{case_public_id}")
+async def get_moderation_case_evidence(
+    case_public_id: str,
+    request: Request,
+    session_token: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
+) -> Response:
+    """Serve the immutable media referenced by a report to authenticated staff."""
+    settings, _, engine = _dependencies(request)
+    _validate_admin_request(request, settings)
+    await _require_session(engine, session_token, _required_secret(settings))
+    async with engine.connect() as connection:
+        row = (
+            (
+                await connection.execute(
+                    text("""
+                    SELECT r.evidence_snapshot->>'component' AS component,
+                           a.storage_key AS source_key,
+                           (SELECT v.storage_key FROM media.asset_variants v
+                            WHERE v.source_asset_id=a.id
+                            ORDER BY CASE
+                              WHEN v.variant_key IN ('avatar_256','background_768') THEN 0
+                              ELSE 1
+                            END,v.variant_key LIMIT 1) AS variant_key
+                    FROM trust_safety.moderation_cases c
+                    JOIN trust_safety.reports r ON r.case_id=c.id
+                    JOIN media.assets a
+                      ON a.id=CAST(r.evidence_snapshot->>'value' AS uuid)
+                    WHERE c.public_id=:case
+                      AND r.evidence_snapshot->>'component'
+                          IN ('photo','avatar','background')
+                    ORDER BY r.created_at LIMIT 1
+                    """),
+                    {"case": case_public_id},
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+    if row is None:
+        raise _error(404, "evidence_not_found")
+    media_root = Path(settings.media_root).resolve()
+    for storage_key in (row["variant_key"], row["source_key"]):
+        if not storage_key:
+            continue
+        candidate = (media_root / storage_key).resolve()
+        if candidate.is_relative_to(media_root) and candidate.is_file():
+            return FileResponse(
+                candidate,
+                media_type="image/webp",
+                headers={"Cache-Control": "private, no-store"},
+            )
+    raise _error(404, "evidence_file_not_found")
+
+
 @router.post("/moderation/cases/{case_public_id}/decision", status_code=204)
 async def post_moderation_case_decision(
     case_public_id: str,
@@ -593,7 +647,10 @@ async def post_moderation_case_decision(
         )
     except CaseModerationError as error:
         code = str(error)
-        raise _error(409 if code == "case_version_conflict" else 422, code) from error
+        raise _error(
+            409 if code in {"case_version_conflict", "case_evidence_stale"} else 422,
+            code,
+        ) from error
 
 
 @router.post("/moderation/cases/{case_public_id}/appeal-decision", status_code=204)
