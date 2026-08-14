@@ -1198,19 +1198,19 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .map-glass-active .floating-segment,
 .map-glass-active .dock-city-control {
   border-color: rgb(235 248 239 / .28);
-  background-color: rgb(54 88 68 / .15);
+  background-color: rgb(54 88 68 / .1);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .32),
     inset 0 -1px 0 rgb(15 45 35 / .12),
     0 12px 30px rgb(13 38 31 / .22);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(12px) saturate(165%);
+  backdrop-filter: blur(12px) saturate(165%);
 }
 
 /* Keep the wide top and bottom switchers light enough for the map to shimmer through. */
 .map-glass-active .floating-segment {
   border-color: rgb(235 248 239 / .2);
-  background-color: rgb(54 88 68 / .08);
+  background-color: rgb(54 88 68 / .05);
   -webkit-backdrop-filter: blur(4px) saturate(155%);
   backdrop-filter: blur(4px) saturate(155%);
 }
@@ -1222,7 +1222,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .map-glass-active .floating-round-control:hover,
 .map-glass-active .dock-city-control:hover {
-  background-color: rgb(61 101 77 / .21);
+  background-color: rgb(61 101 77 / .16);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .38),
     0 14px 34px rgb(13 38 31 / .26);
@@ -1234,27 +1234,27 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .map-glass-active .floating-segment button[aria-pressed="true"] {
   color: #fff;
-  background-color: rgb(91 125 72 / .26);
+  background-color: rgb(91 125 72 / .16);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .24),
     0 4px 14px rgb(20 48 35 / .18);
 }
 
 .map-glass-active .avatar-control {
-  background-color: rgb(23 107 135 / .4);
+  background-color: rgb(23 107 135 / .3);
 }
 
 .map-glass-active .create-fab {
   border-color: rgb(255 230 216 / .34);
-  background-color: rgb(185 104 69 / .27);
+  background-color: rgb(185 104 69 / .2);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .3),
     0 12px 30px rgb(91 42 25 / .25);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(12px) saturate(165%);
+  backdrop-filter: blur(12px) saturate(165%);
 }
 
-.map-glass-active .create-fab:hover { background-color: rgb(185 104 69 / .37); }
+.map-glass-active .create-fab:hover { background-color: rgb(185 104 69 / .3); }
 
 .map-glass-active .maplibregl-ctrl-top-right {
   top: calc(var(--mini-safe-top) + 72px) !important;
@@ -1264,12 +1264,12 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .map-glass-active .maplibregl-ctrl-group {
   border-color: rgb(235 248 239 / .28) !important;
   border-radius: 22px !important;
-  background: rgb(54 88 68 / .15) !important;
+  background: rgb(54 88 68 / .1) !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .32),
     0 12px 30px rgb(13 38 31 / .22) !important;
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(12px) saturate(165%);
+  backdrop-filter: blur(12px) saturate(165%);
 }
 
 .map-glass-active .maplibregl-ctrl-group button {
@@ -1289,12 +1289,12 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .map-glass-active .map-loading-text {
   border-color: rgb(235 248 239 / .28);
   color: #f7fff9;
-  background-color: rgb(54 88 68 / .15);
+  background-color: rgb(54 88 68 / .1);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .28),
     0 10px 26px rgb(13 38 31 / .2);
-  -webkit-backdrop-filter: blur(22px) saturate(165%);
-  backdrop-filter: blur(22px) saturate(165%);
+  -webkit-backdrop-filter: blur(12px) saturate(165%);
+  backdrop-filter: blur(12px) saturate(165%);
 }
 
 @media (prefers-reduced-transparency: reduce) {
