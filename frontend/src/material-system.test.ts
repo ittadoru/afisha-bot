@@ -23,6 +23,40 @@ describe("consumer material system", () => {
     expect(materialCss).toContain("rgb(var(--glass-milk-rgb) / .68)");
   });
 
+  it("keeps brand pigments stable without legacy smoke layers", () => {
+    expect(materialCss).toContain("--glass-primary-optical-rgb: 66 100 42;");
+    expect(materialCss).toContain("--glass-terra-optical-rgb: 175 82 43;");
+    expect(materialCss).not.toContain("glass-smoke-green");
+    expect(materialCss).not.toContain("glass-smoke-terra");
+    expect(materialCss).not.toContain("rgb(54 88 68");
+  });
+
+  it("keeps map transmission contextual and the list city control slightly denser", () => {
+    expect(materialCss).toContain("rgb(var(--glass-pasture-rgb) / .26)");
+    expect(materialCss).toContain("rgb(var(--glass-pasture-rgb) / .30)");
+    expect(materialCss).toContain("blur(12px) saturate(35%)");
+    expect(materialCss).toContain("rgb(var(--glass-map-active-optical-rgb) / .80)");
+    expect(materialCss).toMatch(/\[data-home-view="list"\] \.dock-city-control::before[^}]*\.44/s);
+    expect(materialCss).not.toMatch(/transition:[^}]*backdrop-filter/s);
+  });
+
+  it("does not stack a chrome material around the Company toolbar", () => {
+    expect(materialCss).not.toContain(".people-toolbar");
+    expect(layoutCss).toMatch(/\.people-toolbar\s*\{[^}]*border:\s*0;[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s);
+    expect(layoutCss).toContain(".people-empty-state");
+    expect(layoutCss).toContain(".people-card-open");
+    expect(layoutCss).toMatch(/\.people-card-open\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;[^}]*width:\s*100%;[^}]*min-width:\s*0;/s);
+    expect(layoutCss).toMatch(/\.people-card footer button\s*\{[^}]*min-height:\s*44px;/s);
+  });
+
+  it("lets material recipes own form and semantic surface backgrounds", () => {
+    expect(layoutCss).not.toMatch(/\.report-form select,[^{]+\{[^}]*background:/s);
+    expect(layoutCss).not.toMatch(/\.notification\.urgent\s*\{[^}]*background:/s);
+    expect(layoutCss).not.toMatch(/\.event-state\.success\s*\{[^}]*background:/s);
+    expect(layoutCss).not.toMatch(/\.selected-city\.compact\s*\{[^}]*background:/s);
+    expect(layoutCss).not.toMatch(/\.case-appeal-step\.available\s*\{[^}]*background:/s);
+  });
+
   it("provides transparency, contrast, motion, and unsupported-browser fallbacks", () => {
     expect(materialCss).toContain("@supports not ((-webkit-backdrop-filter:");
     expect(materialCss).toContain("@media (prefers-reduced-transparency: reduce)");
@@ -31,6 +65,7 @@ describe("consumer material system", () => {
     expect(materialCss).not.toContain('[data-material]:not([data-material="none"])');
     expect(materialCss).toContain('[data-ui="button"][data-variant="destructive"]');
     expect(materialCss).toContain('[data-material="overlay"]');
+    expect(materialCss.match(/\.chat-message\.organizer/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
   it("keeps portal scrims cheap and freezes map filters behind open dialogs", () => {

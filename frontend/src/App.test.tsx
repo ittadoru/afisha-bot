@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
@@ -79,20 +79,26 @@ describe("landing", () => {
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("map-glass-active");
     expect(screen.getByRole("main")).toHaveAttribute("data-canvas", "discovery");
+    expect(screen.getByRole("main")).toHaveAttribute("data-home-view", "map");
 
     fireEvent.click(screen.getByRole("button", { name: "Список" }));
     await waitFor(() => expect(screen.getByRole("main")).not.toHaveClass("map-glass-active"));
     expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
+    expect(screen.getByRole("main")).toHaveAttribute("data-home-view", "list");
     expect(screen.getByRole("group", { name: "Вид событий" })).toHaveAttribute("data-material", "chrome");
 
     fireEvent.click(screen.getByRole("button", { name: "Карта" }));
-    await waitFor(() => expect(screen.getByRole("main")).toHaveClass("map-glass-active"));
+    await waitFor(() => {
+      expect(screen.getByRole("main")).toHaveClass("map-glass-active");
+      expect(screen.getByRole("main")).toHaveAttribute("data-home-view", "map");
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Компания" }));
     await waitFor(() => {
       expect(screen.getByRole("main")).not.toHaveClass("map-glass-active");
       expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
       expect(screen.getByRole("main")).toHaveAttribute("data-canvas", "discovery");
+      expect(screen.getByRole("main")).toHaveAttribute("data-home-view", "company");
     });
   });
 
@@ -142,6 +148,10 @@ describe("landing", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
     expect(await screen.findByRole("heading", { name: "Найдите компанию" })).toBeInTheDocument();
+    const emptyHeading = await screen.findByRole("heading", { name: "В этом городе пока нет идей" });
+    expect(emptyHeading.closest(".people-screen")).toHaveClass("people-screen--empty");
+    expect(emptyHeading.closest(".people-empty-state")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Создать идею" })).toHaveAttribute("data-variant", "default");
 
     fireEvent.click(screen.getByRole("button", { name: "Создать объявление" }));
     expect(await screen.findByRole("heading", { name: "Новая идея" })).toBeInTheDocument();
@@ -193,8 +203,21 @@ describe("landing", () => {
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
+    const companyHeading = await screen.findByRole("heading", { name: "Найдите компанию" });
+    expect(companyHeading.closest(".people-screen")).toHaveClass("people-screen--loading");
+    expect(companyHeading.closest(".people-screen")?.querySelector(".people-list-scroll")).toHaveClass("people-list-scroll--state", "people-list-scroll--loading");
     fireEvent.click(await screen.findByRole("button", { name: "Старые" }));
-    expect(await screen.findByRole("heading", { name: "Свежая идея" })).toBeInTheDocument();
+    const freshHeading = await screen.findByRole("heading", { name: "Свежая идея" });
+    expect(freshHeading.closest(".people-screen")).toHaveClass("people-screen--ready");
+    const card = freshHeading.closest("article");
+    expect(card).not.toBeNull();
+    expect(card).not.toHaveAttribute("role");
+    expect(card).not.toHaveAttribute("tabindex");
+    const openAction = within(card!).getByRole("link", { name: "Открыть идею «Свежая идея». Автор Анна" });
+    const likeAction = within(card!).getByRole("button", { name: "Отметить нравится. Всего 0" });
+    expect(openAction).toHaveClass("people-card-open");
+    expect(openAction).toHaveAttribute("href", "/app/company/new");
+    expect(openAction.contains(likeAction)).toBe(false);
     expect(signals[0]?.aborted).toBe(true);
 
     act(() => resolveFirst?.(okJson({ items: [{ id: "old", title: "Устаревшая идея" }], next_cursor: null })));
@@ -219,11 +242,19 @@ describe("landing", () => {
 
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Компания" }));
-    expect(await screen.findByText("Не удалось загрузить идеи")).toBeInTheDocument();
+    const errorMessage = await screen.findByText("Не удалось загрузить идеи");
+    expect(errorMessage.closest(".people-screen")).toHaveClass("people-screen--error");
+    expect(errorMessage.closest(".people-screen")?.querySelector(".people-list-scroll")).toHaveClass("people-list-scroll--state", "people-list-scroll--error");
     expect(lookingCalls).toBe(1);
 
-    fireEvent.click(screen.getByRole("button", { name: "Повторить" }));
-    expect(await screen.findByText("В этом городе пока нет идей")).toBeInTheDocument();
+    const retry = screen.getByRole("button", { name: "Повторить" });
+    expect(retry).toHaveAttribute("data-variant", "outline");
+    fireEvent.click(retry);
+    const emptyHeading = await screen.findByRole("heading", { name: "В этом городе пока нет идей" });
+    expect(emptyHeading.closest(".people-screen")).toHaveClass("people-screen--empty");
+    expect(emptyHeading.closest(".people-screen")?.querySelector(".people-list-scroll")).toHaveClass("people-list-scroll--state", "people-list-scroll--empty");
+    expect(emptyHeading.closest(".people-empty-state")).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Создать идею" })).toHaveAttribute("data-variant", "default");
     expect(lookingCalls).toBe(2);
   });
 

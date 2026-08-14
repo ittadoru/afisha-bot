@@ -95,6 +95,7 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const caspianColor = getComputedStyle(containerRef.current).getPropertyValue("--caspian").trim() || "#176B87";
     const bounds = city.map_bounds
       ? [[city.map_bounds.west, city.map_bounds.south], [city.map_bounds.east, city.map_bounds.north]] as [[number, number], [number, number]]
       : undefined;
@@ -185,8 +186,8 @@ export function EventMap({ onBack, onOpenPhoto, embedded = false, city = DEFAULT
       }
       if (city.allowed_area) {
         map.addSource("service-area", { type: "geojson", data: city.allowed_area as never });
-        map.addLayer({ id: "service-area-fill", type: "fill", source: "service-area", paint: { "fill-color": "#08786c", "fill-opacity": 0.04 } });
-        map.addLayer({ id: "service-area-line", type: "line", source: "service-area", paint: { "line-color": "#08786c", "line-width": 1.5, "line-opacity": 0.75 } });
+        map.addLayer({ id: "service-area-fill", type: "fill", source: "service-area", paint: { "fill-color": caspianColor, "fill-opacity": 0.04 } });
+        map.addLayer({ id: "service-area-line", type: "line", source: "service-area", paint: { "line-color": caspianColor, "line-width": 1.5, "line-opacity": 0.75 } });
       }
       if (selecting) {
         updateAddress();

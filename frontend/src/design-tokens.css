@@ -1,0 +1,20 @@
+/*
+ * Canonical consumer brand primitives.
+ * Keep channel tokens as the single source so translucent materials can reuse
+ * the same colors without introducing parallel palette values.
+ */
+
+:root {
+  --brand-caspian-rgb: 23 107 135;
+  --brand-sand-rgb: 232 215 181;
+  --brand-pasture-rgb: 96 124 74;
+  --brand-terracotta-rgb: 185 104 69;
+  --brand-milk-rgb: 247 243 234;
+  --brand-shadow-rgb: 55 49 36;
+
+  --caspian: rgb(var(--brand-caspian-rgb));
+  --sand: rgb(var(--brand-sand-rgb));
+  --pasture: rgb(var(--brand-pasture-rgb));
+  --terracotta: rgb(var(--brand-terracotta-rgb));
+  --milk: rgb(var(--brand-milk-rgb));
+}

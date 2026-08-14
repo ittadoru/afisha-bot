@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import App from "@/App";
 import "@fontsource-variable/manrope";
+import "@/design-tokens.css";
 import "@/styles.css";
 import "@/material-system.css";
 
@@ -17,7 +18,7 @@ function initializeTelegramMiniApp(): void {
   const applyTheme = () => {
     document.documentElement.dataset.theme = "light";
     document.documentElement.style.colorScheme = "light";
-    const background = "#f7f3e8";
+    const background = "#F7F3EA";
     webApp?.setHeaderColor?.(background);
     webApp?.setBackgroundColor?.(background);
   };

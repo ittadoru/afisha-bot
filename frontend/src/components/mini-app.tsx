@@ -351,8 +351,16 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
         ? "account"
         : "discovery";
 
+  const homeView = !choosingCity && !selectedEventId && !selectedLookingPostId
+    ? section === "events"
+      ? eventsMode
+      : section === "people"
+        ? "company"
+        : undefined
+    : undefined;
+
   return (
-    <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}${!choosingCity && section === "events" && eventsMode === "map" && !selectedEventId ? " map-glass-active" : ""}`} data-canvas={canvas}>
+    <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}${!choosingCity && section === "events" && eventsMode === "map" && !selectedEventId ? " map-glass-active" : ""}`} data-canvas={canvas} data-home-view={homeView}>
       {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} loading={catalogLoading} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} required={profile.selected_city_id == null} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving && profile.selected_city_id != null) setChoosingCity(false); }} /> : selectedEventId || selectedLookingPostId ? (
         <div className="mini-content page-mode">
           {selectedEventId
@@ -514,7 +522,37 @@ function PeopleList({ city, csrfToken, onCreate, onOpen }: { city: MapCity | nul
   useEffect(() => { void load(); return () => requestRef.current?.controller.abort(); }, [load]);
   const like = async (post: LookingPost) => { if (likeBusy || post.is_author || post.status !== "active") return; setLikeBusy(post.id); const r = await fetch(`${appConfig.apiBaseUrl}/looking-posts/${post.id}/like`, { method: post.viewer_liked ? "DELETE" : "PUT", credentials: "include", headers: { "X-Afisha-CSRF": csrfToken } }); setLikeBusy(null); if (r.ok) void load(); };
   const statusText = (post: LookingPost) => post.status === "active" ? "Активна" : post.status === "expired" ? "Срок публикации истёк" : "Скрыта модерацией";
-  return <section className="people-screen" aria-label="Компания"><div className="people-toolbar"><div className="section-heading"><h1>Найдите компанию</h1></div><div className="view-switch people-sort" role="group" aria-label="Сортировка"><button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button><button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button><button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button></div></div><div className="people-list-scroll scroll-focus-container">{failed ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : items === null ? <LoadingScreen variant="section" /> : items.length ? <>{items.map((post) => <article className="people-card" key={post.id} role="button" tabIndex={0} aria-label={`${post.title}. Автор ${post.author.display_name}`} onClick={() => onOpen(post.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onOpen(post.id); } }}><UserAvatar name={post.author.display_name} thumbnailUrl={post.author.avatar_thumbnail_url} fallbackUrl={post.author.avatar_url} size={38} /><header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header><h2>{post.title}</h2><p>{post.body}</p><small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small><footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={(event) => { event.stopPropagation(); void like(post); }} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer></article>)}{nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}{moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}</> : <CompactListState title="В этом городе пока нет идей" action="Создать идею" onAction={onCreate} />}</div></section>;
+  const viewState = failed ? "error" : items === null ? "loading" : items.length ? "ready" : "empty";
+
+  return <section className={`people-screen people-screen--${viewState}`} aria-labelledby="people-heading">
+    <div className="people-toolbar">
+      <div className="section-heading"><h1 id="people-heading">Найдите компанию</h1></div>
+      <div className="view-switch people-sort" role="group" aria-label="Сортировка">
+        <button type="button" aria-pressed={sort === "new"} onClick={() => setSort("new")}><Clock3 aria-hidden="true" />Новые</button>
+        <button type="button" aria-pressed={sort === "old"} onClick={() => setSort("old")}><History aria-hidden="true" />Старые</button>
+        <button type="button" aria-pressed={sort === "popular"} onClick={() => setSort("popular")}><TrendingUp aria-hidden="true" />Популярные</button>
+      </div>
+    </div>
+    <div className={`people-list-scroll scroll-focus-container people-list-scroll--${viewState}${viewState === "ready" ? "" : " people-list-scroll--state"}`} aria-busy={viewState === "loading"}>
+      {viewState === "error" ? <CompactListState title="Не удалось загрузить идеи" action="Повторить" onAction={() => void load()} /> : viewState === "loading" ? <LoadingScreen variant="section" /> : viewState === "ready" ? <>
+        {items?.map((post) => <article className="people-card" key={post.id}>
+          <a className="people-card-open" href={`/app/company/${post.id}`} aria-label={`Открыть идею «${post.title}». Автор ${post.author.display_name}`} onClick={(event) => { event.preventDefault(); onOpen(post.id); }}>
+            <UserAvatar name={post.author.display_name} thumbnailUrl={post.author.avatar_thumbnail_url} fallbackUrl={post.author.avatar_url} size={38} />
+            <header><div><strong>{post.author.display_name}</strong><small>{new Date(post.created_at).toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" })}</small></div><span className="category-chip">{post.category}</span></header>
+            <h2>{post.title}</h2>
+            <p>{post.body}</p>
+            <small className="idea-status"><span aria-hidden="true">●</span> {statusText(post)}</small>
+          </a>
+          <footer><button type="button" aria-label={`${post.viewer_liked ? "Убрать отметку нравится" : "Отметить нравится"}. Всего ${post.like_count}`} disabled={Boolean(likeBusy) || post.is_author || post.status !== "active"} onClick={() => void like(post)} aria-pressed={post.viewer_liked}><Heart aria-hidden="true" /> {post.like_count}</button><span><MessageCircleQuestion aria-hidden="true" /> Вопросы и ответы · {post.question_count}</span></footer>
+        </article>)}
+        {nextCursor && <Button variant="outline" disabled={loadingMore} onClick={() => void load(true)}>{loadingMore ? "Загружаем…" : "Показать ещё"}</Button>}
+        {moreFailed && <p className="form-error">Не удалось загрузить ещё. Нажмите «Показать ещё», чтобы повторить.</p>}
+      </> : <section className="people-empty-state" aria-labelledby="people-empty-title">
+        <h2 id="people-empty-title" aria-live="polite">В этом городе пока нет идей</h2>
+        <Button onClick={onCreate}>Создать идею</Button>
+      </section>}
+    </div>
+  </section>;
 }
 
 function CompactListState({ title, action, onAction }: { title: string; action: string; onAction: () => void }) {
