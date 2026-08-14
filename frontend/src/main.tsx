@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import App from "@/App";
 import "@fontsource-variable/manrope";
 import "@/styles.css";
+import "@/material-system.css";
 
 if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "true" && !window.Telegram) {
   window.Telegram = { WebApp: { initData: "mock-telegram-init-data", ready: () => undefined, expand: () => undefined } };
@@ -12,6 +13,7 @@ if (import.meta.env.DEV && import.meta.env.VITE_USE_MOCKS === "true" && !window.
 function initializeTelegramMiniApp(): void {
   const webApp = window.Telegram?.WebApp;
   document.documentElement.dataset.miniApp = String(window.location.pathname.startsWith("/app"));
+  document.documentElement.dataset.uiScope = window.location.hostname === "admin.podvval.xyz" ? "admin" : "consumer";
   const applyTheme = () => {
     document.documentElement.dataset.theme = "light";
     document.documentElement.style.colorScheme = "light";

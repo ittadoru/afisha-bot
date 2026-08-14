@@ -11,11 +11,16 @@ export const SheetClose = Dialog.Close;
 export function SheetContent({ className, children, ...props }: ComponentProps<typeof Dialog.Content>) {
   return (
     <Dialog.Portal>
-      <Dialog.Overlay className="sheet-overlay" />
-      <Dialog.Content className={cn("sheet-content", className)} {...props}>
-        <span className="sheet-grabber" aria-hidden="true" />
+      <Dialog.Overlay className="sheet-overlay" data-ui="sheet-overlay" data-material="scrim" />
+      <Dialog.Content
+        {...props}
+        data-ui="sheet-content"
+        data-material="overlay"
+        className={cn("sheet-content", className)}
+      >
+        <span className="sheet-grabber" data-ui="sheet-grabber" aria-hidden="true" />
         {children}
-        <Dialog.Close className="sheet-close" aria-label="Закрыть">
+        <Dialog.Close className="sheet-close" data-ui="sheet-close" data-material="control" aria-label="Закрыть">
           <X aria-hidden="true" />
         </Dialog.Close>
       </Dialog.Content>
@@ -24,9 +29,9 @@ export function SheetContent({ className, children, ...props }: ComponentProps<t
 }
 
 export function SheetTitle({ className, ...props }: ComponentProps<typeof Dialog.Title>) {
-  return <Dialog.Title className={cn("sheet-title", className)} {...props} />;
+  return <Dialog.Title {...props} data-ui="sheet-title" className={cn("sheet-title", className)} />;
 }
 
 export function SheetDescription({ className, ...props }: ComponentProps<typeof Dialog.Description>) {
-  return <Dialog.Description className={cn("sheet-description", className)} {...props} />;
+  return <Dialog.Description {...props} data-ui="sheet-description" className={cn("sheet-description", className)} />;
 }

@@ -29,5 +29,22 @@ export interface ButtonProps
 
 export function Button({ className, variant, size, asChild, ...props }: ButtonProps) {
   const Component = asChild ? Slot : "button";
-  return <Component className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+  const resolvedVariant = variant ?? "default";
+  const resolvedSize = size ?? "default";
+  const material = resolvedVariant === "ghost"
+    ? "none"
+    : resolvedVariant === "default" || resolvedVariant === "destructive"
+      ? "action"
+      : "control";
+
+  return (
+    <Component
+      {...props}
+      data-ui="button"
+      data-material={material}
+      data-variant={resolvedVariant}
+      data-size={resolvedSize}
+      className={cn(buttonVariants({ variant: resolvedVariant, size: resolvedSize }), className)}
+    />
+  );
 }

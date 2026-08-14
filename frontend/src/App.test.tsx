@@ -52,6 +52,8 @@ describe("landing", () => {
 
   it("shows the accepted headline and main action", () => {
     render(<App />);
+    expect(screen.getByRole("main")).toHaveClass("site-shell");
+    expect(screen.getByRole("main")).toHaveAttribute("data-canvas", "public");
     expect(screen.getByRole("heading", { name: /Есть куда пойти/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ехала →" })).toHaveAttribute("href", "/app");
     expect(screen.getByRole("link", { name: "Открыть карту" })).toHaveAttribute("href", "/app");
@@ -76,19 +78,21 @@ describe("landing", () => {
     expect(screen.getByRole("group", { name: "Разделы главного экрана" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("map-glass-active");
+    expect(screen.getByRole("main")).toHaveAttribute("data-canvas", "discovery");
 
     fireEvent.click(screen.getByRole("button", { name: "Список" }));
-    await waitFor(() => expect(screen.getByRole("main")).toHaveClass("list-material-active"));
-    expect(screen.getByRole("main")).not.toHaveClass("map-glass-active");
+    await waitFor(() => expect(screen.getByRole("main")).not.toHaveClass("map-glass-active"));
+    expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
+    expect(screen.getByRole("group", { name: "Вид событий" })).toHaveAttribute("data-material", "chrome");
 
     fireEvent.click(screen.getByRole("button", { name: "Карта" }));
     await waitFor(() => expect(screen.getByRole("main")).toHaveClass("map-glass-active"));
-    expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
 
     fireEvent.click(screen.getByRole("button", { name: "Компания" }));
     await waitFor(() => {
       expect(screen.getByRole("main")).not.toHaveClass("map-glass-active");
       expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
+      expect(screen.getByRole("main")).toHaveAttribute("data-canvas", "discovery");
     });
   });
 
