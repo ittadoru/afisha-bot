@@ -1197,8 +1197,8 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .map-glass-active .floating-round-control,
 .map-glass-active .floating-segment,
 .map-glass-active .dock-city-control {
-  border-color: rgb(235 248 239 / .34);
-  background-color: rgb(54 88 68 / .36);
+  border-color: rgb(235 248 239 / .28);
+  background-color: rgb(54 88 68 / .29);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .32),
     inset 0 -1px 0 rgb(15 45 35 / .12),
@@ -1214,7 +1214,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .map-glass-active .floating-round-control:hover,
 .map-glass-active .dock-city-control:hover {
-  background-color: rgb(61 101 77 / .46);
+  background-color: rgb(61 101 77 / .38);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .38),
     0 14px 34px rgb(13 38 31 / .26);
@@ -1226,19 +1226,19 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .map-glass-active .floating-segment button[aria-pressed="true"] {
   color: #fff;
-  background-color: rgb(91 125 72 / .68);
+  background-color: rgb(91 125 72 / .6);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .24),
     0 4px 14px rgb(20 48 35 / .18);
 }
 
 .map-glass-active .avatar-control {
-  background-color: rgb(23 107 135 / .48);
+  background-color: rgb(23 107 135 / .4);
 }
 
 .map-glass-active .create-fab {
-  border-color: rgb(255 230 216 / .4);
-  background-color: rgb(185 104 69 / .58);
+  border-color: rgb(255 230 216 / .34);
+  background-color: rgb(185 104 69 / .5);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .3),
     0 12px 30px rgb(91 42 25 / .25);
@@ -1246,7 +1246,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   backdrop-filter: blur(22px) saturate(165%);
 }
 
-.map-glass-active .create-fab:hover { background-color: rgb(185 104 69 / .68); }
+.map-glass-active .create-fab:hover { background-color: rgb(185 104 69 / .6); }
 
 .map-glass-active .maplibregl-ctrl-top-right {
   top: calc(var(--mini-safe-top) + 72px) !important;
@@ -1254,9 +1254,9 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 }
 
 .map-glass-active .maplibregl-ctrl-group {
-  border-color: rgb(235 248 239 / .34) !important;
+  border-color: rgb(235 248 239 / .28) !important;
   border-radius: 22px !important;
-  background: rgb(54 88 68 / .36) !important;
+  background: rgb(54 88 68 / .29) !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .32),
     0 12px 30px rgb(13 38 31 / .22) !important;
@@ -1279,9 +1279,9 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .map-glass-active .map-empty-chip,
 .map-glass-active .map-loading-text {
-  border-color: rgb(235 248 239 / .34);
+  border-color: rgb(235 248 239 / .28);
   color: #f7fff9;
-  background-color: rgb(54 88 68 / .42);
+  background-color: rgb(54 88 68 / .34);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .28),
     0 10px 26px rgb(13 38 31 / .2);
