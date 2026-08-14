@@ -39,6 +39,7 @@ beforeEach(() => {
     const url = String(input);
     if (url.endsWith("/geo/catalog")) return okJson({ cities: [city], categories: [] });
     if (url.endsWith("/account/notifications")) return okJson([]);
+    if (url.includes("/events?")) return okJson({ items: [] });
     if (url.includes("/looking-posts?")) return okJson({ items: [], next_cursor: null });
     return okJson(profile);
   }));
@@ -76,8 +77,19 @@ describe("landing", () => {
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
     expect(screen.getByRole("main")).toHaveClass("map-glass-active");
 
+    fireEvent.click(screen.getByRole("button", { name: "Список" }));
+    await waitFor(() => expect(screen.getByRole("main")).toHaveClass("list-material-active"));
+    expect(screen.getByRole("main")).not.toHaveClass("map-glass-active");
+
+    fireEvent.click(screen.getByRole("button", { name: "Карта" }));
+    await waitFor(() => expect(screen.getByRole("main")).toHaveClass("map-glass-active"));
+    expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
+
     fireEvent.click(screen.getByRole("button", { name: "Компания" }));
-    await waitFor(() => expect(screen.getByRole("main")).not.toHaveClass("map-glass-active"));
+    await waitFor(() => {
+      expect(screen.getByRole("main")).not.toHaveClass("map-glass-active");
+      expect(screen.getByRole("main")).not.toHaveClass("list-material-active");
+    });
   });
 
   it("requires a city for a profile without a saved selection and saves the first city", async () => {
