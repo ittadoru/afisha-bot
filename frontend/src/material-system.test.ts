@@ -31,12 +31,15 @@ describe("consumer material system", () => {
     expect(materialCss).not.toContain("rgb(54 88 68");
   });
 
-  it("keeps map transmission contextual and the list city control slightly denser", () => {
-    expect(materialCss).toContain("rgb(var(--glass-pasture-rgb) / .26)");
-    expect(materialCss).toContain("rgb(var(--glass-pasture-rgb) / .30)");
-    expect(materialCss).toContain("blur(12px) saturate(35%)");
+  it("keeps inactive map chrome colourless and gives list city control the dock material", () => {
+    expect(materialCss).toContain("rgb(var(--glass-milk-rgb) / .18)");
+    expect(materialCss).toContain("rgb(var(--glass-milk-rgb) / .20)");
+    expect(materialCss).toContain("blur(12px) saturate(100%)");
+    expect(materialCss).not.toMatch(/\.map-glass-active \.floating-segment\s*\{[^}]*glass-pasture/s);
+    expect(materialCss).not.toMatch(/\.maplibregl-ctrl-group\s*\{[^}]*glass-pasture/s);
     expect(materialCss).toContain("rgb(var(--glass-map-active-optical-rgb) / .80)");
-    expect(materialCss).toMatch(/\[data-home-view="list"\] \.dock-city-control::before[^}]*\.44/s);
+    expect(materialCss).toContain('.mini-app:not(.map-glass-active):not([data-home-view="list"]) .dock-city-control');
+    expect(materialCss).not.toMatch(/\[data-home-view="list"\] \.dock-city-control::before/);
     expect(materialCss).not.toMatch(/transition:[^}]*backdrop-filter/s);
   });
 

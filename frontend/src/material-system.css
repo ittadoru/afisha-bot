@@ -553,8 +553,10 @@ html[data-ui-scope="consumer"][data-mini-app="true"]:has(
   backdrop-filter: blur(12px) saturate(128%);
 }
 
-/* Small round controls keep the optical edges but do not each allocate a blur layer. */
-.mini-app:not(.map-glass-active) :is(.floating-round-control, .dock-city-control, .create-fab) {
+/* Small round controls keep the optical edges without allocating a blur layer.
+   The list city control is navigation chrome and intentionally matches its dock. */
+.mini-app:not(.map-glass-active) :is(.floating-round-control, .create-fab),
+.mini-app:not(.map-glass-active):not([data-home-view="list"]) .dock-city-control {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -643,29 +645,27 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
   border-bottom-color: rgb(var(--glass-ink-rgb) / .09);
 }
 
-/* Map keeps the lightest live material in the system. */
-.mini-app.map-glass-active :is(.floating-round-control, .floating-segment, .dock-city-control) {
-  border-color: rgb(235 248 239 / .28);
+/* Map chrome is intentionally colourless: selection carries the brand pigment. */
+.mini-app.map-glass-active :is(.floating-round-control:not(.avatar-control), .floating-segment, .dock-city-control) {
+  border-color: rgb(255 255 255 / .30);
   background:
     linear-gradient(145deg, rgb(255 255 255 / .11), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .30), rgb(var(--glass-pasture-rgb) / .30)),
-    rgb(var(--glass-milk-rgb) / .18);
+    rgb(var(--glass-milk-rgb) / .20);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .34),
-    inset 0 -1px 0 rgb(15 45 35 / .12),
+    inset 0 -1px 0 rgb(var(--glass-shadow-rgb) / .12),
     0 12px 30px rgb(var(--glass-shadow-rgb) / .20);
-  -webkit-backdrop-filter: blur(12px) saturate(35%);
-  backdrop-filter: blur(12px) saturate(35%);
+  -webkit-backdrop-filter: blur(12px) saturate(100%);
+  backdrop-filter: blur(12px) saturate(100%);
 }
 
 .mini-app.map-glass-active .floating-segment {
-  border-color: rgb(235 248 239 / .20);
+  border-color: rgb(255 255 255 / .24);
   background:
     linear-gradient(145deg, rgb(255 255 255 / .08), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .26), rgb(var(--glass-pasture-rgb) / .26)),
-    rgb(var(--glass-milk-rgb) / .16);
-  -webkit-backdrop-filter: blur(4px) saturate(35%);
-  backdrop-filter: blur(4px) saturate(35%);
+    rgb(var(--glass-milk-rgb) / .18);
+  -webkit-backdrop-filter: blur(4px) saturate(100%);
+  backdrop-filter: blur(4px) saturate(100%);
 }
 
 .mini-app.map-glass-active :is(.floating-round-control:not(.avatar-control), .dock-city-control) {
@@ -709,18 +709,17 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
 }
 
 .mini-app.map-glass-active .maplibregl-ctrl-group {
-  border-color: rgb(235 248 239 / .28) !important;
+  border-color: rgb(255 255 255 / .30) !important;
   border-radius: 22px !important;
   background:
     linear-gradient(145deg, rgb(255 255 255 / .11), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .30), rgb(var(--glass-pasture-rgb) / .30)),
-    rgb(var(--glass-milk-rgb) / .18) !important;
+    rgb(var(--glass-milk-rgb) / .20) !important;
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .34),
-    inset 0 -1px 0 rgb(15 45 35 / .12),
+    inset 0 -1px 0 rgb(var(--glass-shadow-rgb) / .12),
     0 12px 30px rgb(var(--glass-shadow-rgb) / .20) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(35%);
-  backdrop-filter: blur(12px) saturate(35%);
+  -webkit-backdrop-filter: blur(12px) saturate(100%);
+  backdrop-filter: blur(12px) saturate(100%);
 }
 
 .mini-app.map-glass-active .maplibregl-ctrl-group button {
@@ -728,7 +727,7 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
 }
 
 .mini-app.map-glass-active .maplibregl-ctrl-group button + button {
-  border-top-color: rgb(235 248 239 / .24) !important;
+  border-top-color: rgb(255 255 255 / .26) !important;
 }
 
 .mini-app.map-glass-active .maplibregl-ctrl-icon {
@@ -737,18 +736,17 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
 }
 
 .mini-app.map-glass-active :is(.map-empty-chip, .map-loading-text) {
-  border-color: rgb(235 248 239 / .28);
+  border-color: rgb(255 255 255 / .30);
   color: var(--foreground);
   background:
     linear-gradient(145deg, rgb(255 255 255 / .11), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .30), rgb(var(--glass-pasture-rgb) / .30)),
-    rgb(var(--glass-milk-rgb) / .18);
+    rgb(var(--glass-milk-rgb) / .20);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .30),
     0 10px 26px rgb(var(--glass-shadow-rgb) / .18);
   text-shadow: 0 1px 1px rgb(255 255 255 / .76);
-  -webkit-backdrop-filter: blur(12px) saturate(35%);
-  backdrop-filter: blur(12px) saturate(35%);
+  -webkit-backdrop-filter: blur(12px) saturate(100%);
+  backdrop-filter: blur(12px) saturate(100%);
 }
 
 /* Persistent home chrome cross-fades its material without changing geometry. */
@@ -786,22 +784,14 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
   opacity: 0;
   background:
     linear-gradient(145deg, rgb(255 255 255 / .11), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .30), rgb(var(--glass-pasture-rgb) / .30)),
-    rgb(var(--glass-milk-rgb) / .18);
+    rgb(var(--glass-milk-rgb) / .20);
 }
 
 .mini-app .floating-segment::after {
   opacity: 0;
   background:
     linear-gradient(145deg, rgb(255 255 255 / .08), transparent 42%),
-    linear-gradient(rgb(var(--glass-pasture-rgb) / .26), rgb(var(--glass-pasture-rgb) / .26)),
-    rgb(var(--glass-milk-rgb) / .16);
-}
-
-.mini-app[data-home-view="list"] .dock-city-control::before {
-  background:
-    linear-gradient(145deg, rgb(255 255 255 / .14), transparent 42%),
-    rgb(var(--glass-milk-rgb) / .44);
+    rgb(var(--glass-milk-rgb) / .18);
 }
 
 .mini-app .create-fab::before {
