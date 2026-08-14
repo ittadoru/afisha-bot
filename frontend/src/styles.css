@@ -1333,18 +1333,18 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 /* The list uses a calmer, denser material than the map: depth without visual noise. */
 .list-material-active .home-top-bar::before {
-  background: linear-gradient(to bottom, rgb(247 243 234 / .62), rgb(247 243 234 / .18) 66%, transparent);
+  background: linear-gradient(to bottom, rgb(247 243 234 / .48), rgb(247 243 234 / .12) 66%, transparent);
 }
 
 .list-material-active .home-bottom-controls::before {
-  background: linear-gradient(to top, rgb(247 243 234 / .68), rgb(247 243 234 / .2) 68%, transparent);
+  background: linear-gradient(to top, rgb(247 243 234 / .52), rgb(247 243 234 / .14) 68%, transparent);
 }
 
 .list-material-active .floating-round-control,
 .list-material-active .floating-segment,
 .list-material-active .dock-city-control {
   border-color: rgb(255 255 255 / .86);
-  background-color: rgb(247 243 234 / .78);
+  background-color: rgb(247 243 234 / .62);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .9),
     inset 0 -1px 0 rgb(19 44 51 / .08),
@@ -1356,7 +1356,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .list-material-active .floating-round-control:hover,
 .list-material-active .dock-city-control:hover {
-  background-color: rgb(255 253 248 / .86);
+  background-color: rgb(255 253 248 / .72);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .94),
     inset 0 -1px 0 rgb(19 44 51 / .08),
@@ -1365,7 +1365,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 }
 
 .list-material-active .floating-segment button[aria-pressed="true"] {
-  background-color: rgb(96 124 74 / .84);
+  background-color: rgb(96 124 74 / .68);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .28),
     inset 0 -1px 0 rgb(27 55 37 / .14),
@@ -1374,7 +1374,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 .list-material-active .create-fab {
   border-color: rgb(255 229 215 / .72);
-  background-color: rgb(185 104 69 / .88);
+  background-color: rgb(185 104 69 / .72);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .34),
     inset 0 -1px 0 rgb(91 42 25 / .14),
@@ -1384,7 +1384,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   backdrop-filter: blur(14px) saturate(118%);
 }
 
-.list-material-active .create-fab:hover { background-color: rgb(170 93 61 / .92); }
+.list-material-active .create-fab:hover { background-color: rgb(170 93 61 / .82); }
 
 @media (prefers-reduced-transparency: reduce) {
   .list-material-active .floating-round-control,
@@ -1443,9 +1443,9 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .home-events-list { width: min(760px, 100%); padding-inline: 16px; }
 .list-material-active .home-events-list {
   background:
-    radial-gradient(circle at 8% 12%, rgb(96 124 74 / .04), transparent 34%),
-    radial-gradient(circle at 94% 48%, rgb(23 107 135 / .025), transparent 31%),
-    radial-gradient(circle at 24% 92%, rgb(185 104 69 / .02), transparent 28%),
+    radial-gradient(circle at 8% 12%, rgb(96 124 74 / .06), transparent 34%),
+    radial-gradient(circle at 94% 48%, rgb(23 107 135 / .04), transparent 31%),
+    radial-gradient(circle at 24% 92%, rgb(185 104 69 / .035), transparent 28%),
     var(--background);
 }
 .home-events-list > h1 { margin: 4px 0 18px; font-family: inherit; font-size: clamp(2.25rem, 9vw, 3.2rem); font-weight: 760; line-height: 1; letter-spacing: -.05em; }
@@ -1490,7 +1490,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .event-date-group > div { overflow: hidden; border: 1px solid var(--border); border-radius: 20px; background: var(--card); }
 .list-material-active .event-date-group > div {
   border-color: rgb(255 255 255 / .8);
-  background: rgb(255 253 248 / .88);
+  background: rgb(255 253 248 / .72);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .92),
     inset 0 -1px 0 rgb(19 44 51 / .06),
