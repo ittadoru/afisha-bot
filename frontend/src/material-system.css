@@ -122,8 +122,7 @@
   border-color: rgb(255 255 255 / .44);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / .62),
-    inset 0 -1px 0 rgb(var(--glass-ink-rgb) / .09),
-    0 8px 18px rgb(var(--glass-shadow-rgb) / .055);
+    inset 0 -1px 0 rgb(var(--glass-ink-rgb) / .09);
 }
 
 :where(.mini-app, .site-shell, .public-event-page) [data-material="content"],
@@ -143,7 +142,6 @@
   .visibility-options,
   .locked-event-field,
   .management-time,
-  .profile-media-editor,
   .city-chooser-list,
   .onboarding-city-list
 ) {
@@ -227,7 +225,6 @@
   .submit-success-icon,
   .report-success-icon,
   .chat-day,
-  .idea-status,
   .municipal-label
 ) {
   border-color: rgb(255 255 255 / .48);
@@ -336,7 +333,6 @@ html[data-ui-scope="consumer"][data-mini-app="true"]:has(
   .capacity-toggle,
   .address-confirmation,
   .management-time,
-  .profile-media-editor,
   .city-chooser-list,
   .onboarding-city-list,
   .chat-composer,
@@ -569,6 +565,7 @@ html[data-ui-scope="consumer"][data-mini-app="true"]:has(
     [data-material="text-heavy"],
     .qa-card,
     .roster-row,
+    .profile-event,
     .public-event-card
   )
   :is(
@@ -583,6 +580,13 @@ html[data-ui-scope="consumer"][data-mini-app="true"]:has(
   ) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
+}
+
+/* A control inside a card keeps its edge, not a second floating shadow. */
+.mini-app .profile-event [data-ui="button"] {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / .68),
+    inset 0 -1px 0 rgb(var(--glass-ink-rgb) / .08);
 }
 
 .mini-app :is(
@@ -607,7 +611,7 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
   backdrop-filter: none;
 }
 
-.mini-app .people-card :is(.category-chip, .idea-status) {
+.mini-app .people-card .category-chip {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
@@ -907,7 +911,7 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
 
   :where(.mini-app, .site-shell, .public-event-page) [data-material="content"],
   :where(.mini-app, .site-shell, .public-event-page) [data-material="text-heavy"],
-  .mini-app :is(.event-date-group > div, .event-facts, .organizer-link, .municipal-organizer, .profile-stats, .profile-settings-group, .report-targets, .report-case-number, .location-status, .event-preview, .capacity-toggle, .address-confirmation, .visibility-options, .locked-event-field, .management-time, .profile-media-editor, .city-chooser-list, .onboarding-city-list) {
+  .mini-app :is(.event-date-group > div, .event-facts, .organizer-link, .municipal-organizer, .profile-stats, .profile-settings-group, .report-targets, .report-case-number, .location-status, .event-preview, .capacity-toggle, .address-confirmation, .visibility-options, .locked-event-field, .management-time, .city-chooser-list, .onboarding-city-list) {
     background: rgb(var(--glass-card-rgb) / .92);
   }
 
@@ -965,7 +969,7 @@ html[data-ui-scope="consumer"][data-mini-app="true"] :is(.sheet-content, .alert-
   :where(.mini-app, .site-shell, .public-event-page) [data-material="control"],
   :where(.mini-app, .site-shell, .public-event-page) [data-material="text-heavy"],
   :where(.mini-app, .site-shell, .public-event-page) [data-material="micro"],
-  .mini-app :is(.event-date-group > div, .event-facts, .organizer-link, .municipal-organizer, .profile-stats, .profile-settings-group, .report-targets, .report-case-number, .location-status, .event-preview, .capacity-toggle, .address-confirmation, .visibility-options, .locked-event-field, .management-time, .profile-media-editor, .city-chooser-list, .people-card, .notification, .qa-card, .chat-message, .case-card, .case-appeal-readonly, .profile-event, .roster-row, .profile-bio, input, textarea, select) {
+  .mini-app :is(.event-date-group > div, .event-facts, .organizer-link, .municipal-organizer, .profile-stats, .profile-settings-group, .report-targets, .report-case-number, .location-status, .event-preview, .capacity-toggle, .address-confirmation, .visibility-options, .locked-event-field, .management-time, .city-chooser-list, .people-card, .notification, .qa-card, .chat-message, .case-card, .case-appeal-readonly, .profile-event, .roster-row, .profile-bio, input, textarea, select) {
     background: rgb(var(--glass-card-rgb));
   }
 

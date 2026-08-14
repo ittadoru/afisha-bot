@@ -831,7 +831,7 @@ button:focus-visible, [role="button"]:focus-visible, a:focus-visible, input:focu
 .mini-content { width: 100%; height: 100%; min-height: 0; }
 .mini-content.home-mode { position: absolute; inset: 0; overflow: hidden; }
 .mini-content.home-mode:not(.map-mode):not(.people-mode) { overflow-y: auto; }
-.mini-content.subpage-mode { padding-top: calc(var(--mini-safe-top) + 62px); background: var(--background); }
+.mini-content.subpage-mode { padding-top: var(--subpage-header-height); background: var(--background); }
 
 .home-top-bar {
   position: absolute;
@@ -943,7 +943,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr) 48px;
   align-items: end;
-  min-height: calc(var(--mini-safe-top) + 62px);
+  min-height: var(--subpage-header-height);
   padding: var(--mini-safe-top) 14px 7px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
   background: var(--surface-overlay);
@@ -1035,7 +1035,7 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 .idea-status-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .qa-block-reason { grid-column: 1 / -1; margin: 0; color: var(--muted-foreground); font-size: .78rem; }
 .qa-composer :disabled { cursor: not-allowed; opacity: .45; }
-.cases-screen, .case-detail, .report-screen { padding-top: calc(var(--mini-safe-top) + 88px); padding-bottom: calc(var(--tg-safe-bottom, 0px) + 28px); }
+.cases-screen, .case-detail, .report-screen { padding-top: calc(var(--mini-safe-top) + 84px); padding-bottom: calc(var(--tg-safe-bottom, 0px) + 28px); }
 .case-card { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; width: 100%; min-height: 84px; margin-bottom: 10px; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius-card); color: var(--foreground); background: var(--card); text-align: left; }
 .case-card span, .case-card small { grid-column: 1; color: var(--muted-foreground); }
 .case-card > svg { grid-column: 2; grid-row: 1 / 4; }
@@ -1422,9 +1422,12 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
 
 /* Adaptive Mini App forms and profile surfaces */
 .mini-app {
-  --form-gutter: 20px;
+  --form-gutter: 16px;
   --form-control-height: 54px;
   --form-content-width: 680px;
+  --subpage-gutter: 16px;
+  --subpage-content-gap: 22px;
+  --subpage-header-height: calc(var(--mini-safe-top) + 62px);
 }
 
 .mini-content.page-mode > section.adaptive-form-page {
@@ -1457,6 +1460,10 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   margin: 0;
   padding: clamp(18px, 4vw, 28px) var(--form-gutter) 30px;
   gap: clamp(12px, 2.8vw, 16px);
+}
+
+.mini-content.subpage-mode > .adaptive-form-page .demo-form {
+  padding-top: var(--subpage-content-gap);
 }
 
 .adaptive-form-page .demo-form h1,
@@ -1689,11 +1696,16 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   pointer-events: none;
 }
 
-/* Restore gutters on ordinary subpages after the full-width shell rules. */
+/* One page gutter: ordinary feeds must not add an outer margin around their own padding. */
 .mini-content.subpage-mode > .feed:not(.people-screen):not(.home-events-list),
 .mini-content.subpage-mode > .profile-editor-screen {
-  width: min(var(--form-content-width), calc(100% - 40px));
+  width: min(var(--form-content-width), 100%);
   margin-inline: auto;
+}
+
+.mini-content.subpage-mode > .feed:not(.people-screen):not(.home-events-list) {
+  padding-top: var(--subpage-content-gap);
+  padding-inline: var(--subpage-gutter);
 }
 
 .mini-content.subpage-mode > .adaptive-form-page.profile-editor-screen {
@@ -1724,9 +1736,6 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
     padding-inline: 14px;
   }
 
-  .mini-content.subpage-mode > .feed:not(.people-screen):not(.home-events-list) {
-    width: min(var(--form-content-width), calc(100% - 32px));
-  }
 }
 
 @media (min-width: 600px) {
@@ -1759,9 +1768,6 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
     min-height: 144px;
   }
 
-  .mini-content.subpage-mode > .feed:not(.people-screen):not(.home-events-list) {
-    width: min(var(--form-content-width), calc(100% - 48px));
-  }
 }
 
 /* 2026-08 product QA: final mobile overrides for dense profile, cases, detail and chat flows. */
