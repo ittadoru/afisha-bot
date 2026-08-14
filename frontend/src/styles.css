@@ -1207,6 +1207,14 @@ html[data-keyboard-open="true"] .home-bottom-controls { display: none; }
   backdrop-filter: blur(22px) saturate(165%);
 }
 
+/* Keep the wide top and bottom switchers light enough for the map to shimmer through. */
+.map-glass-active .floating-segment {
+  border-color: rgb(235 248 239 / .2);
+  background-color: rgb(54 88 68 / .08);
+  -webkit-backdrop-filter: blur(12px) saturate(155%);
+  backdrop-filter: blur(12px) saturate(155%);
+}
+
 .map-glass-active .floating-round-control,
 .map-glass-active .dock-city-control {
   color: #f7fff9;
