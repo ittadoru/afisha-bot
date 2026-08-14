@@ -344,7 +344,7 @@ export function MiniApp({ profile, csrfToken, onProfileUpdate, onLogout }: { pro
   }
 
   return (
-    <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}`}>
+    <main className={`mini-app${choosingCity ? " city-chooser-active" : ""}${!choosingCity && section === "events" && eventsMode === "map" && !selectedEventId ? " map-glass-active" : ""}`}>
       {choosingCity ? <CityChooser cities={catalog?.cities ?? []} selected={selectedCity} loading={catalogLoading} failed={catalogFailed} saving={citySaving} savingCityId={savingCityId} error={cityError} required={profile.selected_city_id == null} onSelect={(city) => void saveCity(city)} onClose={() => { if (!citySaving && profile.selected_city_id != null) setChoosingCity(false); }} /> : selectedEventId || selectedLookingPostId ? (
         <div className="mini-content page-mode">
           {selectedEventId

@@ -74,6 +74,10 @@ describe("landing", () => {
     expect(vi.mocked(fetch).mock.calls.some(([input]) => String(input).endsWith("/account/profile/city"))).toBe(false);
     expect(screen.getByRole("group", { name: "Разделы главного экрана" })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Основные разделы" })).not.toBeInTheDocument();
+    expect(screen.getByRole("main")).toHaveClass("map-glass-active");
+
+    fireEvent.click(screen.getByRole("button", { name: "Компания" }));
+    await waitFor(() => expect(screen.getByRole("main")).not.toHaveClass("map-glass-active"));
   });
 
   it("requires a city for a profile without a saved selection and saves the first city", async () => {
